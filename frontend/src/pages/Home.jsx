@@ -102,8 +102,8 @@ const PreviewModal = ({ note, onClose, onBuy }) => {
         pdfjsLib.GlobalWorkerOptions.workerSrc = `${window.location.origin}/pdf.worker.min.mjs`;
         if (cancelRef.current) return;
 
-        const fullUrl = note.pdfUrl.startsWith('http')
-          ? note.pdfUrl : `http://localhost:5000${note.pdfUrl}`;
+        const fullUrl = note.pdfUrl?.startsWith('http')
+          ? note.pdfUrl : `${process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL.replace('/api', '') : 'http://localhost:5000'}${note.pdfUrl}`;
 
         const pdf  = await pdfjsLib.getDocument({
           url: fullUrl,
@@ -168,7 +168,7 @@ const PreviewModal = ({ note, onClose, onBuy }) => {
           <div className="flex items-center gap-2">
             {/* Download only if free or already purchased */}
             {canViewFull && (
-              <a href={`http://localhost:5000${note.pdfUrl}`} target="_blank" rel="noreferrer"
+              <a href={note.pdfUrl?.startsWith('http') ? note.pdfUrl : `${process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL.replace('/api', '') : 'http://localhost:5000'}${note.pdfUrl}`} target="_blank" rel="noreferrer"
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-700 rounded-lg text-xs text-white font-medium transition">
                 <FiDownload /> {isPaid ? 'Download' : 'Open Full'}
               </a>
@@ -190,7 +190,7 @@ const PreviewModal = ({ note, onClose, onBuy }) => {
         ) : canViewFull ? (
           /* Full PDF for free notes or purchased paid notes */
           <iframe
-            src={`http://localhost:5000${note.pdfUrl}#toolbar=0&navpanes=0`}
+            src={note.pdfUrl?.startsWith('http') ? `${note.pdfUrl}#toolbar=0&navpanes=0` : `${process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL.replace('/api', '') : 'http://localhost:5000'}${note.pdfUrl}#toolbar=0&navpanes=0`}
             className="w-full bg-white"
             style={{ height: 'calc(100% - 57px)' }}
             title={note.title}
@@ -543,7 +543,7 @@ export default function Home() {
   const handlePreview = (note) => { if (note.pdfUrl) setPreviewNote(note); else alert('Preview not available'); };
   const handleBuy = (note) => {
     if (note.price === 0 && note.pdfUrl) {
-      window.open(`http://localhost:5000${note.pdfUrl}`, '_blank');
+      window.open(note.pdfUrl?.startsWith('http') ? note.pdfUrl : `${process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL.replace('/api', '') : 'http://localhost:5000'}${note.pdfUrl}`, '_blank');
     } else {
       setBuyNote(note); // ✅ Open payment modal instead of alert
     }

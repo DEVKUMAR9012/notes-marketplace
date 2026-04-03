@@ -37,9 +37,9 @@ const PDFThumbnail = ({ pdfUrl, title }) => {
         // ✅ Use local worker file (copied to public/pdf.worker.min.mjs)
         pdfjsLib.GlobalWorkerOptions.workerSrc = `${window.location.origin}/pdf.worker.min.mjs`;
 
-        const fullUrl = pdfUrl.startsWith('http')
+        const fullUrl = pdfUrl?.startsWith('http')
           ? pdfUrl
-          : `http://localhost:5000${pdfUrl}`;
+          : `${process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL.replace('/api', '') : 'http://localhost:5000'}${pdfUrl}`;
 
         const loadingTask = pdfjsLib.getDocument({
           url: fullUrl,
