@@ -79,7 +79,7 @@ const PreviewModal = ({ note, onClose, onBuy }) => {
     if (!isPaid) { setPurchaseStatus(null); return; }
     const token = localStorage.getItem('token');
     if (!token) { setPurchaseStatus(false); return; }
-    fetch(`http://localhost:5000/api/notes/${note._id}/check-purchase`, {
+    fetch(`${process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL : 'http://localhost:5000/api'}/notes/${note._id}/check-purchase`, {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(r => r.json())

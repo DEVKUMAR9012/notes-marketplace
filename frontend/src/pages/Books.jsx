@@ -77,7 +77,7 @@ const PreviewModal = ({ note, onClose, onBuy }) => {
     if (!isPaid) { setPurchaseStatus(null); return; }
     const token = localStorage.getItem('token');
     if (!token) { setPurchaseStatus(false); return; }
-    fetch(`http://localhost:5000/api/notes/${note._id}/check-purchase`, {
+    fetch(`${process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL : 'http://localhost:5000/api'}/notes/${note._id}/check-purchase`, {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(r => r.json())
@@ -99,8 +99,8 @@ const PreviewModal = ({ note, onClose, onBuy }) => {
         pdfjsLib.GlobalWorkerOptions.workerSrc = `${window.location.origin}/pdf.worker.min.mjs`;
         if (cancelRef.current) return;
 
-        const fullUrl = note.pdfUrl.startsWith('http')
-          ? note.pdfUrl : `http://localhost:5000${note.pdfUrl}`;
+        const fullUrl = note.pdfUrl?.startsWith('http')
+          ? note.pdfUrl : `${process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL.replace('/api', '') : 'http://localhost:5000'}${note.pdfUrl}`;
 
         const pdf  = await pdfjsLib.getDocument({
           url: fullUrl,
@@ -162,7 +162,7 @@ const PreviewModal = ({ note, onClose, onBuy }) => {
           </div>
           <div className="flex items-center gap-2">
             {canViewFull && (
-              <a href={`http://localhost:5000${note.pdfUrl}`} target="_blank" rel="noreferrer"
+              <a href={note.pdfUrl?.startsWith('http') ? note.pdfUrl : `${process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL.replace('/api', '') : 'http://localhost:5000'}${note.pdfUrl}`} target="_blank" rel="noreferrer"
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-700 rounded-lg text-xs text-white font-medium transition">
                 <FiDownload /> {isPaid ? 'Download' : 'Open Full'}
               </a>
@@ -181,7 +181,7 @@ const PreviewModal = ({ note, onClose, onBuy }) => {
 
         ) : canViewFull ? (
           <iframe
-            src={`http://localhost:5000${note.pdfUrl}#toolbar=0&navpanes=0`}
+            src={note.pdfUrl?.startsWith('http') ? `${note.pdfUrl}#toolbar=0&navpanes=0` : `${process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL.replace('/api', '') : 'http://localhost:5000'}${note.pdfUrl}#toolbar=0&navpanes=0`}
             className="w-full bg-white"
             style={{ height: 'calc(100% - 57px)' }}
             title={note.title}
@@ -435,7 +435,7 @@ export default function Books() {
   const handlePreview = (note) => { if (note.pdfUrl) setPreviewNote(note); else alert('Preview not available'); };
   const handleBuy = (note) => {
     if (note.price === 0 && note.pdfUrl) {
-      window.open(`http://localhost:5000${note.pdfUrl}`, '_blank');
+      window.open(note.pdfUrl?.startsWith('http') ? note.pdfUrl : `${process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL.replace('/api', '') : 'http://localhost:5000'}${note.pdfUrl}`, '_blank');
     } else {
       setBuyNote(note);
     }
