@@ -14,8 +14,8 @@ const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
     folder: 'notes-marketplace',
-    format: async (req, file) => 'pdf', // supports promises as well
-    public_id: (req, file) => `${Date.now()}-${Math.round(Math.random() * 1e9)}`,
+    resource_type: 'raw', // This is MAGIC: Bypasses Cloudinary's strict PDF blockage!
+    public_id: (req, file) => `${Date.now()}-${Math.round(Math.random() * 1e9)}.pdf`,
   },
 });
 
