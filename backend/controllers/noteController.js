@@ -119,8 +119,8 @@ exports.createNote = async (req, res) => {
       });
     }
 
-    // ✅ Handle uploaded PDF (if using multer)
-    const pdfUrl = req.file ? `/uploads/${req.file.filename}` : '';
+    // ✅ Handle uploaded PDF from Cloudinary
+    const pdfUrl = req.file ? req.file.path : '';
 
     const note = await Note.create({
       title,
@@ -145,9 +145,8 @@ exports.createNote = async (req, res) => {
     });
 
     // 🤖 Generate AI Summary async (non-blocking, after response sent)
-    if (req.file) {
-      const absolutePath = path.join(__dirname, '..', 'uploads', req.file.filename);
-      generateAISummary(absolutePath, title, subject, itemType || 'note')
+    if (pdfUrl) {
+      generateAISummary(pdfUrl, title, subject, itemType || 'note')
         .then(async (summary) => {
           if (summary) {
             await Note.findByIdAndUpdate(note._id, { aiSummary: summary });
@@ -498,13 +497,7 @@ exports.bulkGenerateAISummaries = async (req, res) => {
     let done = 0;
     for (const note of notes) {
       try {
-        let filePath = null;
-        if (note.pdfUrl) {
-          filePath = path.join(__dirname, '..', note.pdfUrl.startsWith('/') ? note.pdfUrl.slice(1) : note.pdfUrl);
-          if (!require('fs').existsSync(filePath)) filePath = null;
-        }
-
-        const summary = await generateAISummary(filePath, note.title, note.subject, note.itemType || 'note');
+        const summary = await generateAISummary(note.pdfUrl, note.title, note.subject, note.itemType || 'note');
         if (summary) {
           await Note.findByIdAndUpdate(note._id, { aiSummary: summary });
           done++;

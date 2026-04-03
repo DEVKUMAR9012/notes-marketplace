@@ -21,11 +21,24 @@ const generateAISummary = async (pdfFilePath, title, subject, itemType = 'note')
     let pdfText = null;
     try {
       const pdfParse = require('pdf-parse');
-      const buffer = fs.readFileSync(pdfFilePath);
-      const data = await pdfParse(buffer);
-      pdfText = data.text?.slice(0, 2500) || null;
+      let buffer;
+      
+      // Check if it is a remote url
+      if (pdfFilePath && pdfFilePath.startsWith('http')) {
+        const response = await fetch(pdfFilePath);
+        if (!response.ok) throw new Error(`Failed to fetch PDF: ${response.statusText}`);
+        const arrayBuffer = await response.arrayBuffer();
+        buffer = Buffer.from(arrayBuffer);
+      } else if (pdfFilePath) {
+        buffer = fs.readFileSync(pdfFilePath);
+      }
+      
+      if (buffer) {
+        const data = await pdfParse(buffer);
+        pdfText = data.text?.slice(0, 2500) || null;
+      }
     } catch (e) {
-      console.log('PDF parse not available, using metadata-only summary');
+      console.log('PDF parse not available or failed downloading, using metadata-only summary', e.message);
     }
 
     if (pdfText && pdfText.trim().length > 30) {
