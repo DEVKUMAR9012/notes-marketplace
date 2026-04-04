@@ -1,11 +1,13 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
 import { motion } from 'framer-motion';
 import { FiLogOut, FiHome, FiUpload, FiUser, FiMenu, FiX, FiShoppingCart, FiBook } from 'react-icons/fi';
 import { useState } from 'react';
 
 export default function Navbar() {
   const { logout, user } = useAuth();
+  const { cart } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -60,7 +62,18 @@ export default function Navbar() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
-                <Icon size={18} />
+                <div className="relative">
+                  <Icon size={18} />
+                  {label === 'Cart' && cart.length > 0 && (
+                    <motion.span
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="absolute -top-2 -right-2 w-4 h-4 bg-red-500 text-[10px] text-white font-bold flex items-center justify-center rounded-full shadow-lg shadow-red-500/40"
+                    >
+                      {cart.length}
+                    </motion.span>
+                  )}
+                </div>
                 <span className="text-sm font-medium">{label}</span>
               </motion.button>
             ))}
@@ -116,7 +129,14 @@ export default function Navbar() {
                     : 'text-gray-300 hover:text-white hover:bg-white/5'
                 }`}
               >
-                <Icon size={18} />
+                <div className="relative">
+                  <Icon size={18} />
+                  {label === 'Cart' && cart.length > 0 && (
+                    <span className="absolute -top-2 -right-2 w-4 h-4 bg-red-500 text-[10px] text-white font-bold flex items-center justify-center rounded-full">
+                      {cart.length}
+                    </span>
+                  )}
+                </div>
                 <span className="font-medium">{label}</span>
               </motion.button>
             ))}
