@@ -6,20 +6,31 @@ require('dotenv').config();
 
 const app = express();
 
-// ========== CORS CONFIGURATION ========== ⭐ UPDATED
+// ========== CORS CONFIGURATION ==========
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'https://notes-marketplace-rho.vercel.app'
+];
+
 const corsOptions = {
-  origin: [
-    'http://localhost:3000',
-    'http://localhost:3001',
-    'https://notes-marketplace-rho.vercel.app'  // ⭐ ADD YOUR VERCEL URL
-  ],
+  origin: (origin, callback) => {
+    // Allow requests with no origin (e.g. mobile apps, curl, Postman)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS: origin ${origin} not allowed`));
+    }
+  },
   credentials: true,
   optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 };
 
-app.use(cors(corsOptions));  // ⭐ Use configured CORS
+// Handle OPTIONS preflight requests first
+app.options('*', cors(corsOptions));
+app.use(cors(corsOptions));
 
 // ========== IMPORT ROUTES ==========
 const authRoutes = require('./routes/authRoutes');
@@ -39,6 +50,11 @@ app.use('/api/notes', noteRoutes);
 // ========== PROFILE ROUTES ==========
 const profileRoutes = require('./routes/profileRoutes');
 app.use('/api/profile', profileRoutes);
+
+// ========== HEALTH CHECK ==========
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'OK', message: 'Backend is running', timestamp: new Date().toISOString() });
+});
 
 // ========== PAYMENT ROUTES ==========
 const paymentRoutes = require('./routes/paymentRoutes');
@@ -60,4 +76,6 @@ if (!fs.existsSync('uploads')) {
 }
 
 // ========== START SERVER ==========
-app.listen(5000, () => console.log('Server running on port 5000'));
+// Use process.env.PORT so Render can assign the port dynamically
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

@@ -1,7 +1,10 @@
 import axios from 'axios';
 
-// ✅ Use environment variable with fallback
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+// ✅ CORRECTED - Remove /api from baseURL
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+//                                                ^^^^^^^^^^^^^^^^^^^^^^^^
+//                                                Sirf domain, /api nahi!
+
 const TIMEOUT = parseInt(process.env.REACT_APP_API_TIMEOUT || '10000', 10);
 
 // Create axios instance
@@ -10,7 +13,8 @@ const API = axios.create({
   timeout: TIMEOUT,
   headers: {
     'Content-Type': 'application/json'
-  }
+  },
+  withCredentials: true  // ⭐ IMPORTANT for CORS + tokens
 });
 
 // ✅ REQUEST INTERCEPTOR - Add token to headers
