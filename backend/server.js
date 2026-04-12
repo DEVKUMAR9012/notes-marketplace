@@ -6,11 +6,25 @@ require('dotenv').config();
 
 const app = express();
 
+// ========== CORS CONFIGURATION ========== ⭐ UPDATED
+const corsOptions = {
+  origin: [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'https://notes-marketplace-rho.vercel.app'  // ⭐ ADD YOUR VERCEL URL
+  ],
+  credentials: true,
+  optionsSuccessStatus: 200,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+};
+
+app.use(cors(corsOptions));  // ⭐ Use configured CORS
+
 // ========== IMPORT ROUTES ==========
-const authRoutes = require('./routes/authRoutes');  // ✅ authRoutes.js hai // 👈 YEH SAHI TARIKA HAI
+const authRoutes = require('./routes/authRoutes');
 
 // ========== MIDDLEWARE ==========
-app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static('uploads'));
@@ -38,10 +52,6 @@ app.use('/api/bundles', bundleRoutes);
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('MongoDB Connected'))
   .catch(err => console.log('MongoDB error:', err));
-
-// Note model now in models/Note.js - server.js schema removed
-
-// Old notes routes removed - now using noteRoutes.js
 
 // ========== CREATE UPLOADS FOLDER ==========
 if (!fs.existsSync('uploads')) {
