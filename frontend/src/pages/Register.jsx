@@ -39,9 +39,9 @@ export default function Register() {
 
     setLoading(true);
     setError('');
-    
+
     try {
-      await API.post('/auth/register', {
+      await API.post('/api/auth/register', {  // ✅ FIXED - Added /api
         name: formData.name,
         email: formData.email,
         password: formData.password,
@@ -67,7 +67,7 @@ export default function Register() {
     setError('');
 
     try {
-      const { data } = await API.post('/auth/verify-email', {
+      const { data } = await API.post('/api/auth/verify-email', {  // ✅ FIXED - Added /api
         email: formData.email,
         otp
       });
@@ -93,7 +93,7 @@ export default function Register() {
         className="max-w-md w-full relative z-10"
       >
         <div className="bg-gray-900/80 backdrop-blur-xl rounded-3xl shadow-2xl p-8 border border-white/10">
-          
+
           <AnimatePresence mode="wait">
             {step === 1 ? (
               <motion.div
@@ -217,7 +217,7 @@ export default function Register() {
                   </div>
                   <h2 className="text-3xl font-bold text-white">Check Your Email</h2>
                   <p className="text-gray-400 mt-2 text-sm leading-relaxed">
-                    We sent a 6-digit verification code to<br/>
+                    We sent a 6-digit verification code to<br />
                     <span className="text-white font-medium">{formData.email}</span>
                   </p>
                 </div>
@@ -251,7 +251,7 @@ export default function Register() {
                   >
                     {loading ? 'Verifying...' : 'Verify & Login'}
                   </button>
-                  
+
                   <button
                     type="button"
                     onClick={() => setStep(1)}
