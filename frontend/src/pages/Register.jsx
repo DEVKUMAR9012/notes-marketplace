@@ -41,7 +41,7 @@ export default function Register() {
     setError('');
 
     try {
-      await API.post('/api/auth/register', {  // ✅ FIXED - Added /api
+      await API.post('/auth/register', {
         name: formData.name,
         email: formData.email,
         password: formData.password,
@@ -67,7 +67,7 @@ export default function Register() {
     setError('');
 
     try {
-      const { data } = await API.post('/api/auth/verify-email', {  // ✅ FIXED - Added /api
+      const { data } = await API.post('/auth/verify-email', {
         email: formData.email,
         otp
       });

@@ -42,7 +42,7 @@ const VerifyOTP = () => {
     setSuccess('');
 
     try {
-      const response = await API.post('/api/auth/verify-email', {
+      const response = await API.post('/auth/verify-email', {
         email,
         otp
       });

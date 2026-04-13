@@ -2,9 +2,17 @@ import axios from 'axios';
 
 const TIMEOUT = parseInt(process.env.REACT_APP_API_TIMEOUT || '60000', 10); // 60s for Render free tier cold start
 
+// Ensure baseURL ends with /api
+const getBaseUrl = () => {
+  let url = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+  if (url.endsWith('/')) url = url.slice(0, -1);
+  if (!url.endsWith('/api')) url += '/api';
+  return url;
+};
+
 // Create axios instance
 const API = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000',
+  baseURL: getBaseUrl(),
   timeout: TIMEOUT,
   headers: {
     'Content-Type': 'application/json'
