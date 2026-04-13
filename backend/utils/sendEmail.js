@@ -18,18 +18,18 @@ const sendEmail = async (options) => {
   } else {
     // Standard setup for when the user adds real credentials in .env
     transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: process.env.SMTP_PORT,
-      secure: process.env.SMTP_PORT == 465, // true for 465
+      host: (process.env.SMTP_HOST || '').trim(),
+      port: parseInt(process.env.SMTP_PORT, 10) || 465,
+      secure: parseInt(process.env.SMTP_PORT, 10) === 465, // true for 465
       auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
+        user: (process.env.SMTP_USER || '').trim(),
+        pass: (process.env.SMTP_PASS || '').trim()
       }
     });
   }
 
   const message = {
-    from: `${process.env.FROM_NAME || 'Notes Marketplace'} <${process.env.FROM_EMAIL || 'noreply@notesmarketplace.com'}>`,
+    from: `${(process.env.FROM_NAME || 'Notes Marketplace').trim()} <${(process.env.FROM_EMAIL || 'noreply@notesmarketplace.com').trim()}>`,
     to: options.email,
     subject: options.subject,
     text: options.message,
