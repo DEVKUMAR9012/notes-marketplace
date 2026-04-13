@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const TIMEOUT = parseInt(process.env.REACT_APP_API_TIMEOUT || '10000', 10);
+const TIMEOUT = parseInt(process.env.REACT_APP_API_TIMEOUT || '60000', 10); // 60s for Render free tier cold start
 
 // Create axios instance
 const API = axios.create({
@@ -73,7 +73,7 @@ API.interceptors.response.use(
     if (code === 'ECONNABORTED') {
       return Promise.reject({
         status: 0,
-        message: 'Request timeout. Please check your connection and try again.'
+        message: 'Server is waking up, please wait a moment and try again (this can take up to 60 seconds).'
       });
     }
 
