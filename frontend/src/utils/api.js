@@ -1,15 +1,10 @@
 import axios from 'axios';
 
-// ✅ CORRECTED - Remove /api from baseURL
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-//                                                ^^^^^^^^^^^^^^^^^^^^^^^^
-//                                                Sirf domain, /api nahi!
-
 const TIMEOUT = parseInt(process.env.REACT_APP_API_TIMEOUT || '10000', 10);
 
 // Create axios instance
 const API = axios.create({
-  baseURL: API_URL,
+  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000',
   timeout: TIMEOUT,
   headers: {
     'Content-Type': 'application/json'
