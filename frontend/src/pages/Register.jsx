@@ -1,9 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import API from '../utils/api';
-import { FiUser, FiMail, FiLock, FiEye, FiEyeOff, FiUserPlus, FiHome, FiKey } from 'react-icons/fi';
+import {
+  FiUser, FiMail, FiLock, FiEye, FiEyeOff, FiUserPlus,
+  FiHome, FiKey, FiArrowLeft
+} from 'react-icons/fi';
 
 export default function Register() {
   const [step, setStep] = useState(1); // 1 = Details, 2 = Verify OTP
@@ -18,12 +21,37 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [passwordStrength, setPasswordStrength] = useState(0); // 0=weak,1=medium,2=strong
+
   const { login } = useAuth();
   const navigate = useNavigate();
+  const otpInputRef = useRef(null);
+
+  // Auto-focus OTP field when step 2 becomes active
+  useEffect(() => {
+    if (step === 2 && otpInputRef.current) {
+      otpInputRef.current.focus();
+    }
+  }, [step]);
+
+  // Password strength calculator
+  const calculateStrength = (pwd) => {
+    let strength = 0;
+    if (pwd.length >= 8) strength++;
+    if (/[A-Z]/.test(pwd) && /[a-z]/.test(pwd)) strength++;
+    if (/[0-9]/.test(pwd) && /[^A-Za-z0-9]/.test(pwd)) strength++;
+    return strength;
+  };
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
     if (error) setError('');
+
+    if (name === 'password') {
+      setPasswordStrength(calculateStrength(value));
+    }
   };
 
   const handleRegister = async (e) => {
@@ -42,12 +70,11 @@ export default function Register() {
 
     try {
       await API.post('/auth/register', {
-        name: formData.name,
-        email: formData.email,
+        name: formData.name.trim(),
+        email: formData.email.trim(),
         password: formData.password,
-        college: formData.college
+        college: formData.college.trim()
       });
-      // Registration generated OTP and email sent.
       setStep(2);
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Registration failed');
@@ -68,7 +95,7 @@ export default function Register() {
 
     try {
       const { data } = await API.post('/auth/verify-email', {
-        email: formData.email,
+        email: formData.email.trim(),
         otp
       });
       login(data);
@@ -79,6 +106,41 @@ export default function Register() {
       setLoading(false);
     }
   };
+
+  const handleResendOtp = async () => {
+    if (resendCooldown > 0) return;
+    setLoading(true);
+    setError('');
+    try {
+      await API.post('/auth/resend-otp', { email: formData.email.trim() });
+      setResendCooldown(30);
+      const timer = setInterval(() => {
+        setResendCooldown(prev => prev - 1);
+      }, 1000);
+      setTimeout(() => clearInterval(timer), 30000);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to resend code');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOtpChange = (e) => {
+    const raw = e.target.value;
+    const digits = raw.replace(/\D/g, '').slice(0, 6);
+    setOtp(digits);
+    if (error) setError('');
+  };
+
+  const goBackToStep1 = () => {
+    setStep(1);
+    setOtp('');       // reset OTP field
+    setError('');
+    setResendCooldown(0); // reset cooldown if any
+  };
+
+  // Helper to disable all inputs during loading
+  const isFormDisabled = loading;
 
   return (
     <div className="min-h-screen bg-[#07070f] flex items-center justify-center p-4 relative overflow-hidden">
@@ -111,7 +173,7 @@ export default function Register() {
                 </div>
 
                 {error && (
-                  <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-xl mb-6 text-sm text-center">
+                  <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-xl mb-6 text-sm text-center" role="status">
                     {error}
                   </div>
                 )}
@@ -124,7 +186,8 @@ export default function Register() {
                       name="name"
                       value={formData.name}
                       onChange={handleChange}
-                      className="w-full pl-10 pr-4 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-violet-500 transition-colors"
+                      disabled={isFormDisabled}
+                      className="w-full pl-10 pr-4 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-violet-500 transition-colors disabled:opacity-50"
                       placeholder="Full Name"
                       required
                     />
@@ -137,7 +200,8 @@ export default function Register() {
                       name="email"
                       value={formData.email}
                       onChange={handleChange}
-                      className="w-full pl-10 pr-4 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-violet-500 transition-colors"
+                      disabled={isFormDisabled}
+                      className="w-full pl-10 pr-4 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-violet-500 transition-colors disabled:opacity-50"
                       placeholder="Email Address"
                       required
                     />
@@ -150,7 +214,8 @@ export default function Register() {
                       name="password"
                       value={formData.password}
                       onChange={handleChange}
-                      className="w-full pl-10 pr-12 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-violet-500 transition-colors"
+                      disabled={isFormDisabled}
+                      className="w-full pl-10 pr-12 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-violet-500 transition-colors disabled:opacity-50"
                       placeholder="Password"
                       required
                     />
@@ -163,6 +228,15 @@ export default function Register() {
                     </button>
                   </div>
 
+                  {/* Optional: Password strength indicator */}
+                  {formData.password.length > 0 && (
+                    <div className="flex gap-1 mt-1">
+                      <div className={`h-1 flex-1 rounded-full transition-colors ${passwordStrength >= 1 ? 'bg-green-500' : 'bg-gray-700'}`} />
+                      <div className={`h-1 flex-1 rounded-full transition-colors ${passwordStrength >= 2 ? 'bg-green-500' : 'bg-gray-700'}`} />
+                      <div className={`h-1 flex-1 rounded-full transition-colors ${passwordStrength >= 3 ? 'bg-green-500' : 'bg-gray-700'}`} />
+                    </div>
+                  )}
+
                   <div className="relative">
                     <FiLock className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-500" />
                     <input
@@ -170,7 +244,8 @@ export default function Register() {
                       name="confirmPassword"
                       value={formData.confirmPassword}
                       onChange={handleChange}
-                      className="w-full pl-10 pr-12 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-violet-500 transition-colors"
+                      disabled={isFormDisabled}
+                      className="w-full pl-10 pr-12 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-violet-500 transition-colors disabled:opacity-50"
                       placeholder="Confirm Password"
                       required
                     />
@@ -183,7 +258,8 @@ export default function Register() {
                       name="college"
                       value={formData.college}
                       onChange={handleChange}
-                      className="w-full pl-10 pr-4 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-violet-500 transition-colors"
+                      disabled={isFormDisabled}
+                      className="w-full pl-10 pr-4 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-violet-500 transition-colors disabled:opacity-50"
                       placeholder="College (Optional)"
                     />
                   </div>
@@ -223,7 +299,7 @@ export default function Register() {
                 </div>
 
                 {error && (
-                  <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-xl mb-6 text-sm text-center">
+                  <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-xl mb-6 text-sm text-center" role="status">
                     {error}
                   </div>
                 )}
@@ -231,15 +307,17 @@ export default function Register() {
                 <form onSubmit={handleVerify} className="space-y-6">
                   <div className="relative">
                     <input
+                      ref={otpInputRef}
                       type="text"
-                      maxLength="6"
+                      inputMode="numeric"
+                      pattern="\d*"
+                      maxLength={6}
                       value={otp}
-                      onChange={(e) => {
-                        setOtp(e.target.value.replace(/\D/g, ''));
-                        setError('');
-                      }}
-                      className="w-full text-center tracking-[1em] font-mono text-2xl py-4 bg-gray-950/50 border border-emerald-500/30 rounded-xl text-emerald-400 placeholder-gray-600 focus:outline-none focus:border-emerald-500 transition-colors"
-                      placeholder="------"
+                      onChange={handleOtpChange}
+                      disabled={isFormDisabled}
+                      className="w-full text-center tracking-[1em] font-mono text-2xl py-4 bg-gray-950/50 border border-emerald-500/30 rounded-xl text-emerald-400 placeholder-gray-600 focus:outline-none focus:border-emerald-500 transition-colors disabled:opacity-50"
+                      placeholder="000000"
+                      aria-label="Verification code"
                       required
                     />
                   </div>
@@ -252,13 +330,24 @@ export default function Register() {
                     {loading ? 'Verifying...' : 'Verify & Login'}
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setStep(1)}
-                    className="w-full py-3 text-sm font-medium text-gray-400 hover:text-white transition-colors"
-                  >
-                    ← Back to signup
-                  </button>
+                  <div className="flex justify-between items-center">
+                    <button
+                      type="button"
+                      onClick={goBackToStep1}
+                      className="flex items-center gap-1 py-2 text-sm font-medium text-gray-400 hover:text-white transition-colors"
+                    >
+                      <FiArrowLeft size={14} /> Back
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleResendOtp}
+                      disabled={resendCooldown > 0 || loading}
+                      className="text-sm text-gray-400 hover:text-white disabled:opacity-50 transition-colors"
+                    >
+                      {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend code'}
+                    </button>
+                  </div>
                 </form>
               </motion.div>
             )}
