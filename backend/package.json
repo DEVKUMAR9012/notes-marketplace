@@ -10,7 +10,7 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "bcryptjs": "^2.4.3",
-    "cloudinary": "^1.41.3",
+    "cloudinary": "^2.9.0",
     "cors": "^2.8.6",
     "dotenv": "^16.6.1",
     "express": "^4.22.1",
@@ -23,6 +23,6 @@
     "razorpay": "^2.9.6"
   },
   "devDependencies": {
-    "nodemon": "^2.0.22"
+    "nodemon": "^3.1.14"
   }
 }
