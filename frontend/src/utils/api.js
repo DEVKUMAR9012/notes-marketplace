@@ -10,6 +10,14 @@ const getBaseUrl = () => {
   return url;
 };
 
+// ✅ RETRY CONFIG - Handle cold start gracefully
+const RETRY_CONFIG = {
+  maxRetries: 3,
+  initialDelay: 2000, // 2 seconds
+  maxDelay: 10000, // 10 seconds
+  backoffMultiplier: 2
+};
+
 // Create axios instance
 const API = axios.create({
   baseURL: getBaseUrl(),
@@ -20,13 +28,18 @@ const API = axios.create({
   withCredentials: true  // ⭐ IMPORTANT for CORS + tokens
 });
 
-// ✅ REQUEST INTERCEPTOR - Add token to headers
+// ✅ Sleep helper for retries
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// ✅ REQUEST INTERCEPTOR - Add token to headers & retry logic
+let retryCount = {};
 API.interceptors.request.use(
   (req) => {
     const token = localStorage.getItem('token');
     if (token) {
       req.headers.Authorization = `Bearer ${token}`;
     }
+    req.retryCount = retryCount[req.url] || 0;
     return req;
   },
   (error) => {
@@ -35,11 +48,37 @@ API.interceptors.request.use(
   }
 );
 
-// ✅ RESPONSE INTERCEPTOR - Handle errors globally
+// ✅ RESPONSE INTERCEPTOR - Handle errors & auto-retry on cold start
 API.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    const { response, code, message } = error;
+  (response) => {
+    // Reset retry count on success
+    if (response.config.url) {
+      retryCount[response.config.url] = 0;
+    }
+    return response;
+  },
+  async (error) => {
+    const { response, code, message, config } = error;
+
+    // ✅ AUTO-RETRY FOR COLD START ERRORS
+    const shouldRetry = 
+      (code === 'ECONNABORTED' || code === 'ECONNREFUSED' || !response) &&
+      config.retryCount < RETRY_CONFIG.maxRetries &&
+      config.method !== 'post'; // Only retry GET requests automatically
+
+    if (shouldRetry) {
+      const delay = Math.min(
+        RETRY_CONFIG.initialDelay * Math.pow(RETRY_CONFIG.backoffMultiplier, config.retryCount),
+        RETRY_CONFIG.maxDelay
+      );
+      
+      console.log(`Retrying request (attempt ${config.retryCount + 1}/${RETRY_CONFIG.maxRetries}) after ${delay}ms...`);
+      
+      await sleep(delay);
+      config.retryCount = (config.retryCount || 0) + 1;
+      
+      return API.request(config);
+    }
 
     // Handle 401 - Token expired or invalid
     if (response?.status === 401) {
@@ -102,5 +141,15 @@ API.interceptors.response.use(
     });
   }
 );
+
+// ✅ WARM UP SERVER ON APP START - Prevents cold start on first request
+export const warmupServer = async () => {
+  try {
+    await axios.get(`${getBaseUrl()}/health`, { timeout: 5000 });
+    console.log('Server is ready ✓');
+  } catch (err) {
+    console.log('Server warming up in background...');
+  }
+};
 
 export default API;

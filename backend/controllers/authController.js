@@ -3,152 +3,110 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const sendEmail = require('../utils/sendEmail');
 
-// ✅ Ensure JWT_SECRET exists
 const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  throw new Error('ERROR: JWT_SECRET is not defined in .env file!');
-}
+if (!JWT_SECRET) throw new Error('ERROR: JWT_SECRET missing in .env');
 
 const generateToken = (userId) => {
-  return jwt.sign(
-    { id: userId },  // Changed back to { id } for consistency with authMiddleware
-    JWT_SECRET,
-    { expiresIn: '30d' }
-  );
+  return jwt.sign({ id: userId }, JWT_SECRET, { expiresIn: '30d' });
 };
 
-// @desc    Register new user
-// @route   POST /api/auth/register
-// @access  Public
+// ✅ HELPER: Send email in background (non-blocking)
+const sendEmailAsync = (emailOptions) => {
+  // Fire-and-forget: don't await, let it run in background
+  sendEmail(emailOptions).catch(err => {
+    console.error('❌ Background email error:', err.message);
+    // Error is logged but doesn't break the user's experience
+  });
+};
+
+// ✅ HELPER: Generate email HTML
+const generateOTPEmailHTML = (otp) => {
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <h2 style="color: #333;">📚 Notes Marketplace - Email Verification</h2>
+      <p>Hello,</p>
+      <p>Thank you for signing up at Notes Marketplace!</p>
+      <p>Your 6-digit verification code is:</p>
+      <div style="background: #f0f0f0; padding: 15px; text-align: center; margin: 20px 0; border-radius: 5px;">
+        <h1 style="color: #7c3aed; font-kerning: 2px; letter-spacing: 5px;">${otp}</h1>
+      </div>
+      <p><strong>⏰ This code expires in 10 minutes.</strong></p>
+      <p>If you didn't request this code, please ignore this email.</p>
+      <p>Best regards,<br/>Notes Marketplace Team</p>
+    </div>
+  `;
+};
+
+// ========== REGISTER ==========
 exports.register = async (req, res) => {
   const { name, email, password, college } = req.body;
-  
   try {
-    // Validate required fields
     if (!name || !email || !password) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'Please provide name, email, and password' 
-      });
+      return res.status(400).json({ success: false, message: 'Please provide name, email, and password' });
     }
 
     const userExists = await User.findOne({ email });
 
-    // If user exists but is NOT verified, allow re-registration (resend OTP)
     if (userExists && userExists.isVerified) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'An account with this email already exists. Please login.' 
-      });
+      return res.status(400).json({ success: false, message: 'An account with this email already exists. Please login.' });
     }
 
-    // Either create new user OR update the unverified existing one
     let user;
     if (userExists && !userExists.isVerified) {
-      // Update existing unverified user with new details
       userExists.name = name;
       userExists.college = college || '';
-      userExists.password = password; // Will be re-hashed by pre-save hook
+      userExists.password = password;
       user = userExists;
     } else {
-      // Create brand new user
-      user = await User.create({ 
-        name, 
-        email, 
-        password, 
-        college: college || '' 
-      });
+      user = await User.create({ name, email, password, college: college || '' });
     }
 
     const otp = user.generateAuthOTP();
     await user.save({ validateBeforeSave: false });
 
-    // Beautiful HTML email
-    const htmlEmail = `
-      <div style="font-family: 'Segoe UI', sans-serif; max-width: 500px; margin: 0 auto; background: #0f0f1a; border-radius: 16px; overflow: hidden;">
-        <div style="background: linear-gradient(135deg, #7c3aed, #db2777); padding: 32px; text-align: center;">
-          <h1 style="color: white; margin: 0; font-size: 24px;">📚 Notes Marketplace</h1>
-        </div>
-        <div style="padding: 32px; color: #e2e8f0;">
-          <h2 style="color: white; margin-top: 0;">Verify Your Email</h2>
-          <p style="color: #94a3b8;">Hi <strong style="color: white;">${name}</strong>, welcome! Use this code to verify your account:</p>
-          <div style="background: #1e1b4b; border: 2px solid #7c3aed; border-radius: 12px; padding: 24px; text-align: center; margin: 24px 0;">
-            <span style="font-size: 40px; font-weight: bold; letter-spacing: 12px; color: #a78bfa; font-family: monospace;">${otp}</span>
-          </div>
-          <p style="color: #64748b; font-size: 13px; text-align: center;">⏳ This code expires in <strong>10 minutes</strong></p>
-        </div>
-      </div>
-    `;
-    
-    try {
-      await sendEmail({
-        email: user.email,
-        subject: '📚 Notes Marketplace - Your Verification Code',
-        message: `Your verification code is: ${otp}. It expires in 10 minutes.`,
-        html: htmlEmail
-      });
+    // ✅ FIRE-AND-FORGET: Send email in background, return to user immediately
+    sendEmailAsync({
+      email: user.email,
+      subject: '📚 Notes Marketplace - Your Verification Code',
+      message: `Your verification code is: ${otp}. It expires in 10 minutes.`,
+      html: generateOTPEmailHTML(otp)
+    });
 
-      res.status(201).json({
-        success: true,
-        message: 'Verification code sent to email',
-        emailSent: true
-      });
-    } catch (error) {
-      console.error('Email error:', error);
-      user.otpCode = undefined;
-      user.otpExpire = undefined;
-      await user.save({ validateBeforeSave: false });
-      
-      return res.status(500).json({ 
-        success: false, 
-        message: 'Failed to send verification email. Please check your email address.'
-      });
-    }
+    // ✅ Return success immediately (email sends in background)
+    res.status(201).json({ 
+      success: true, 
+      message: 'Account created! Check your email for verification code. It may take a few moments to arrive.',
+      emailSent: true 
+    });
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ 
-      success: false,
-      message: error.message 
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// @desc    Login user
-// @route   POST /api/auth/login
-// @access  Public
+// ========== LOGIN (with isVerified check) ==========
 exports.login = async (req, res) => {
   const { email, password } = req.body;
-  
   try {
-    // Validate required fields
     if (!email || !password) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'Please provide email and password' 
-      });
+      return res.status(400).json({ success: false, message: 'Please provide email and password' });
     }
 
-    // Get user with password field
     const user = await User.findOne({ email }).select('+password');
-    
     if (!user) {
-      return res.status(401).json({ 
-        success: false,
-        message: 'Invalid email or password' 
-      });
+      return res.status(401).json({ success: false, message: 'Invalid email or password' });
     }
 
-    // Check password
+    // ✅ IMPROVEMENT 1: Block unverified users
+    if (!user.isVerified) {
+      return res.status(401).json({ success: false, message: 'Please verify your email before logging in.' });
+    }
+
     const isMatch = await user.comparePassword(password);
-    
     if (!isMatch) {
-      return res.status(401).json({ 
-        success: false,
-        message: 'Invalid email or password' 
-      });
+      return res.status(401).json({ success: false, message: 'Invalid email or password' });
     }
 
-    // ✅ FIXED: Match AuthContext expected format
     res.status(200).json({
       success: true,
       token: generateToken(user._id),
@@ -163,80 +121,19 @@ exports.login = async (req, res) => {
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ 
-      success: false,
-      message: error.message 
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// @desc    Get current user
-// @route   GET /api/auth/me
-// @access  Private
-exports.getMe = async (req, res) => {
-  try {
-    const user = await User.findById(req.user._id);
-
-    res.status(200).json({
-      success: true,
-      user
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
-  }
-};
-
-// @desc    Update user profile
-// @route   PUT /api/auth/update
-// @access  Private
-exports.updateProfile = async (req, res) => {
-  try {
-    const fieldsToUpdate = {
-      name: req.body.name,
-      email: req.body.email,
-      college: req.body.college
-    };
-
-    const user = await User.findByIdAndUpdate(
-      req.user._id, 
-      fieldsToUpdate, 
-      {
-        new: true,
-        runValidators: true
-      }
-    );
-
-    res.status(200).json({
-      success: true,
-      user
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
-  }
-};
-
-// @desc    Verify email with OTP
-// @route   POST /api/auth/verify-email
-// @access  Public
+// ========== VERIFY EMAIL ==========
 exports.verifyEmail = async (req, res) => {
   try {
     const { email, otp } = req.body;
-    
     if (!email || !otp) {
       return res.status(400).json({ success: false, message: 'Please provide email and code' });
     }
 
     const hashedOTP = crypto.createHash('sha256').update(otp).digest('hex');
-    
-    // Find user with valid OTP
     const user = await User.findOne({
       email: email.toLowerCase(),
       otpCode: hashedOTP,
@@ -247,13 +144,11 @@ exports.verifyEmail = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid or expired verification code' });
     }
 
-    // Set as verified
     user.isVerified = true;
     user.otpCode = undefined;
     user.otpExpire = undefined;
     await user.save();
 
-    // Login user
     res.status(200).json({
       success: true,
       token: generateToken(user._id),
@@ -264,9 +159,70 @@ exports.verifyEmail = async (req, res) => {
   }
 };
 
-// @desc    Forgot Password - send OTP
-// @route   POST /api/auth/forgot-password
-// @access  Public
+// ========== RESEND OTP ==========
+exports.resendOtp = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Email is required' });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found. Please register first.' });
+    }
+
+    if (user.isVerified) {
+      return res.status(400).json({ success: false, message: 'Email already verified. Please login.' });
+    }
+
+    const otp = user.generateAuthOTP();
+    await user.save({ validateBeforeSave: false });
+
+    // ✅ FIRE-AND-FORGET: Send email in background
+    sendEmailAsync({
+      email: user.email,
+      subject: '📚 Notes Marketplace - Resend Verification Code',
+      message: `Your new verification code is: ${otp}. It expires in 10 minutes.`,
+      html: generateOTPEmailHTML(otp)
+    });
+
+    res.status(200).json({ 
+      success: true, 
+      message: 'New verification code sent! Check your email.' 
+    });
+  } catch (error) {
+    console.error('Resend OTP error:', error);
+    res.status(500).json({ success: false, message: 'Server error. Please try again.' });
+  }
+};
+
+// ========== GET ME ==========
+exports.getMe = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    res.status(200).json({ success: true, user });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};
+
+// ========== UPDATE PROFILE ==========
+exports.updateProfile = async (req, res) => {
+  try {
+    const fieldsToUpdate = {
+      name: req.body.name,
+      email: req.body.email,
+      college: req.body.college
+    };
+    const user = await User.findByIdAndUpdate(req.user._id, fieldsToUpdate, { new: true, runValidators: true });
+    res.status(200).json({ success: true, user });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};
+
+// ========== FORGOT PASSWORD ==========
 exports.forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
@@ -278,28 +234,33 @@ exports.forgotPassword = async (req, res) => {
     const otp = user.generateAuthOTP();
     await user.save({ validateBeforeSave: false });
 
-    const message = `You requested a password reset.\n\nPlease use this 6-digit code to reset your password:\n\n${otp}\n\nThis code is valid for 10 minutes.`;
-    
-    await sendEmail({ email: user.email, subject: 'Password Reset Code', message });
-    res.status(200).json({ success: true, message: 'Reset code sent' });
+    // ✅ FIRE-AND-FORGET: Send password reset email in background
+    sendEmailAsync({
+      email: user.email,
+      subject: '📚 Notes Marketplace - Password Reset Code',
+      message: `Your password reset code is: ${otp}. It expires in 10 minutes.`,
+      html: generateOTPEmailHTML(otp)
+    });
+
+    res.status(200).json({ 
+      success: true, 
+      message: 'Check your email for password reset code!' 
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Email could not be sent' });
+    console.error('Forgot password error:', error);
+    res.status(500).json({ success: false, message: 'Error processing request' });
   }
 };
 
-// @desc    Reset Password with OTP
-// @route   POST /api/auth/reset-password
-// @access  Public
+// ========== RESET PASSWORD ==========
 exports.resetPassword = async (req, res) => {
   try {
     const { email, otp, newPassword } = req.body;
-    
     if (!email || !otp || !newPassword) {
       return res.status(400).json({ success: false, message: 'Please provide email, otp, and new password' });
     }
 
     const hashedOTP = crypto.createHash('sha256').update(otp).digest('hex');
-    
     const user = await User.findOne({
       email: email.toLowerCase(),
       otpCode: hashedOTP,

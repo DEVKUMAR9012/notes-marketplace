@@ -1,6 +1,8 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
+import { warmupServer } from './utils/api';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navbar from './components/Navbar';
 
@@ -24,10 +26,15 @@ const LayoutWithNavbar = ({ children }) => (
 );
 
 function App() {
+  // ✅ WARM UP SERVER ON APP START
+  useEffect(() => {
+    warmupServer();
+  }, []);
+
   return (
     <AuthProvider>
       <CartProvider>
-        <BrowserRouter>
+        <BrowserRouter future={{ v7_relativeSplatPath: true }}>
           <Routes>
             {/* ========== PUBLIC ROUTES (No Navbar) ========== */}
             <Route path="/login" element={<Login />} />

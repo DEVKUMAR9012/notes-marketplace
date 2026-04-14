@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
-import API from '../utils/api';
+import API, { warmupServer } from '../utils/api';
 import {
   FiUser, FiMail, FiLock, FiEye, FiEyeOff, FiUserPlus,
   FiHome, FiKey, FiArrowLeft
@@ -23,10 +23,17 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [passwordStrength, setPasswordStrength] = useState(0);
+  const [retrying, setRetrying] = useState(false);
+  const [retryAttempt, setRetryAttempt] = useState(0);
 
   const { login } = useAuth();
   const navigate = useNavigate();
   const otpInputRef = useRef(null);
+
+  // ✅ WARM UP SERVER ON APP START
+  useEffect(() => {
+    warmupServer();
+  }, []);
 
   // Auto-focus OTP field when step 2 becomes active
   useEffect(() => {
@@ -66,6 +73,26 @@ export default function Register() {
     }
   };
 
+  // ✅ RETRY HELPER WITH EXPONENTIAL BACKOFF
+  const retryWithBackoff = async (fn, maxAttempts = 3) => {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        setRetryAttempt(attempt + 1);
+        if (attempt > 0) {
+          setRetrying(true);
+          const delay = Math.min(2000 * Math.pow(2, attempt - 1), 10000);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+        return await fn();
+      } catch (err) {
+        if (attempt === maxAttempts - 1) {
+          throw err;
+        }
+        // Continue to next attempt
+      }
+    }
+  };
+
   const handleRegister = async (e) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
@@ -79,19 +106,25 @@ export default function Register() {
 
     setLoading(true);
     setError('');
+    setRetryAttempt(0);
 
     try {
-      await API.post('/auth/register', {
-        name: formData.name.trim(),
-        email: formData.email.trim(),
-        password: formData.password,
-        college: formData.college.trim()
-      });
+      await retryWithBackoff(async () => {
+        await API.post('/auth/register', {
+          name: formData.name.trim(),
+          email: formData.email.trim(),
+          password: formData.password,
+          college: formData.college.trim()
+        });
+      }, 3);
       setStep(2);
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Registration failed');
+      const errorMsg = err.response?.data?.message || err.message || 'Registration failed';
+      setError(errorMsg);
     } finally {
       setLoading(false);
+      setRetrying(false);
+      setRetryAttempt(0);
     }
   };
 
@@ -104,18 +137,24 @@ export default function Register() {
 
     setLoading(true);
     setError('');
+    setRetryAttempt(0);
 
     try {
-      const { data } = await API.post('/auth/verify-email', {
-        email: formData.email.trim(),
-        otp
-      });
+      const { data } = await retryWithBackoff(async () => {
+        return await API.post('/auth/verify-email', {
+          email: formData.email.trim(),
+          otp
+        });
+      }, 3);
       login(data);
       navigate('/');
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Verification failed');
+      const errorMsg = err.response?.data?.message || err.message || 'Verification failed';
+      setError(errorMsg);
     } finally {
       setLoading(false);
+      setRetrying(false);
+      setRetryAttempt(0);
     }
   };
 
@@ -124,13 +163,18 @@ export default function Register() {
     if (resendCooldown > 0) return;
     setLoading(true);
     setError('');
+    setRetryAttempt(0);
     try {
-      await API.post('/auth/resend-otp', { email: formData.email.trim() });
+      await retryWithBackoff(async () => {
+        await API.post('/auth/resend-otp', { email: formData.email.trim() });
+      }, 2);
       setResendCooldown(30); // useEffect will take care of the countdown
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to resend code');
     } finally {
       setLoading(false);
+      setRetrying(false);
+      setRetryAttempt(0);
     }
   };
 
@@ -146,6 +190,8 @@ export default function Register() {
     setOtp('');
     setError('');
     setResendCooldown(0);
+    setRetrying(false);
+    setRetryAttempt(0);
   };
 
   const isFormDisabled = loading;
@@ -176,6 +222,13 @@ export default function Register() {
                 {error && (
                   <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-xl mb-6 text-sm text-center" role="status">
                     {error}
+                    {retrying && <div className="mt-2 text-xs text-gray-300">Retrying... (Attempt {retryAttempt}/3)</div>}
+                  </div>
+                )}
+
+                {retrying && !error && (
+                  <div className="bg-blue-500/10 border border-blue-500/20 text-blue-400 p-3 rounded-xl mb-6 text-sm text-center" role="status">
+                    Connecting to server... (Attempt {retryAttempt}/3)
                   </div>
                 )}
 
@@ -211,7 +264,7 @@ export default function Register() {
                     <input type="text" name="college" value={formData.college} onChange={handleChange} disabled={isFormDisabled} className="w-full pl-10 pr-4 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-violet-500 transition-colors disabled:opacity-50" placeholder="College (Optional)" />
                   </div>
                   <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white py-4 rounded-xl font-bold shadow-[0_0_15px_rgba(139,92,246,0.3)] hover:shadow-[0_0_25px_rgba(139,92,246,0.5)] transition-all disabled:opacity-50 mt-4">
-                    {loading ? 'Processing...' : 'Continue'}
+                    {loading ? (retrying ? `Retrying... ${retryAttempt}/3` : 'Processing...') : 'Continue'}
                   </button>
                 </form>
                 <p className="text-center text-gray-400 mt-6 text-sm">
@@ -234,6 +287,13 @@ export default function Register() {
                 {error && (
                   <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-xl mb-6 text-sm text-center" role="status">
                     {error}
+                    {retrying && <div className="mt-2 text-xs text-gray-300">Retrying... (Attempt {retryAttempt}/3)</div>}
+                  </div>
+                )}
+
+                {retrying && !error && (
+                  <div className="bg-blue-500/10 border border-blue-500/20 text-blue-400 p-3 rounded-xl mb-6 text-sm text-center" role="status">
+                    Verifying... (Attempt {retryAttempt}/3)
                   </div>
                 )}
 
@@ -256,7 +316,7 @@ export default function Register() {
                   </div>
 
                   <button type="submit" disabled={loading || otp.length !== 6} className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-4 rounded-xl font-bold shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:shadow-[0_0_25px_rgba(16,185,129,0.5)] transition-all disabled:opacity-50">
-                    {loading ? 'Verifying...' : 'Verify & Login'}
+                    {loading ? (retrying ? `Verifying... ${retryAttempt}/3` : 'Verifying...') : 'Verify & Login'}
                   </button>
 
                   <div className="flex justify-between items-center">

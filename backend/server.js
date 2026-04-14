@@ -8,7 +8,7 @@ const app = express();
 
 // ========== CORS CONFIGURATION ==========
 const corsOptions = {
-  origin: ['http://localhost:3000', 'https://notes-marketplace-rho.vercel.app'],
+  origin: ['http://localhost:3000', 'http://localhost:3001', 'https://notes-marketplace-rho.vercel.app'],
   credentials: true
 };
 app.use(cors(corsOptions));

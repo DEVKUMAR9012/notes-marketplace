@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
-import API from '../utils/api';
-import { FiMail, FiLock, FiEye, FiEyeOff, FiLogIn, FiKey } from 'react-icons/fi';
+import API, { warmupServer } from '../utils/api';
+import { FiMail, FiLock, FiEye, FiEyeOff, FiKey } from 'react-icons/fi';
 
 export default function Login() {
   const [step, setStep] = useState('login'); // 'login', 'forgot', 'reset'
@@ -16,23 +16,56 @@ export default function Login() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+  const [retryAttempt, setRetryAttempt] = useState(0);
   
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  // ✅ WARM UP SERVER ON PAGE LOAD
+  useEffect(() => {
+    warmupServer();
+  }, []);
+
+  // ✅ RETRY HELPER WITH EXPONENTIAL BACKOFF
+  const retryWithBackoff = async (fn, maxAttempts = 3) => {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        setRetryAttempt(attempt + 1);
+        if (attempt > 0) {
+          setRetrying(true);
+          const delay = Math.min(2000 * Math.pow(2, attempt - 1), 10000);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+        return await fn();
+      } catch (err) {
+        if (attempt === maxAttempts - 1) {
+          throw err;
+        }
+        // Continue to next attempt
+      }
+    }
+  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setRetryAttempt(0);
     
     try {
-      const { data } = await API.post('/auth/login', { email, password });
+      const { data } = await retryWithBackoff(async () => {
+        return await API.post('/auth/login', { email, password });
+      }, 3);
       login(data);
       navigate('/');
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Login failed');
+      const errorMsg = err.response?.data?.message || err.message || 'Login failed';
+      setError(errorMsg);
     } finally {
       setLoading(false);
+      setRetrying(false);
+      setRetryAttempt(0);
     }
   };
 
@@ -45,15 +78,21 @@ export default function Login() {
 
     setLoading(true);
     setError('');
+    setRetryAttempt(0);
     
     try {
-      await API.post('/auth/forgot-password', { email });
+      await retryWithBackoff(async () => {
+        await API.post('/auth/forgot-password', { email });
+      }, 2);
       setSuccess('Reset code sent to your email!');
       setStep('reset');
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Action failed');
+      const errorMsg = err.response?.data?.message || err.message || 'Action failed';
+      setError(errorMsg);
     } finally {
       setLoading(false);
+      setRetrying(false);
+      setRetryAttempt(0);
     }
   };
 
@@ -70,17 +109,23 @@ export default function Login() {
 
     setLoading(true);
     setError('');
+    setRetryAttempt(0);
     
     try {
-      await API.post('/auth/reset-password', { email, otp, newPassword });
+      await retryWithBackoff(async () => {
+        await API.post('/auth/reset-password', { email, otp, newPassword });
+      }, 3);
       setSuccess('Password reset successfully! You can now login.');
       setPassword('');
       setStep('login');
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Reset failed');
+      const errorMsg = err.response?.data?.message || err.message || 'Reset failed';
+      setError(errorMsg);
     } finally {
       setLoading(false);
+      setRetrying(false);
+      setRetryAttempt(0);
     }
   };
 
@@ -122,6 +167,13 @@ export default function Login() {
                 {error && (
                   <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-xl mb-6 text-sm text-center">
                     {error}
+                    {retrying && <div className="mt-2 text-xs text-gray-300">Retrying... (Attempt {retryAttempt}/3)</div>}
+                  </div>
+                )}
+
+                {retrying && !error && (
+                  <div className="bg-blue-500/10 border border-blue-500/20 text-blue-400 p-3 rounded-xl mb-6 text-sm text-center">
+                    Connecting to server... (Attempt {retryAttempt}/3)
                   </div>
                 )}
 
@@ -172,7 +224,7 @@ export default function Login() {
                     disabled={loading}
                     className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 rounded-xl font-bold shadow-[0_0_15px_rgba(59,130,246,0.3)] hover:shadow-[0_0_25px_rgba(59,130,246,0.5)] transition-all disabled:opacity-50"
                   >
-                    {loading ? 'Signing in...' : 'Sign In'}
+                    {loading ? (retrying ? `Signing in... ${retryAttempt}/3` : 'Signing in...') : 'Sign In'}
                   </button>
                 </form>
 
@@ -203,6 +255,13 @@ export default function Login() {
                 {error && (
                   <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-xl mb-6 text-sm text-center">
                     {error}
+                    {retrying && <div className="mt-2 text-xs text-gray-300">Retrying... (Attempt {retryAttempt}/3)</div>}
+                  </div>
+                )}
+
+                {retrying && !error && (
+                  <div className="bg-blue-500/10 border border-blue-500/20 text-blue-400 p-3 rounded-xl mb-6 text-sm text-center">
+                    Sending reset code... (Attempt {retryAttempt}/3)
                   </div>
                 )}
 
@@ -224,7 +283,7 @@ export default function Login() {
                     disabled={loading || !email}
                     className="w-full bg-gradient-to-r from-orange-500 to-rose-600 text-white py-4 rounded-xl font-bold shadow-[0_0_15px_rgba(244,63,94,0.3)] hover:shadow-[0_0_25px_rgba(244,63,94,0.5)] transition-all disabled:opacity-50 mt-2"
                   >
-                    {loading ? 'Sending...' : 'Send Reset Code'}
+                    {loading ? (retrying ? `Sending... ${retryAttempt}/3` : 'Sending...') : 'Send Reset Code'}
                   </button>
                   
                   <button
@@ -261,6 +320,13 @@ export default function Login() {
                 {error && (
                   <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-xl mb-6 text-sm text-center">
                     {error}
+                    {retrying && <div className="mt-2 text-xs text-gray-300">Retrying... (Attempt {retryAttempt}/3)</div>}
+                  </div>
+                )}
+
+                {retrying && !error && (
+                  <div className="bg-blue-500/10 border border-blue-500/20 text-blue-400 p-3 rounded-xl mb-6 text-sm text-center">
+                    Resetting password... (Attempt {retryAttempt}/3)
                   </div>
                 )}
 
@@ -301,7 +367,7 @@ export default function Login() {
                     disabled={loading || otp.length !== 6 || newPassword.length < 6}
                     className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-4 rounded-xl font-bold shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:shadow-[0_0_25px_rgba(16,185,129,0.5)] transition-all disabled:opacity-50 mt-2"
                   >
-                    {loading ? 'Resetting...' : 'Reset Password'}
+                    {loading ? (retrying ? `Resetting... ${retryAttempt}/3` : 'Resetting...') : 'Reset Password'}
                   </button>
                   
                   <button
