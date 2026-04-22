@@ -17,8 +17,10 @@ import Profile from './pages/Profile';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';  // ⭐ NEW - Payment checkout
 import AdminEmailDashboard from './pages/AdminEmailDashboard';  // ⭐ NEW - Email System
+import Contact from './pages/Contact';  // ⭐ NEW - Contact & Support Page
 
 // Layout wrapper component to avoid repetition
+// eslint-disable-next-line no-unused-vars
 const LayoutWithNavbar = ({ children }) => (
   <>
     <Navbar />
@@ -123,6 +125,18 @@ function App() {
                 <ProtectedRoute>
                   <LayoutWithNavbar>
                     <AdminEmailDashboard />
+                  </LayoutWithNavbar>
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Contact & Support Page */}
+            <Route
+              path="/contact"
+              element={
+                <ProtectedRoute>
+                  <LayoutWithNavbar>
+                    <Contact />
                   </LayoutWithNavbar>
                 </ProtectedRoute>
               }

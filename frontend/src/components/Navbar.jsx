@@ -2,7 +2,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { motion } from 'framer-motion';
-import { FiLogOut, FiHome, FiUpload, FiUser, FiMenu, FiX, FiShoppingCart, FiBook } from 'react-icons/fi';
+import { FiLogOut, FiHome, FiUpload, FiUser, FiMenu, FiX, FiShoppingCart, FiBook, FiHeadphones } from 'react-icons/fi';
 import { useState } from 'react';
 
 export default function Navbar() {
@@ -29,6 +29,7 @@ export default function Navbar() {
     { label: 'Books', icon: FiBook, path: '/books' },
     { label: 'Upload', icon: FiUpload, path: '/upload' },
     { label: 'Profile', icon: FiUser, path: '/profile' },
+    { label: 'Contact', icon: FiHeadphones, path: '/contact' },
     { label: 'Cart', icon: FiShoppingCart, path: '/cart' },
   ];
 
