@@ -2,6 +2,8 @@ const User = require('../models/User');
 const Note = require('../models/Note');
 const path = require('path');
 const fs = require('fs');
+const sendEmail = require('../utils/sendEmail');
+const templates = require('../utils/emailTemplates');
 
 // ── Get My Profile ─────────────────────────────────────────────────────────────
 exports.getProfile = async (req, res) => {
@@ -203,6 +205,16 @@ exports.toggleFollow = async (req, res) => {
     
     await me.save();
     await target.save();
+
+    // ✅ Send 'new follower' email if just followed (not unfollow)
+    if (followingIndex === -1) {
+      sendEmail({
+        email: target.email,
+        subject: `👥 ${me.name} started following you on Notes Marketplace!`,
+        html: templates.newFollowerEmail(target.name, target._id.toString(), me.name),
+        type: 'follower'
+      }).catch(() => {});
+    }
     
     res.json({ message: followingIndex > -1 ? 'Unfollowed' : 'Followed', following: me.following });
   } catch (err) {

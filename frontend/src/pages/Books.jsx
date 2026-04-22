@@ -150,7 +150,7 @@ const PreviewModal = ({ note, onClose, onBuy }) => {
         transition={{ type: 'spring', stiffness: 300, damping: 26 }}
         onClick={e => e.stopPropagation()}
         className="relative w-full max-w-4xl bg-gray-950 border border-white/15 rounded-2xl overflow-hidden shadow-2xl"
-        style={{ height: '85vh' }}
+        style={{ height: 'clamp(70vh, 85vh, 90vh)' }}
       >
         <div className="flex items-center justify-between px-5 py-3 border-b border-white/10 bg-gray-900/80">
           <div>
@@ -236,9 +236,16 @@ const TiltCard = ({ children, className }) => {
   const y = useMotionValue(0);
   const rotateX = useTransform(y, [-0.5, 0.5], [6, -6]);
   const rotateY = useTransform(x, [-0.5, 0.5], [-6, 6]);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const onMove = (e) => {
-    if (!ref.current) return;
+    if (!ref.current || isMobile) return;
     const r = ref.current.getBoundingClientRect();
     x.set((e.clientX - r.left) / r.width - 0.5);
     y.set((e.clientY - r.top) / r.height - 0.5);
@@ -247,7 +254,7 @@ const TiltCard = ({ children, className }) => {
 
   return (
     <motion.div ref={ref} onMouseMove={onMove} onMouseLeave={onLeave}
-      style={{ rotateX, rotateY, transformStyle: 'preserve-3d', perspective: 1000 }}
+      style={isMobile ? {} : { rotateX, rotateY, transformStyle: 'preserve-3d', perspective: 1000 }}
       className={className}>
       {children}
     </motion.div>
@@ -303,7 +310,7 @@ const NoteCard = ({ note, onPreview, onBuy, onAddToCart, gradient, isWishlisted,
                     whileHover={{ scale: 1.12, y: -3 }}
                     whileTap={{ scale: 0.92 }}
                     onClick={fn}
-                    className={`flex flex-col items-center gap-1.5 px-4 py-2.5 rounded-xl border backdrop-blur text-white text-[11px] font-bold transition-all ${cls}`}
+                    className={`flex flex-col items-center justify-center gap-1.5 px-3 sm:px-4 py-3 sm:py-2.5 min-h-[44px] sm:min-h-auto rounded-xl border backdrop-blur text-white text-[10px] sm:text-[11px] font-bold transition-all ${cls}`}
                   >
                     <Icon className="text-base" />{label}
                   </motion.button>
@@ -354,15 +361,15 @@ const NoteCard = ({ note, onPreview, onBuy, onAddToCart, gradient, isWishlisted,
             {[1,2,3,4,5].map(s => <FiStar key={s} className={`text-[10px] ${s <= stars ? 'text-yellow-400 fill-yellow-400' : 'text-gray-700'}`} />)}
             <span className="text-[10px] text-gray-600 ml-1">({note.reviews || 0})</span>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 sm:gap-3">
             <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
               onClick={() => onPreview(note)}
-              className="flex-1 bg-white/8 hover:bg-white/15 border border-white/10 text-white py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all">
+              className="flex-1 bg-white/8 hover:bg-white/15 border border-white/10 text-white py-2.5 sm:py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all min-h-[44px] sm:min-h-auto">
               <FiEye /> Preview
             </motion.button>
             <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
               onClick={() => onBuy(note)}
-              className={`flex-1 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-lg text-white ${note.price === 0 ? 'bg-gradient-to-r from-emerald-500 to-green-500' : 'bg-gradient-to-r from-violet-600 to-fuchsia-600'}`}>
+              className={`flex-1 py-2.5 sm:py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-lg text-white min-h-[44px] sm:min-h-auto ${note.price === 0 ? 'bg-gradient-to-r from-emerald-500 to-green-500' : 'bg-gradient-to-r from-violet-600 to-fuchsia-600'}`}>
               <FiDownload /> {note.price === 0 ? 'Free' : 'Buy'}
             </motion.button>
           </div>
@@ -501,11 +508,11 @@ export default function Books() {
             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-pink-500/40 bg-pink-500/10 text-pink-300 text-xs font-medium mb-5">
             <FiBook className="fill-pink-400 text-pink-400" /> Books Marketplace — India's Best
           </motion.div>
-          <h1 className="text-5xl sm:text-7xl font-black tracking-tighter mb-4 leading-none">
+          <h1 className="text-3xl sm:text-5xl lg:text-7xl font-black tracking-tighter mb-4 leading-none">
             <span className="bg-gradient-to-r from-pink-400 via-fuchsia-400 to-violet-400 bg-clip-text text-transparent">Read Smarter</span>
-            <br /><span className="text-white/90 text-4xl sm:text-5xl">With Top Books 📚</span>
+            <br /><span className="text-white/90 text-2xl sm:text-4xl lg:text-5xl">With Top Books 📚</span>
           </h1>
-          <p className="text-gray-400 text-base max-w-lg mx-auto">Discover the best books across genres and curricula.</p>
+          <p className="text-gray-400 text-xs sm:text-sm lg:text-base max-w-lg mx-auto px-2">Discover the best books across genres and curricula.</p>
           <div className="flex items-center justify-center gap-6 mt-6">
             {[{ icon: FiBook, label: `${notes.length} Books`, color: 'text-pink-400' }, { icon: FiTrendingUp, label: 'Trending', color: 'text-fuchsia-400' }, { icon: FiAward, label: 'Top Rated', color: 'text-yellow-400' }].map(({ icon: Icon, label, color }) => (
               <div key={label} className={`flex items-center gap-1.5 text-xs ${color} font-medium`}><Icon /> {label}</div>
@@ -594,7 +601,7 @@ export default function Books() {
               exit={{ scale: 0.85, opacity: 0, y: 30 }}
               transition={{ type: 'spring', stiffness: 300, damping: 26 }}
               onClick={e => e.stopPropagation()}
-              className="bg-gray-950 border border-white/15 rounded-2xl p-6 max-w-sm w-full shadow-2xl"
+              className="bg-gray-950 border border-white/15 rounded-2xl p-4 sm:p-6 max-w-sm w-full shadow-2xl"
             >
               <div className="flex items-start justify-between mb-4">
                 <div>

@@ -3,6 +3,8 @@ const crypto = require('crypto');
 const Note = require('../models/Note');
 const User = require('../models/User');
 const Bundle = require('../models/Bundle');
+const sendEmail = require('../utils/sendEmail');
+const templates = require('../utils/emailTemplates');
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -143,6 +145,21 @@ exports.verifyPayment = async (req, res) => {
       });
       
       pdfUrls.push(note.pdfUrl);
+    }
+
+    // ✅ Send purchase receipt emails (fire-and-forget)
+    const buyer = await User.findById(userId).select('name email _id');
+    if (buyer) {
+      const totalAmount = notes.reduce((sum, n) => sum + n.price, 0);
+      const titleSummary = notes.length === 1
+        ? notes[0].title
+        : `${notes.length} Notes (Cart Checkout)`;
+      sendEmail({
+        email: buyer.email,
+        subject: `✅ Purchase Confirmed - ${titleSummary}`,
+        html: templates.purchaseEmail(buyer.name, buyer._id.toString(), titleSummary, totalAmount, notes[0]._id.toString()),
+        type: 'purchase'
+      }).catch(() => {});
     }
 
     res.json({ success: true, message: 'Payment verified', pdfUrls });

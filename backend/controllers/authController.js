@@ -2,6 +2,7 @@ const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const sendEmail = require('../utils/sendEmail');
+const templates = require('../utils/emailTemplates');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) throw new Error('ERROR: JWT_SECRET missing in .env');
@@ -19,23 +20,9 @@ const sendEmailAsync = (emailOptions) => {
   });
 };
 
-// ✅ HELPER: Generate email HTML
-const generateOTPEmailHTML = (otp) => {
-  return `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-      <h2 style="color: #333;">📚 Notes Marketplace - Email Verification</h2>
-      <p>Hello,</p>
-      <p>Thank you for signing up at Notes Marketplace!</p>
-      <p>Your 6-digit verification code is:</p>
-      <div style="background: #f0f0f0; padding: 15px; text-align: center; margin: 20px 0; border-radius: 5px;">
-        <h1 style="color: #7c3aed; font-kerning: 2px; letter-spacing: 5px;">${otp}</h1>
-      </div>
-      <p><strong>⏰ This code expires in 10 minutes.</strong></p>
-      <p>If you didn't request this code, please ignore this email.</p>
-      <p>Best regards,<br/>Notes Marketplace Team</p>
-    </div>
-  `;
-};
+// ✅ HELPER: Generate email HTML (now using branded templates)
+const generateOTPEmailHTML = (name, otp) => templates.otpEmail(name, otp);
+const generateResetEmailHTML = (name, otp) => templates.passwordResetEmail(name, otp);
 
 // ========== REGISTER ==========
 exports.register = async (req, res) => {
@@ -64,12 +51,13 @@ exports.register = async (req, res) => {
     const otp = user.generateAuthOTP();
     await user.save({ validateBeforeSave: false });
 
-    // ✅ FIRE-AND-FORGET: Send email in background, return to user immediately
+    // ✅ FIRE-AND-FORGET: Send branded OTP email in background
     sendEmailAsync({
       email: user.email,
       subject: '📚 Notes Marketplace - Your Verification Code',
       message: `Your verification code is: ${otp}. It expires in 10 minutes.`,
-      html: generateOTPEmailHTML(otp)
+      html: generateOTPEmailHTML(user.name, otp),
+      type: 'otp'
     });
 
     // ✅ Return success immediately (email sends in background)
@@ -149,6 +137,14 @@ exports.verifyEmail = async (req, res) => {
     user.otpExpire = undefined;
     await user.save();
 
+    // ✅ Send welcome email after verification (fire-and-forget)
+    sendEmailAsync({
+      email: user.email,
+      subject: '🎉 Welcome to Notes Marketplace!',
+      html: templates.welcomeEmail(user.name, user._id.toString()),
+      type: 'welcome'
+    });
+
     res.status(200).json({
       success: true,
       token: generateToken(user._id),
@@ -179,12 +175,13 @@ exports.resendOtp = async (req, res) => {
     const otp = user.generateAuthOTP();
     await user.save({ validateBeforeSave: false });
 
-    // ✅ FIRE-AND-FORGET: Send email in background
+    // ✅ FIRE-AND-FORGET: Send branded OTP email
     sendEmailAsync({
       email: user.email,
       subject: '📚 Notes Marketplace - Resend Verification Code',
       message: `Your new verification code is: ${otp}. It expires in 10 minutes.`,
-      html: generateOTPEmailHTML(otp)
+      html: generateOTPEmailHTML(user.name, otp),
+      type: 'otp'
     });
 
     res.status(200).json({ 
@@ -234,12 +231,13 @@ exports.forgotPassword = async (req, res) => {
     const otp = user.generateAuthOTP();
     await user.save({ validateBeforeSave: false });
 
-    // ✅ FIRE-AND-FORGET: Send password reset email in background
+    // ✅ FIRE-AND-FORGET: Send password reset email
     sendEmailAsync({
       email: user.email,
       subject: '📚 Notes Marketplace - Password Reset Code',
       message: `Your password reset code is: ${otp}. It expires in 10 minutes.`,
-      html: generateOTPEmailHTML(otp)
+      html: generateResetEmailHTML(user.name, otp),
+      type: 'password_reset'
     });
 
     res.status(200).json({ 

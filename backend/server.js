@@ -45,6 +45,10 @@ app.use('/api/payments', paymentRoutes);
 const bundleRoutes = require('./routes/bundleRoutes');
 app.use('/api/bundles', bundleRoutes);
 
+// ========== EMAIL ROUTES ==========
+const emailRoutes = require('./routes/emailRoutes');
+app.use('/api/email', emailRoutes);
+
 // ========== MONGODB CONNECTION ==========
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('MongoDB Connected'))

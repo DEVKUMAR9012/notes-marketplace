@@ -183,7 +183,7 @@ export default function Profile() {
         <div className="absolute bottom-0 left-1/3 w-[400px] h-[400px] bg-fuchsia-800/10 rounded-full blur-[120px]" />
       </div>
 
-      <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-12">
+      <div className="relative z-10 max-w-6xl mx-auto px-3 sm:px-6 py-8 sm:py-12">
 
         {/* ── Profile Header ── */}
         <motion.div

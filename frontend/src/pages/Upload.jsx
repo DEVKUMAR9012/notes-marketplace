@@ -29,7 +29,7 @@ export default function Upload() {
 
     // ✅ Validate file before submitting
     if (!file) {
-      setError('Please select a PDF file to upload');
+      setError('Please select a file to upload');
       return;
     }
 
@@ -178,7 +178,7 @@ export default function Upload() {
               <FiFile className={`text-5xl mx-auto mb-3 transition-colors ${file ? 'text-emerald-400' : 'text-gray-500'}`} />
               <input
                 type="file"
-                accept=".pdf"
+                accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp,.txt"
                 onChange={(e) => setFile(e.target.files[0])}
                 className="hidden"
                 id="file-upload"
@@ -189,7 +189,7 @@ export default function Upload() {
                   file ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/10 text-white hover:bg-white/20'
                 }`}
               >
-                {file ? 'Change PDF Document' : 'Click to Select Document'}
+                {file ? '📎 Change File' : '📎 Click to Select File'}
               </label>
               {file && (
                 <p className="text-sm text-emerald-400/80 mt-3 font-medium">
@@ -197,7 +197,9 @@ export default function Upload() {
                 </p>
               )}
               {!file && (
-                <p className="text-xs text-gray-500 mt-3 hidden sm:block">Only PDF format is supported</p>
+                <p className="text-xs text-gray-500 mt-3 hidden sm:block">
+                  PDF · DOC · DOCX · PPT · PPTX · XLS · XLSX · JPG · PNG · TXT &nbsp;(Max 25 MB)
+                </p>
               )}
             </div>
 

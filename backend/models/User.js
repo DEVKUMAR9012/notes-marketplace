@@ -115,6 +115,10 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  emailSubscribed: {
+    type: Boolean,
+    default: true  // Set to false when user clicks unsubscribe link
+  },
   otpCode: String,
   otpExpire: Date,
   resetPasswordToken: String,

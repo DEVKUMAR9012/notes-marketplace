@@ -5,6 +5,8 @@ const path = require('path');
 const Review = require('../models/Review');
 const Question = require('../models/Question');
 const { generateAISummary } = require('../utils/aiSummary');
+const sendEmail = require('../utils/sendEmail');
+const templates = require('../utils/emailTemplates');
 
 // @desc    Get all notes with filters
 // @route   GET /api/notes
@@ -155,6 +157,32 @@ exports.createNote = async (req, res) => {
         })
         .catch(err => console.error('AI summary background error:', err.message));
     }
+
+    // 📧 Notify all followers of this seller (fire-and-forget)
+    User.findById(req.user._id)
+      .select('name followers')
+      .populate('followers', 'name email _id emailSubscribed')
+      .then(async (seller) => {
+        if (!seller || !seller.followers.length) return;
+        const subscribers = seller.followers.filter(f => f.emailSubscribed !== false);
+        for (const follower of subscribers) {
+          await sendEmail({
+            email: follower.email,
+            subject: `📚 New Note by ${seller.name}: ${title}`,
+            html: templates.newNoteAlertEmail(
+              follower.name,
+              follower._id.toString(),
+              title,
+              seller.name,
+              note._id.toString(),
+              Number(price) || 0
+            ),
+            type: 'note_alert'
+          });
+        }
+        console.log(`📧 Notified ${subscribers.length} follower(s) about new note: ${title}`);
+      })
+      .catch(err => console.error('Follower notification error:', err.message));
 
   } catch (error) {
     console.error('Create Note Error:', error);

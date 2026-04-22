@@ -1,86 +1,77 @@
-const nodemailer = require('nodemailer');
+// ============================================================
+// 📧 sendEmail.js — Powered by Resend.com
+// Replaces Nodemailer. Uses Resend SDK for production-grade
+// email delivery with automatic logging to MongoDB.
+// ============================================================
 
-// ✅ Helper: Retry with exponential backoff
-const retryWithBackoff = async (fn, maxRetries = 3) => {
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    try {
-      return await fn();
-    } catch (err) {
-      if (attempt === maxRetries - 1) throw err;
-      const delay = Math.min(1000 * Math.pow(2, attempt), 5000);
-      console.log(`⏳ Email retry in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
-      await new Promise(resolve => setTimeout(resolve, delay));
+const { Resend } = require('resend');
+const EmailLog = require('../models/EmailLog');
+
+// Lazy-init Resend client (safe if API key not set yet)
+let resendClient = null;
+const getClient = () => {
+  if (!resendClient) {
+    if (!process.env.RESEND_API_KEY) {
+      throw new Error('RESEND_API_KEY is not set in .env');
     }
+    resendClient = new Resend(process.env.RESEND_API_KEY);
   }
+  return resendClient;
 };
 
+/**
+ * Send an email via Resend and auto-log to MongoDB.
+ *
+ * @param {Object} options
+ * @param {string}  options.email    - Recipient email address
+ * @param {string}  options.subject  - Email subject line
+ * @param {string}  [options.html]   - HTML body (preferred)
+ * @param {string}  [options.message]- Plain text fallback
+ * @param {string}  [options.type]   - Email type for logging (default: 'campaign')
+ */
 const sendEmail = async (options) => {
+  const logEntry = {
+    to: options.email,
+    subject: options.subject,
+    type: options.type || 'campaign',
+    status: 'sent',
+    resendId: '',
+    errorMessage: ''
+  };
+
   try {
-    let transporter;
+    const client = getClient();
 
-    // If no legitimate SMTP_HOST is in .env, fallback to automatic test email (Ethereal)
-    if (!process.env.SMTP_HOST) {
-      console.log('⚠️ No SMTP configured - Using Ethereal test account');
-      const testAccount = await nodemailer.createTestAccount();
-      transporter = nodemailer.createTransport({
-        host: 'smtp.ethereal.email',
-        port: 587,
-        secure: false,
-        auth: {
-          user: testAccount.user,
-          pass: testAccount.pass
-        }
-      });
-    } else {
-      // Standard setup for when the user adds real credentials in .env
-      transporter = nodemailer.createTransport({
-        host: (process.env.SMTP_HOST || '').trim(),
-        port: parseInt(process.env.SMTP_PORT, 10) || 465,
-        secure: parseInt(process.env.SMTP_PORT, 10) === 465,
-        auth: {
-          user: (process.env.SMTP_USER || '').trim(),
-          pass: (process.env.SMTP_PASS || '').trim()
-        }
-      });
-    }
+    const fromName = (process.env.FROM_NAME || 'Notes Marketplace').trim();
+    const fromEmail = (process.env.FROM_EMAIL || 'onboarding@resend.dev').trim();
 
-    const message = {
-      from: `${(process.env.FROM_NAME || 'Notes Marketplace').trim()} <${(process.env.FROM_EMAIL || 'noreply@notesmarketplace.com').trim()}>`,
-      to: options.email,
+    const { data, error } = await client.emails.send({
+      from: `${fromName} <${fromEmail}>`,
+      to: [options.email],
       subject: options.subject,
-      text: options.message,
-      html: options.html || options.message
-    };
+      html: options.html || `<p>${options.message || ''}</p>`,
+      text: options.message || ''
+    });
 
-    // ✅ Retry email sending with timeout
-    const info = await retryWithBackoff(async () => {
-      return new Promise((resolve, reject) => {
-        // 10-second timeout for email sending
-        const timeout = setTimeout(() => {
-          reject(new Error('Email send timeout (10s)'));
-        }, 10000);
-
-        transporter.sendMail(message, (err, res) => {
-          clearTimeout(timeout);
-          if (err) reject(err);
-          else resolve(res);
-        });
-      });
-    }, 3);
-
-    console.log('✅ Email sent successfully to:', options.email);
-    
-    if (!process.env.SMTP_HOST) {
-      console.log('📬 DEV MODE TEST URL: %s', nodemailer.getTestMessageUrl(info));
+    if (error) {
+      throw new Error(error.message || JSON.stringify(error));
     }
 
-    return info;
-  } catch (error) {
-    console.error('❌ Failed to send email after retries:', error.message);
-    // Don't throw - let it fail gracefully
-    // The background task won't block the user
-    return null;
+    logEntry.resendId = data?.id || '';
+    console.log(`✅ Email sent via Resend to ${options.email} | ID: ${data?.id}`);
+
+  } catch (err) {
+    logEntry.status = 'failed';
+    logEntry.errorMessage = err.message || 'Unknown error';
+    console.error(`❌ Resend email failed to ${options.email}:`, err.message);
   }
+
+  // Always save log (fire-and-forget — don't let it block)
+  EmailLog.create(logEntry).catch(logErr => {
+    console.error('⚠️ Email log save failed:', logErr.message);
+  });
+
+  return logEntry.status === 'sent';
 };
 
 module.exports = sendEmail;

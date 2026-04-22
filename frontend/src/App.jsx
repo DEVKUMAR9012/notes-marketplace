@@ -16,6 +16,7 @@ import Upload from './pages/Upload';
 import Profile from './pages/Profile';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';  // ⭐ NEW - Payment checkout
+import AdminEmailDashboard from './pages/AdminEmailDashboard';  // ⭐ NEW - Email System
 
 // Layout wrapper component to avoid repetition
 const LayoutWithNavbar = ({ children }) => (
@@ -110,6 +111,18 @@ function App() {
                 <ProtectedRoute>
                   <LayoutWithNavbar>
                     <Checkout />
+                  </LayoutWithNavbar>
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Admin Email Dashboard */}
+            <Route
+              path="/admin/email"
+              element={
+                <ProtectedRoute>
+                  <LayoutWithNavbar>
+                    <AdminEmailDashboard />
                   </LayoutWithNavbar>
                 </ProtectedRoute>
               }
