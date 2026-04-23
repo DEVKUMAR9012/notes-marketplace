@@ -6,7 +6,8 @@ const {
   getEmailLogs,
   getEmailStats,
   unsubscribe,
-  sendTestEmail
+  sendTestEmail,
+  submitContactForm
 } = require('../controllers/emailController');
 
 // ── Admin-only middleware ──────────────────────────────────────
@@ -17,6 +18,7 @@ const adminOnly = (req, res, next) => {
 
 // ── Public routes ─────────────────────────────────────────────
 router.get('/unsubscribe', unsubscribe);
+router.post('/contact', submitContactForm);
 
 // ── Admin routes ──────────────────────────────────────────────
 router.post('/campaign', protect, adminOnly, sendCampaign);

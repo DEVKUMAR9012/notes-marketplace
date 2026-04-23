@@ -284,7 +284,7 @@ const NoteCard = ({ note, onPreview, onBuy, onAddToCart, gradient, isWishlisted,
         onHoverStart={() => setHovered(true)}
         onHoverEnd={() => setHovered(false)}
       >
-        <div className="relative h-52 flex-shrink-0 overflow-hidden">
+        <div className="relative h-36 sm:h-52 flex-shrink-0 overflow-hidden">
           <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`} />
           <div className="absolute inset-0"><PDFThumbnail pdfUrl={note.pdfUrl} title={note.title} /></div>
 
@@ -384,7 +384,7 @@ const NoteCard = ({ note, onPreview, onBuy, onAddToCart, gradient, isWishlisted,
 const Section = ({ notes, onPreview, onBuy, onAddToCart, wishlist, onToggleWishlist, gradients }) => (
   notes.length === 0
     ? null
-    : <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+    : <motion.div layout className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5">
         <AnimatePresence mode="popLayout">
           {notes.map(note => (
             <NoteCard key={note._id} note={note} onPreview={onPreview} onBuy={onBuy} onAddToCart={onAddToCart}

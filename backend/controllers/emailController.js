@@ -237,3 +237,44 @@ exports.sendTestEmail = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+// ═══════════════════════════════════════════════════════════════
+// POST /api/email/contact   (Public)
+// Receive contact form submission from frontend and email it to the site owner
+// Body: { name, email, subject, message }
+// ═══════════════════════════════════════════════════════════════
+exports.submitContactForm = async (req, res) => {
+  try {
+    const { name, email, subject, message } = req.body;
+    if (!name || !email || !message) {
+      return res.status(400).json({ success: false, message: 'Name, email, and message are required' });
+    }
+
+    const adminEmail = process.env.SMTP_USER || process.env.FROM_EMAIL;
+    
+    // Construct the email body that will be sent to the admin
+    const htmlBody = `
+      <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f5; color: #1f2937;">
+        <h2 style="color: #7c3aed;">New Contact Form Submission</h2>
+        <p><strong>From:</strong> ${name} (${email})</p>
+        <p><strong>Subject:</strong> ${subject || 'No Subject'}</p>
+        <hr style="border: 1px solid #e5e7eb; margin: 20px 0;" />
+        <p><strong>Message:</strong></p>
+        <div style="background-color: white; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb; white-space: pre-wrap;">${message}</div>
+      </div>
+    `;
+
+    // Send email to admin
+    await sendEmail({
+      email: adminEmail,
+      subject: `[Contact Form] ${subject || 'New Message'} from ${name}`,
+      html: htmlBody,
+      type: 'contact_form'
+    });
+
+    res.status(200).json({ success: true, message: 'Message sent successfully' });
+  } catch (err) {
+    console.error('Contact Form Error:', err);
+    res.status(500).json({ success: false, message: 'Failed to send message. Please try again.' });
+  }
+};

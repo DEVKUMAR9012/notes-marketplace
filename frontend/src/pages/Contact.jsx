@@ -6,6 +6,7 @@ import {
   FiInstagram, FiTwitter, FiLinkedin, FiGithub
 } from 'react-icons/fi';
 import { useForm } from 'react-hook-form';
+import API from '../utils/api';
 
 // ──────────────────────────────────────────────────────────────────
 // TYPING ANIMATION HOOK
@@ -325,15 +326,16 @@ export default function Contact() {
   const onSubmit = async (data) => {
     setIsSubmitting(true);
     try {
-      // Simulate API call
-      await new Promise((r) => setTimeout(r, 1500));
-      setShowConfetti(true);
-      setSubmitMessage('Message sent! We will get back to you soon ✓');
-      reset();
-      setTimeout(() => setShowConfetti(false), 2500);
-      setTimeout(() => setSubmitMessage(''), 3500);
+      const res = await API.post('/email/contact', data);
+      if (res.data.success) {
+        setShowConfetti(true);
+        setSubmitMessage('Message sent! We will get back to you soon ✓');
+        reset();
+        setTimeout(() => setShowConfetti(false), 2500);
+        setTimeout(() => setSubmitMessage(''), 3500);
+      }
     } catch (err) {
-      setSubmitMessage('Error sending message. Please try again.');
+      setSubmitMessage(err.response?.data?.message || 'Error sending message. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -392,9 +394,9 @@ export default function Contact() {
 
   const socialLinks = [
     { name: 'Twitter', icon: FiTwitter, color: 'hover:text-blue-400', url: '#' },
-    { name: 'Instagram', icon: FiInstagram, color: 'hover:text-pink-400', url: '#' },
-    { name: 'LinkedIn', icon: FiLinkedin, color: 'hover:text-blue-600', url: '#' },
-    { name: 'GitHub', icon: FiGithub, color: 'hover:text-gray-300', url: '#' },
+    { name: 'Instagram', icon: FiInstagram, color: 'hover:text-pink-400', url: 'https://instagram.com/kaisehodev' },
+    { name: 'LinkedIn', icon: FiLinkedin, color: 'hover:text-blue-600', url: 'https://www.linkedin.com/in/dev-kumar-950376305/?skipRedirect=true' },
+    { name: 'GitHub', icon: FiGithub, color: 'hover:text-gray-300', url: 'https://github.com/DEVKUMAR9012' },
   ];
 
   return (
@@ -594,7 +596,7 @@ export default function Contact() {
                 </div>
                 <div>
                   <h3 className="text-white font-bold mb-1">Email</h3>
-                  <p className="text-gray-400">support@notesmarketplace.com</p>
+                  <p className="text-gray-400">dk25042008@gmail.com</p>
                   <p className="text-gray-500 text-sm">We respond within 24 hours</p>
                 </div>
               </div>
@@ -612,7 +614,7 @@ export default function Contact() {
                 </div>
                 <div>
                   <h3 className="text-white font-bold mb-1">Phone</h3>
-                  <p className="text-gray-400">+91 98765 43210</p>
+                  <p className="text-gray-400">+91 6398679259</p>
                   <p className="text-gray-500 text-sm">Mon-Fri, 10am-6pm IST</p>
                 </div>
               </div>
