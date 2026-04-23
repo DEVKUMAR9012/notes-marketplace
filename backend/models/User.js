@@ -122,7 +122,12 @@ const userSchema = new mongoose.Schema({
   otpCode: String,
   otpExpire: Date,
   resetPasswordToken: String,
-  resetPasswordExpire: Date
+  resetPasswordExpire: Date,
+
+  // ─── Chat / Presence ────────────────────────────────────────────────────────
+  lastSeen: { type: Date, default: Date.now },
+  isOnline: { type: Boolean, default: false },
+  blockedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
 }, {
   timestamps: true  // Automatically adds createdAt and updatedAt
 });

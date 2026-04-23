@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
+import { SocketProvider } from './context/SocketContext';
 import { warmupServer } from './utils/api';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navbar from './components/Navbar';
@@ -18,6 +19,7 @@ import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';  // ⭐ NEW - Payment checkout
 import AdminEmailDashboard from './pages/AdminEmailDashboard';  // ⭐ NEW - Email System
 import Contact from './pages/Contact';  // ⭐ NEW - Contact & Support Page
+import Chat from './pages/Chat';  // ⭐ NEW - Real-time Chat
 
 // Layout wrapper component to avoid repetition
 // eslint-disable-next-line no-unused-vars
@@ -36,7 +38,8 @@ function App() {
 
   return (
     <AuthProvider>
-      <CartProvider>
+      <SocketProvider>
+        <CartProvider>
         <BrowserRouter future={{ v7_relativeSplatPath: true }}>
           <Routes>
             {/* ========== PUBLIC ROUTES (No Navbar) ========== */}
@@ -142,11 +145,24 @@ function App() {
               }
             />
 
+            {/* Chat - Real-time messaging */}
+            <Route
+              path="/chat"
+              element={
+                <ProtectedRoute>
+                  <LayoutWithNavbar>
+                    <Chat />
+                  </LayoutWithNavbar>
+                </ProtectedRoute>
+              }
+            />
+
             {/* ========== 404 - Unknown Routes ========== */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
-      </CartProvider>
+        </CartProvider>
+      </SocketProvider>
     </AuthProvider>
   );
 }

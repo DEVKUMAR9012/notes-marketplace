@@ -1,26 +1,25 @@
 // ============================================================
-// 📧 sendEmail.js — Powered by Resend.com
-// Replaces Nodemailer. Uses Resend SDK for production-grade
-// email delivery with automatic logging to MongoDB.
+// 📧 sendEmail.js — Powered by Nodemailer + Gmail
+// Fix: Resend does not allow sending emails from @gmail.com.
+// This uses your SMTP credentials to send verified emails.
 // ============================================================
 
-const { Resend } = require('resend');
+const nodemailer = require('nodemailer');
 const EmailLog = require('../models/EmailLog');
 
-// Lazy-init Resend client (safe if API key not set yet)
-let resendClient = null;
-const getClient = () => {
-  if (!resendClient) {
-    if (!process.env.RESEND_API_KEY) {
-      throw new Error('RESEND_API_KEY is not set in .env');
-    }
-    resendClient = new Resend(process.env.RESEND_API_KEY);
-  }
-  return resendClient;
-};
+// Create reusable transporter object using SMTP transport
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST || 'smtp.gmail.com',
+  port: process.env.SMTP_PORT || 465,
+  secure: process.env.SMTP_PORT == 465, // true for 465, false for other ports
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
 
 /**
- * Send an email via Resend and auto-log to MongoDB.
+ * Send an email via Nodemailer and auto-log to MongoDB.
  *
  * @param {Object} options
  * @param {string}  options.email    - Recipient email address
@@ -35,35 +34,30 @@ const sendEmail = async (options) => {
     subject: options.subject,
     type: options.type || 'campaign',
     status: 'sent',
-    resendId: '',
+    resendId: 'nodemailer', // Mock ID for compatibility
     errorMessage: ''
   };
 
   try {
-    const client = getClient();
-
     const fromName = (process.env.FROM_NAME || 'Notes Marketplace').trim();
-    const fromEmail = (process.env.FROM_EMAIL || 'onboarding@resend.dev').trim();
+    const fromEmail = (process.env.SMTP_USER || process.env.FROM_EMAIL).trim();
 
-    const { data, error } = await client.emails.send({
-      from: `${fromName} <${fromEmail}>`,
-      to: [options.email],
+    // Send mail with defined transport object
+    const info = await transporter.sendMail({
+      from: `"${fromName}" <${fromEmail}>`, 
+      to: options.email,
       subject: options.subject,
-      html: options.html || `<p>${options.message || ''}</p>`,
-      text: options.message || ''
+      text: options.message || '', 
+      html: options.html || `<p>${options.message || ''}</p>`, 
     });
 
-    if (error) {
-      throw new Error(error.message || JSON.stringify(error));
-    }
-
-    logEntry.resendId = data?.id || '';
-    console.log(`✅ Email sent via Resend to ${options.email} | ID: ${data?.id}`);
+    console.log(`✅ Email sent to ${options.email} | MessageId: ${info.messageId}`);
+    logEntry.resendId = info.messageId;
 
   } catch (err) {
     logEntry.status = 'failed';
     logEntry.errorMessage = err.message || 'Unknown error';
-    console.error(`❌ Resend email failed to ${options.email}:`, err.message);
+    console.error(`❌ Email failed to ${options.email}:`, err.message);
   }
 
   // Always save log (fire-and-forget — don't let it block)
