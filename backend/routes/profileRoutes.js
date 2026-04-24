@@ -3,7 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { getProfile, updateProfile, getWallet } = require('../controllers/profileController');
+const { getProfile, getPublicProfile, updateProfile, getWallet } = require('../controllers/profileController');
 const { protect } = require('../middleware/authMiddleware');
 
 // Multer config for profile images
@@ -29,6 +29,7 @@ const upload = multer({
 });
 
 router.get('/me', protect, getProfile);
+router.get('/:id', protect, getPublicProfile);
 router.put('/update', protect, upload.single('profileImage'), updateProfile);
 router.get('/wallet', protect, getWallet);
 

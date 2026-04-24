@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import API from '../utils/api';
@@ -21,7 +22,7 @@ const getReceiptIcon = (msg, userId, participants) => {
 
 // ── Avatar Component
 const Avatar = ({ user, size = 40, isOnline }) => {
-  const src = user?.profileImage || user?.avatar;
+  const src = user?.profileImage ? `http://localhost:5000${user.profileImage}` : user?.avatar;
   const initials = user?.name?.charAt(0)?.toUpperCase() || '?';
   return (
     <div className="chat-avatar-wrapper" style={{ width: size, height: size }}>
@@ -38,6 +39,8 @@ const Avatar = ({ user, size = 40, isOnline }) => {
 export default function Chat() {
   const { user } = useAuth();
   const { socket } = useSocket();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   // ── State
   const [conversations, setConversations] = useState([]);
@@ -243,6 +246,13 @@ export default function Chat() {
     } catch (e) { console.error(e); }
   };
 
+  useEffect(() => {
+    if (location.state?.startChatWith) {
+      startChat(location.state.startChatWith);
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, navigate]);
+
   const otherParticipant = activeChat?.participants?.find(p => String(p._id) !== String(user._id));
 
   return (
@@ -297,9 +307,16 @@ export default function Chat() {
           <>
             <div className="chat-header">
               <button className="back-btn" onClick={() => setActiveChat(null)}>←</button>
-              <Avatar user={otherParticipant} size={40} isOnline={otherParticipant?.isOnline} />
+              <Link to={`/profile/${otherParticipant?._id}`} style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', color: 'inherit' }}>
+                <Avatar user={otherParticipant} size={40} isOnline={otherParticipant?.isOnline} />
+              </Link>
               <div className="header-info">
-                <h3>{otherParticipant?.name} {otherParticipant?.totalSales > 0 && <span className="verified" title="Verified Seller">✓</span>}</h3>
+                <h3>
+                  <Link to={`/profile/${otherParticipant?._id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                    {otherParticipant?.name}
+                  </Link>
+                  {otherParticipant?.totalSales > 0 && <span className="verified" title="Verified Seller">✓</span>}
+                </h3>
                 <span className="status">{typingUser ? 'typing...' : (otherParticipant?.isOnline ? 'Online' : `Last seen: ${otherParticipant?.lastSeen ? formatTime(otherParticipant.lastSeen) : 'N/A'}`)}</span>
               </div>
               <div className="header-actions">

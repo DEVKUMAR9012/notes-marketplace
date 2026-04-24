@@ -3,7 +3,8 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   FiDownload, FiEye, FiStar, FiUser, FiMapPin,
   FiSearch, FiFilter, FiX, FiBook, FiTrendingUp,
-  FiZap, FiHeart, FiShoppingCart, FiAward, FiChevronDown
+  FiZap, FiHeart, FiShoppingCart, FiAward, FiChevronDown,
+  FiChevronRight, FiChevronLeft, FiBookOpen
 } from 'react-icons/fi';
 import API from '../utils/api';
 import { useAuth } from '../context/AuthContext';
@@ -395,7 +396,6 @@ const Section = ({ notes, onPreview, onBuy, onAddToCart, wishlist, onToggleWishl
 );
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
-const CHIPS = ['All', 'AI', 'Physics', 'Maths', 'Programming', 'Chemistry', 'Economics', 'History', 'Biology'];
 const GRADIENTS = [
   'from-rose-500/50 to-orange-500/50','from-blue-500/50 to-cyan-500/50',
   'from-purple-500/50 to-pink-500/50','from-green-500/50 to-emerald-500/50',
@@ -410,8 +410,6 @@ export default function Books() {
   const [searchInput, setSearchInput] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [showSug, setShowSug] = useState(false);
-  const [activeCategory, setActiveCategory] = useState('All');
-  const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({ subject: '', semester: '', priceType: '', minRating: '' });
   const [activeTab, setActiveTab] = useState('all');
   const [previewNote, setPreviewNote] = useState(null);
@@ -427,9 +425,8 @@ export default function Books() {
     if (debouncedSearch.length > 1) {
       const s = notes.filter(n => n.title?.toLowerCase().includes(debouncedSearch.toLowerCase())).slice(0, 5).map(n => n.title);
       setSuggestions(s);
-      setShowSug(s.length > 0);
     } else {
-      setSuggestions([]); setShowSug(false);
+      setSuggestions([]);
     }
   }, [debouncedSearch, notes]);
 
@@ -458,24 +455,19 @@ export default function Books() {
     }
   };
 
-  const subjects = useMemo(() => [...new Set(notes.map(n => n.subject).filter(Boolean))], [notes]);
-  const semesters = useMemo(() => [...new Set(notes.map(n => n.semester).filter(Boolean))].sort(), [notes]);
-  const activeFilterCount = Object.values(filters).filter(Boolean).length;
-  const clearFilters = () => setFilters({ subject: '', semester: '', priceType: '', minRating: '' });
   const getGradient = (id) => GRADIENTS[(id?.length ? id.charCodeAt(0) : 0) % GRADIENTS.length];
 
   const baseFiltered = useMemo(() => {
     const q = debouncedSearch.toLowerCase();
     return notes.filter(n => {
       const mQ = !q || [n.title, n.subject, n.sellerName].some(v => v?.toLowerCase().includes(q));
-      const mC = activeCategory === 'All' || n.subject?.toLowerCase().includes(activeCategory.toLowerCase());
       const mS = !filters.subject || n.subject === filters.subject;
       const mSem = !filters.semester || String(n.semester) === String(filters.semester);
       const mP = !filters.priceType || (filters.priceType === 'free' ? n.price === 0 : n.price > 0);
       const mR = !filters.minRating || (n.rating || 0) >= Number(filters.minRating);
-      return mQ && mC && mS && mSem && mP && mR;
+      return mQ && mS && mSem && mP && mR;
     });
-  }, [notes, debouncedSearch, activeCategory, filters]);
+  }, [notes, debouncedSearch, filters]);
 
   const trending = useMemo(() => [...baseFiltered].sort((a, b) => (b.downloads || 0) - (a.downloads || 0)).slice(0, 8), [baseFiltered]);
   const topRated = useMemo(() => [...baseFiltered].sort((a, b) => (b.rating || 0) - (a.rating || 0)).slice(0, 8), [baseFiltered]);

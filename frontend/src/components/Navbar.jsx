@@ -4,6 +4,7 @@ import { useCart } from '../context/CartContext';
 import { motion } from 'framer-motion';
 import { FiLogOut, FiHome, FiUpload, FiUser, FiMenu, FiX, FiShoppingCart, FiBook, FiHeadphones, FiMessageSquare } from 'react-icons/fi';
 import { useState } from 'react';
+import AnimatedLogo from './AnimatedLogo';
 
 export default function Navbar() {
   const { logout, user } = useAuth();
@@ -41,14 +42,13 @@ export default function Navbar() {
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           {/* Logo */}
-          <motion.button
+          <button
             onClick={() => navigate('/')}
-            className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+            className="overflow-visible flex items-center transition-transform hover:scale-105 active:scale-95"
+            style={{ padding: '4px' }}
           >
-            📚 Notes Marketplace
-          </motion.button>
+            <AnimatedLogo size={window.innerWidth < 768 ? 'small' : 'medium'} />
+          </button>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-6">

@@ -96,6 +96,16 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/profile/:id"
+              element={
+                <ProtectedRoute>
+                  <LayoutWithNavbar>
+                    <Profile />
+                  </LayoutWithNavbar>
+                </ProtectedRoute>
+              }
+            />
 
             {/* Cart - Shopping cart */}
             <Route

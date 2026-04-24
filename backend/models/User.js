@@ -42,6 +42,33 @@ const userSchema = new mongoose.Schema({
     default: '',
     trim: true
   },
+  phoneNumber: {
+    type: String,
+    default: '',
+    trim: true
+  },
+  socialLinks: {
+    whatsapp: { type: String, default: '' },
+    telegram: { type: String, default: '' },
+    email: { type: String, default: '' },
+    instagram: { type: String, default: '' },
+    github: { type: String, default: '' },
+    linkedin: { type: String, default: '' }
+  },
+  expertise: {
+    type: String,
+    default: '',
+    trim: true
+  },
+  stream: {
+    type: String,
+    default: '',
+    trim: true
+  },
+  headerImage: {
+    type: String,
+    default: ''
+  },
   earnings: {
     type: Number,
     default: 0,

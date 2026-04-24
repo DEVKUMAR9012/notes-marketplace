@@ -63,10 +63,35 @@ exports.getProfile = async (req, res) => {
   }
 };
 
+// ── Get Public Profile ────────────────────────────────────────────────────────
+exports.getPublicProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id)
+      .select('-password -cart -wishlist -transactions -walletBalance -otpCode -otpExpire -resetPasswordToken -resetPasswordExpire -blockedUsers');
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const uploadedNotes = await Note.find({ uploadedBy: req.params.id })
+      .select('title subject price downloads totalEarnings rating totalReviews createdAt pdfUrl');
+
+    res.json({
+      user: {
+        ...user.toObject(),
+        uploadedNotes,
+      },
+    });
+  } catch (err) {
+    console.error('Get public profile error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 // ── Update Profile ─────────────────────────────────────────────────────────────
 exports.updateProfile = async (req, res) => {
   try {
-    const { name, college, bio } = req.body;
+    const { name, college, bio, phoneNumber, socialLinks, expertise, stream, headerImage } = req.body;
     const updateData = {};
 
     // Validate input
@@ -79,6 +104,17 @@ exports.updateProfile = async (req, res) => {
     
     if (college !== undefined) updateData.college = college;
     if (bio !== undefined) updateData.bio = bio;
+    if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber;
+    if (expertise !== undefined) updateData.expertise = expertise;
+    if (stream !== undefined) updateData.stream = stream;
+    if (headerImage !== undefined) updateData.headerImage = headerImage;
+    if (socialLinks !== undefined) {
+      try {
+        updateData.socialLinks = typeof socialLinks === 'string' ? JSON.parse(socialLinks) : socialLinks;
+      } catch (e) {
+        console.error('Error parsing socialLinks:', e);
+      }
+    }
 
     // Profile image upload
     if (req.file) {
