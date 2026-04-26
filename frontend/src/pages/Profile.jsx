@@ -231,9 +231,12 @@ export default function Profile() {
   const avatarSrc = imagePreview || getImageUrl(profile.profileImage) || profile.avatar;
   const initials = profile.name?.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || '?';
 
+  // State to track if the main avatar image failed to load (e.g. old local file deleted by Render)
+  const [avatarError, setAvatarError] = useState(false);
+
   // Computed completion
   const requiredFields = ['name', 'college', 'bio', 'phoneNumber', 'expertise', 'stream'];
-  const completedFields = requiredFields.filter(f => editForm[f] && editForm[f].trim() !== '').length + (avatarSrc ? 1 : 0) + (editForm.socialLinks.whatsapp || editForm.socialLinks.instagram ? 1 : 0);
+  const completedFields = requiredFields.filter(f => editForm[f] && editForm[f].trim() !== '').length + (avatarSrc && !avatarError ? 1 : 0) + (editForm.socialLinks.whatsapp || editForm.socialLinks.instagram ? 1 : 0);
   const totalFields = requiredFields.length + 2;
   const completionPct = Math.round((completedFields / totalFields) * 100);
 
@@ -306,8 +309,8 @@ export default function Profile() {
               <div className="flex flex-col gap-3">
                 <div className="relative">
                   <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full overflow-hidden border-4 border-[#07070f] bg-gradient-to-br from-violet-600 to-fuchsia-600 flex items-center justify-center shadow-xl">
-                    {avatarSrc ? (
-                      <img src={avatarSrc} alt="Profile" className="w-full h-full object-cover" />
+                    {avatarSrc && !avatarError ? (
+                      <img src={avatarSrc} alt="Profile" className="w-full h-full object-cover" onError={() => setAvatarError(true)} />
                     ) : (
                       <span className="text-5xl font-black text-white">{initials}</span>
                     )}
