@@ -325,7 +325,38 @@
    
    /* ── Mobile Responsive ── */
    @media (max-width: 768px) {
-     .chat-sidebar { width: 100%; }
+     .chat-page {
+       /* Use dvh for better mobile browser support, adjust for navbar */
+       height: calc(100dvh - 60px); 
+     }
+     .chat-sidebar { 
+       width: 100%; 
+       flex: 1;
+     }
+     .chat-main {
+       width: 100%;
+       flex: 1;
+     }
      .hidden-mobile { display: none !important; }
-     .back-btn { display: block; }
+     .back-btn { display: block; margin-right: 10px; }
+     
+     /* Reduce padding for mobile */
+     .chat-header { padding: 12px 15px; }
+     .messages-area { padding: 15px 10px; gap: 10px; }
+     .input-area { padding: 10px 15px; }
+     
+     /* Adjust sizes for mobile readability */
+     .message-bubble { max-width: 85%; padding: 10px 14px; }
+     .message-bubble p { font-size: 0.9rem; }
+     .header-info h3 { font-size: 1.1rem; }
+     .chat-item { padding: 12px 15px; }
+     
+     .input-area input[type="text"] {
+       padding: 10px 14px;
+       font-size: 0.9rem;
+     }
+     .send-btn {
+       width: 40px;
+       height: 40px;
+     }
    }
