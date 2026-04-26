@@ -401,6 +401,7 @@ exports.phoneRegister = async (req, res) => {
       user = new User({
         name: name.trim(),
         phone: cleanPhone,
+        email: `${cleanPhone}@notesmarketplace.com`, // ✅ Dummy email to bypass MongoDB unique index error on live DB
         college: college?.trim() || '',
         isVerified: true // No verification needed
       });
