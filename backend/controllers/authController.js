@@ -384,10 +384,11 @@ exports.phoneRegister = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Name and phone number are required' });
     }
 
-    // Validate phone format (basic check)
-    const cleanPhone = phone.replace(/\s/g, '');
-    if (cleanPhone.length < 10) {
-      return res.status(400).json({ success: false, message: 'Please enter a valid phone number' });
+    // ✅ Strict Indian phone validation
+    const cleanPhone = phone.replace(/[\s\-\(\)]/g, '').replace(/^\+91/, '');
+    const indianPhoneRegex = /^[6-9]\d{9}$/;
+    if (!indianPhoneRegex.test(cleanPhone)) {
+      return res.status(400).json({ success: false, message: 'Please enter a valid 10-digit Indian mobile number' });
     }
 
     // Find existing user by phone OR create new one

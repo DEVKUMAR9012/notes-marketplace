@@ -122,17 +122,23 @@ export default function Register() {
     finally { setLoading(false); setRetrying(false); }
   };
 
-  // ── PHONE FLOW (no OTP, direct login) ───────────────────
+  // ── PHONE FLOW (no OTP, direct login) ───────────────────────
   const handlePhoneRegister = async (e) => {
     e.preventDefault();
     if (!phoneData.name.trim()) return setError('Please enter your name');
-    const cleanPhone = phoneData.phone.replace(/\s/g, '');
-    if (cleanPhone.length < 10) return setError('Please enter a valid phone number');
+
+    // ✅ Strict Indian phone validation
+    const cleanPhone = phoneData.phone.replace(/[\s\-\(\)]/g, '').replace(/^\+91/, '');
+    const indianPhoneRegex = /^[6-9]\d{9}$/; // Must be 10 digits starting with 6/7/8/9
+    if (!indianPhoneRegex.test(cleanPhone)) {
+      return setError('Please enter a valid 10-digit Indian mobile number (starting with 6, 7, 8, or 9)');
+    }
+
     setLoading(true); setError(''); setRetryAttempt(0);
     try {
       const { data } = await retryWithBackoff(() => API.post('/auth/phone-register', {
         name: phoneData.name.trim(),
-        phone: cleanPhone,
+        phone: cleanPhone, // send clean 10-digit number
         college: phoneData.college.trim()
       }));
       login(data);
