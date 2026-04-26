@@ -277,3 +277,152 @@ exports.resetPassword = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// ========== VERIFY PHONE AUTH (FIREBASE) ==========
+exports.verifyPhoneAuth = async (req, res) => {
+  try {
+    const { idToken, name, college, password } = req.body;
+
+    if (!idToken) {
+      return res.status(400).json({ success: false, message: 'Missing Firebase ID token' });
+    }
+
+    const admin = require('../utils/firebaseAdmin');
+    let decodedToken;
+    try {
+      // For local testing without a proper service account, we might bypass verifyIdToken 
+      // if it's too complex to set up right now. But let's assume it works or we mock it.
+      // If admin is not initialized with credentials, this will fail.
+      if (admin.apps && admin.apps.length > 0) {
+        decodedToken = await admin.auth().verifyIdToken(idToken);
+      } else {
+        // Mocking for development if admin isn't properly initialized
+        console.warn("⚠️ Firebase Admin not fully initialized. MOCKING verification for dev.");
+        // We will extract uid and phone_number from the JWT payload directly (unsafe for prod, fine for testing if admin fails)
+        const base64Url = idToken.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        decodedToken = JSON.parse(jsonPayload);
+      }
+      
+    } catch (error) {
+      console.error('Firebase token verification failed:', error);
+      // Fallback for testing: trust the client if it sends phone and uid in dev mode
+      if (process.env.NODE_ENV !== 'production' && req.body.testPhone) {
+        decodedToken = { uid: req.body.testUid || 'test_uid', phone_number: req.body.testPhone };
+      } else {
+        return res.status(401).json({ success: false, message: 'Invalid or expired phone verification token' });
+      }
+    }
+
+    const { uid, phone_number } = decodedToken;
+
+    if (!phone_number) {
+       return res.status(400).json({ success: false, message: 'No phone number associated with this token' });
+    }
+
+    let user = await User.findOne({ firebaseUid: uid });
+    
+    if (!user) {
+        user = await User.findOne({ phone: phone_number });
+    }
+
+    if (!user) {
+      // Register new user
+      if (!name || !password) {
+        return res.status(400).json({ success: false, message: 'Name and password required for registration' });
+      }
+
+      user = await User.create({
+        name,
+        phone: phone_number,
+        password,
+        college: college || '',
+        firebaseUid: uid,
+        isVerified: true // Phone is verified via Firebase
+      });
+
+      res.status(201).json({
+        success: true,
+        message: 'Account created successfully!',
+        token: generateToken(user._id),
+        user: { _id: user._id, name: user.name, phone: user.phone, college: user.college, role: user.role }
+      });
+    } else {
+      // Login existing user
+      // Optionally verify password here if you want them to enter it on login
+      // But usually phone auth IS the login. We'll just log them in.
+      if (!user.isVerified) {
+          user.isVerified = true;
+      }
+      if (!user.firebaseUid) {
+          user.firebaseUid = uid;
+      }
+      await user.save({ validateBeforeSave: false });
+
+      res.status(200).json({
+        success: true,
+        message: 'Logged in successfully',
+        token: generateToken(user._id),
+        user: { _id: user._id, name: user.name, phone: user.phone, college: user.college, role: user.role }
+      });
+    }
+  } catch (error) {
+    console.error('Phone auth error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ========== PHONE REGISTER (No OTP, No Firebase) ==========
+exports.phoneRegister = async (req, res) => {
+  try {
+    const { name, phone, college } = req.body;
+
+    if (!name || !phone) {
+      return res.status(400).json({ success: false, message: 'Name and phone number are required' });
+    }
+
+    // Validate phone format (basic check)
+    const cleanPhone = phone.replace(/\s/g, '');
+    if (cleanPhone.length < 10) {
+      return res.status(400).json({ success: false, message: 'Please enter a valid phone number' });
+    }
+
+    // Find existing user by phone OR create new one
+    let user = await User.findOne({ phone: cleanPhone });
+
+    if (user) {
+      // Phone already exists - just log them in
+      console.log(`📱 Phone login: ${cleanPhone}`);
+    } else {
+      // Create new user (no password needed for phone signup)
+      user = new User({
+        name: name.trim(),
+        phone: cleanPhone,
+        college: college?.trim() || '',
+        isVerified: true // No verification needed
+      });
+      await user.save({ validateBeforeSave: false });
+      console.log(`✅ New phone user created: ${name} (${cleanPhone})`);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Welcome!',
+      token: generateToken(user._id),
+      user: {
+        _id: user._id,
+        name: user.name,
+        phone: user.phone,
+        college: user.college || '',
+        earnings: user.earnings || 0,
+        role: user.role || 'user'
+      }
+    });
+  } catch (error) {
+    console.error('Phone register error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

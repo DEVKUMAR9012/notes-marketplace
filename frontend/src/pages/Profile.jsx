@@ -8,7 +8,7 @@ import {
   FiCamera, FiTrendingUp, FiShoppingBag, FiEye, FiHeart,
   FiMessageSquare, FiUserPlus, FiFlag, FiLinkedin, FiInstagram, FiMessageCircle, FiAward
 } from 'react-icons/fi';
-import API from '../utils/api';
+import API, { API_BASE_URL } from '../utils/api';
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 const StatCard = ({ icon: Icon, label, value, color, sub }) => (
@@ -48,7 +48,7 @@ const NoteRow = ({ note, type }) => (
     )}
     {type === 'purchased' && (
       <a
-        href={`http://localhost:5000${note.pdfUrl}`}
+        href={`${API_BASE_URL}${note.pdfUrl.startsWith('/') ? '' : '/'}${note.pdfUrl}`}
         target="_blank"
         rel="noreferrer"
         className="flex items-center gap-1 px-2.5 py-1.5 bg-violet-600/30 hover:bg-violet-600/60 rounded-lg text-violet-300 text-xs transition flex-shrink-0"
@@ -223,7 +223,7 @@ export default function Profile() {
     );
   }
 
-  const avatarSrc = imagePreview || (profile.profileImage ? `http://localhost:5000${profile.profileImage}` : profile.avatar);
+  const avatarSrc = imagePreview || (profile.profileImage ? `${API_BASE_URL}${profile.profileImage.startsWith('/') ? '' : '/'}${profile.profileImage}` : profile.avatar);
   const initials = profile.name?.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || '?';
 
   // Computed completion

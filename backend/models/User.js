@@ -12,15 +12,20 @@ const userSchema = new mongoose.Schema({
   },
   email: {
     type: String,
-    required: [true, 'Please provide your email'],
-    unique: true,
     lowercase: true,
     trim: true,
-    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please provide a valid email']
+    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please provide a valid email'],
+    // Remove required true to allow phone-only signup
+    sparse: true,
+    unique: true
+  },
+  phone: {
+    type: String,
+    sparse: true,
+    unique: true
   },
   password: {
     type: String,
-    required: [true, 'Please provide a password'],
     minlength: [6, 'Password must be at least 6 characters'],
     select: false  // Never returned in queries unless explicitly requested with .select('+password')
   },

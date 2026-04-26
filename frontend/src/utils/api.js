@@ -10,6 +10,13 @@ const getBaseUrl = () => {
   return url;
 };
 
+export const API_BASE_URL = (() => {
+  let url = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+  if (url.endsWith('/')) url = url.slice(0, -1);
+  if (url.endsWith('/api')) url = url.slice(0, -4);
+  return url;
+})();
+
 // ✅ RETRY CONFIG - Handle cold start gracefully
 const RETRY_CONFIG = {
   maxRetries: 3,

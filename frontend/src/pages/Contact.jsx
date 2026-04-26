@@ -232,6 +232,40 @@ const FAQItem = ({ question, answer, index }) => {
 const LiveChatButton = () => {
   const [isHovered, setIsHovered] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [messages, setMessages] = useState([
+    { role: 'assistant', content: '👋 Hi! I\'m your AI support assistant for Notes Marketplace. How can I help you today?' }
+  ]);
+  const [inputText, setInputText] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const messagesEndRef = useState(null);
+  const inputRef = useState(null);
+
+  const sendMessage = async () => {
+    const text = inputText.trim();
+    if (!text || isTyping) return;
+
+    const userMsg = { role: 'user', content: text };
+    const updatedMessages = [...messages, userMsg];
+    setMessages(updatedMessages);
+    setInputText('');
+    setIsTyping(true);
+
+    try {
+      const apiMessages = updatedMessages.filter(m => !(m.role === 'assistant' && m.content.startsWith('👋')));
+      const { data } = await API.post('/ai/chat', {
+        messages: apiMessages.length ? apiMessages : [userMsg]
+      });
+      setMessages(prev => [...prev, { role: 'assistant', content: data.reply || 'Sorry, I could not process that.' }]);
+    } catch {
+      setMessages(prev => [...prev, { role: 'assistant', content: '❌ Connection error. Please try again.' }]);
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
+  const handleKey = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  };
 
   return (
     <motion.div
@@ -247,13 +281,11 @@ const LiveChatButton = () => {
         onClick={() => setIsChatOpen(!isChatOpen)}
         className="relative group"
       >
-        {/* Pulse Ring */}
         <motion.div
           animate={{ scale: [1, 1.3, 1] }}
           transition={{ duration: 2, repeat: Infinity }}
           className="absolute inset-0 rounded-full bg-emerald-400/30"
         />
-
         <div className="relative w-16 h-16 bg-gradient-to-br from-emerald-500 to-cyan-500 rounded-full flex items-center justify-center shadow-lg hover:shadow-emerald-500/50 transition-shadow cursor-pointer">
           <FiMessageCircle className="text-white text-2xl" />
         </div>
@@ -261,19 +293,19 @@ const LiveChatButton = () => {
 
       {/* Hover Label */}
       <AnimatePresence>
-        {isHovered && (
+        {isHovered && !isChatOpen && (
           <motion.div
             initial={{ opacity: 0, x: 10 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 10 }}
             className="absolute right-20 top-1/2 transform -translate-y-1/2 bg-gray-900 px-4 py-2 rounded-lg text-white text-sm font-medium whitespace-nowrap border border-white/20"
           >
-            Chat with us!
+            💬 Chat with AI!
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Chat Window */}
+      {/* AI Chat Window */}
       <AnimatePresence>
         {isChatOpen && (
           <motion.div
@@ -281,30 +313,64 @@ const LiveChatButton = () => {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.8, y: 20 }}
             transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-            className="absolute bottom-24 right-0 w-80 h-96 bg-gray-950 border border-white/20 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+            className="absolute bottom-24 right-0 w-80 h-[480px] bg-gray-950 border border-white/20 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
           >
-            <div className="bg-gradient-to-r from-emerald-600 to-cyan-600 px-4 py-3 flex items-center justify-between">
-              <h3 className="text-white font-bold">Support Chat</h3>
-              <button
-                onClick={() => setIsChatOpen(false)}
-                className="text-white hover:bg-white/20 p-1 rounded"
-              >
+            {/* Header */}
+            <div className="bg-gradient-to-r from-emerald-600 to-cyan-600 px-4 py-3 flex items-center justify-between flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-green-300 rounded-full animate-pulse" />
+                <div>
+                  <h3 className="text-white font-bold text-sm">AI Support</h3>
+                  <p className="text-white/70 text-xs">Powered by Claude</p>
+                </div>
+              </div>
+              <button onClick={() => setIsChatOpen(false)} className="text-white hover:bg-white/20 p-1 rounded">
                 <FiX />
               </button>
             </div>
-            <div className="flex-1 p-4 flex items-center justify-center">
-              <p className="text-gray-400 text-center text-sm">
-                Our support team is here to help! Send your message below. 💬
-              </p>
+
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto p-3 space-y-3">
+              {messages.map((msg, i) => (
+                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[85%] px-3 py-2 rounded-2xl text-sm leading-relaxed ${
+                    msg.role === 'user'
+                      ? 'bg-gradient-to-r from-emerald-600 to-cyan-600 text-white rounded-tr-sm'
+                      : 'bg-gray-800 text-gray-100 border border-white/10 rounded-tl-sm'
+                  }`}>
+                    {msg.content}
+                  </div>
+                </div>
+              ))}
+              {isTyping && (
+                <div className="flex justify-start">
+                  <div className="bg-gray-800 border border-white/10 px-3 py-2 rounded-2xl rounded-tl-sm flex gap-1 items-center">
+                    <motion.div animate={{ y: [0, -4, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay: 0 }} className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />
+                    <motion.div animate={{ y: [0, -4, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay: 0.15 }} className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />
+                    <motion.div animate={{ y: [0, -4, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay: 0.3 }} className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />
+                  </div>
+                </div>
+              )}
             </div>
-            <div className="px-4 py-3 border-t border-white/10 flex gap-2">
+
+            {/* Input */}
+            <div className="px-3 py-3 border-t border-white/10 flex gap-2 flex-shrink-0">
               <input
+                ref={inputRef[0]}
                 type="text"
-                placeholder="Type message..."
-                className="flex-1 bg-gray-900 border border-white/20 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-emerald-500 transition"
+                value={inputText}
+                onChange={e => setInputText(e.target.value)}
+                onKeyDown={handleKey}
+                disabled={isTyping}
+                placeholder="Ask anything..."
+                className="flex-1 bg-gray-900 border border-white/20 rounded-xl px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-emerald-500 transition disabled:opacity-50"
               />
-              <button className="bg-emerald-600 hover:bg-emerald-700 text-white p-2 rounded-lg transition">
-                <FiSend />
+              <button
+                onClick={sendMessage}
+                disabled={!inputText.trim() || isTyping}
+                className="bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 disabled:opacity-40 text-white p-2 rounded-xl transition"
+              >
+                <FiSend size={16} />
               </button>
             </div>
           </motion.div>
@@ -313,6 +379,7 @@ const LiveChatButton = () => {
     </motion.div>
   );
 };
+
 
 // ──────────────────────────────────────────────────────────────────
 // MAIN CONTACT PAGE

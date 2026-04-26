@@ -40,7 +40,7 @@ function App() {
     <AuthProvider>
       <SocketProvider>
         <CartProvider>
-        <BrowserRouter future={{ v7_relativeSplatPath: true }}>
+        <BrowserRouter>
           <Routes>
             {/* ========== PUBLIC ROUTES (No Navbar) ========== */}
             <Route path="/login" element={<Login />} />

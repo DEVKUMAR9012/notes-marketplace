@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
-import API from '../utils/api';
+import API, { API_BASE_URL } from '../utils/api';
 import './Chat.css';
 
 // ── Helper: Format time
@@ -22,7 +22,7 @@ const getReceiptIcon = (msg, userId, participants) => {
 
 // ── Avatar Component
 const Avatar = ({ user, size = 40, isOnline }) => {
-  const src = user?.profileImage ? `http://localhost:5000${user.profileImage}` : user?.avatar;
+  const src = user?.profileImage ? `${API_BASE_URL}${user.profileImage.startsWith('/') ? '' : '/'}${user.profileImage.replace(/\\/g, '/')}` : user?.avatar;
   const initials = user?.name?.charAt(0)?.toUpperCase() || '?';
   return (
     <div className="chat-avatar-wrapper" style={{ width: size, height: size }}>
@@ -64,6 +64,9 @@ export default function Chat() {
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const fileInputRef = useRef(null);
+  // ✅ FIX: Keep activeChat in a ref so socket listeners always get the latest value
+  const activeChatRef = useRef(null);
+  useEffect(() => { activeChatRef.current = activeChat; }, [activeChat]);
 
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   useEffect(scrollToBottom, [messages]);
@@ -113,10 +116,16 @@ export default function Chat() {
     if (!socket) return;
 
     const onNewMessage = (msg) => {
-      if (activeChat && msg.chat === activeChat._id) {
-        setMessages(prev => [...prev, msg]);
-        API.put(`/chat/${activeChat._id}/read`).catch(() => {});
-        socket.emit('messages_delivered', { chatId: activeChat._id });
+      const currentChat = activeChatRef.current;
+      if (currentChat && msg.chat === currentChat._id) {
+        // ✅ Use functional update to avoid stale state
+        setMessages(prev => {
+          // Prevent duplicate messages
+          if (prev.some(m => m._id === msg._id)) return prev;
+          return [...prev, msg];
+        });
+        API.put(`/chat/${currentChat._id}/read`).catch(() => {});
+        socket.emit('messages_delivered', { chatId: currentChat._id });
       }
     };
 
@@ -332,9 +341,9 @@ export default function Chat() {
                     <div className="message-bubble">
                       {msg.fileUrl ? (
                         msg.fileType === 'image' ? (
-                           <img src={msg.fileUrl} alt="attachment" className="msg-image" />
+                           <img src={msg.fileUrl.startsWith('http') ? msg.fileUrl : `${API_BASE_URL}${msg.fileUrl.startsWith('/') ? '' : '/'}${msg.fileUrl.replace(/\\/g, '/')}`} alt="attachment" className="msg-image" />
                         ) : (
-                           <a href={msg.fileUrl} target="_blank" rel="noreferrer" className="msg-pdf">📎 View Document</a>
+                           <a href={msg.fileUrl.startsWith('http') ? msg.fileUrl : `${API_BASE_URL}${msg.fileUrl.startsWith('/') ? '' : '/'}${msg.fileUrl.replace(/\\/g, '/')}`} target="_blank" rel="noreferrer" className="msg-pdf">📎 View Document</a>
                         )
                       ) : null}
                       {msg.text && <p>{msg.text}</p>}

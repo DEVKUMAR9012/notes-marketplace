@@ -4,7 +4,6 @@ import { useAuth } from './AuthContext';
 
 const SocketContext = createContext(null);
 
-// Strip trailing /api to get the raw socket server URL
 const getRawServerUrl = () => {
   let url = process.env.REACT_APP_API_URL || 'http://localhost:5000';
   if (url.endsWith('/')) url = url.slice(0, -1);
@@ -16,15 +15,17 @@ const BACKEND_URL = getRawServerUrl();
 export const SocketProvider = ({ children }) => {
   const { user } = useAuth();
   const socketRef = useRef(null);
+  // ✅ FIX: socket in STATE (not just ref) — triggers re-render when socket changes
+  const [socket, setSocket] = useState(null);
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!user || !token) {
-      // Disconnect if user logs out
       if (socketRef.current) {
         socketRef.current.disconnect();
         socketRef.current = null;
+        setSocket(null);
         setConnected(false);
       }
       return;
@@ -33,39 +34,56 @@ export const SocketProvider = ({ children }) => {
     // Already connected? Skip
     if (socketRef.current?.connected) return;
 
-    const socket = io(BACKEND_URL, {
+    const newSocket = io(BACKEND_URL, {
       auth: { token },
-      transports: ['websocket', 'polling'],
-      reconnectionAttempts: 5,
+      transports: ['polling', 'websocket'],
+      reconnection: true,
+      reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      randomizationFactor: 0.3,
+      timeout: 20000,
+      forceNew: false,
     });
 
-    socket.on('connect', () => {
-      console.log('✅ Socket connected:', socket.id);
+    newSocket.on('connect', () => {
+      console.log('✅ Socket connected:', newSocket.id);
       setConnected(true);
+      // ✅ Update state so all consumers get the fresh socket instance
+      setSocket(newSocket);
     });
 
-    socket.on('disconnect', () => {
-      console.log('❌ Socket disconnected');
+    newSocket.io.on('upgrade', () => {
+      console.log('⚡ Socket upgraded to WebSocket');
+    });
+
+    newSocket.on('disconnect', (reason) => {
+      console.log('❌ Socket disconnected:', reason);
+      setConnected(false);
+      if (reason === 'io server disconnect') {
+        newSocket.connect();
+      }
+    });
+
+    newSocket.on('connect_error', (err) => {
+      console.warn('Socket error:', err.message);
       setConnected(false);
     });
 
-    socket.on('connect_error', (err) => {
-      console.error('Socket connection error:', err.message);
-      setConnected(false);
-    });
-
-    socketRef.current = socket;
+    socketRef.current = newSocket;
+    // Set immediately so chat can register listeners before 'connect' fires
+    setSocket(newSocket);
 
     return () => {
-      socket.disconnect();
+      newSocket.disconnect();
       socketRef.current = null;
+      setSocket(null);
       setConnected(false);
     };
   }, [user]);
 
   return (
-    <SocketContext.Provider value={{ socket: socketRef.current, connected }}>
+    <SocketContext.Provider value={{ socket, connected }}>
       {children}
     </SocketContext.Provider>
   );

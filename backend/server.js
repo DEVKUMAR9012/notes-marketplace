@@ -20,6 +20,13 @@ app.use(cors(corsOptions));
 // ========== SOCKET.IO ==========
 const io = new Server(server, {
   cors: { origin: corsOptions.origin, credentials: true },
+  pingTimeout: 60000,       // 60s before considering connection dead
+  pingInterval: 25000,      // ping every 25s to keep alive
+  upgradeTimeout: 30000,    // time allowed to upgrade from polling to ws
+  allowUpgrades: true,
+  transports: ['polling', 'websocket'], // polling first (reliable), then upgrade to ws
+  maxHttpBufferSize: 1e6,   // 1MB max message size
+  connectTimeout: 45000,
 });
 app.set('io', io);
 
@@ -189,6 +196,7 @@ app.use('/api/payments', require('./routes/paymentRoutes'));
 app.use('/api/bundles',  require('./routes/bundleRoutes'));
 app.use('/api/email',    require('./routes/emailRoutes'));
 app.use('/api/chat',     require('./routes/chatRoutes'));
+app.use('/api/ai',       require('./routes/aiRoutes'));   // ✅ AI Chat
 
 app.get('/api/health', (req, res) =>
   res.json({ status: 'OK', message: 'Backend running', timestamp: new Date().toISOString() }));
