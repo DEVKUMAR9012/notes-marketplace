@@ -428,3 +428,45 @@ exports.phoneRegister = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// ========== PHONE LOGIN ==========
+exports.phoneLogin = async (req, res) => {
+  try {
+    const { phone } = req.body;
+
+    if (!phone) {
+      return res.status(400).json({ success: false, message: 'Phone number is required' });
+    }
+
+    const cleanPhone = phone.replace(/[\s\-\(\)]/g, '').replace(/^\+91/, '');
+    const indianPhoneRegex = /^[6-9]\d{9}$/;
+    if (!indianPhoneRegex.test(cleanPhone)) {
+      return res.status(400).json({ success: false, message: 'Please enter a valid 10-digit Indian mobile number' });
+    }
+
+    const user = await User.findOne({ phone: cleanPhone });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'No account found with this phone number. Please register first.' });
+    }
+
+    console.log(`📱 Phone login successful: ${cleanPhone}`);
+
+    res.status(200).json({
+      success: true,
+      message: 'Welcome back!',
+      token: generateToken(user._id),
+      user: {
+        _id: user._id,
+        name: user.name,
+        phone: user.phone,
+        college: user.college || '',
+        earnings: user.earnings || 0,
+        role: user.role || 'user'
+      }
+    });
+  } catch (error) {
+    console.error('Phone login error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

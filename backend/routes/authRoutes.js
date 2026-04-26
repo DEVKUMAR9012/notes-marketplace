@@ -10,7 +10,8 @@ const {
     resetPassword,
     resendOtp,
     verifyPhoneAuth,
-    phoneRegister
+    phoneRegister,
+    phoneLogin
 } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
 
@@ -21,6 +22,7 @@ router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPassword);
 router.post('/verify-phone', verifyPhoneAuth);
 router.post('/phone-register', phoneRegister); // ✅ Simple phone signup - no OTP
+router.post('/phone-login', phoneLogin); // ✅ Phone login
 
 router.post('/login', login);
 

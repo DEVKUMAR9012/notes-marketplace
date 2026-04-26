@@ -6,8 +6,10 @@ import API, { warmupServer } from '../utils/api';
 import { FiMail, FiLock, FiEye, FiEyeOff, FiKey } from 'react-icons/fi';
 
 export default function Login() {
+  const [authMethod, setAuthMethod] = useState('email'); // 'email' or 'phone'
   const [step, setStep] = useState('login'); // 'login', 'forgot', 'reset'
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [otp, setOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -54,11 +56,24 @@ export default function Login() {
     setRetryAttempt(0);
     
     try {
-      const { data } = await retryWithBackoff(async () => {
-        return await API.post('/auth/login', { email, password });
-      }, 3);
-      login(data);
-      navigate('/');
+      if (authMethod === 'email') {
+        const { data } = await retryWithBackoff(async () => {
+          return await API.post('/auth/login', { email, password });
+        }, 3);
+        login(data);
+        navigate('/');
+      } else {
+        // Phone login
+        const cleanPhone = phone.replace(/[\s\-\(\)]/g, '').replace(/^\+91/, '');
+        if (cleanPhone.length < 10) {
+          throw new Error('Please enter a valid 10-digit mobile number');
+        }
+        const { data } = await retryWithBackoff(async () => {
+          return await API.post('/auth/phone-login', { phone: cleanPhone });
+        }, 3);
+        login(data);
+        navigate('/');
+      }
     } catch (err) {
       const errorMsg = err.response?.data?.message || err.message || 'Login failed';
       setError(errorMsg);
@@ -178,46 +193,75 @@ export default function Login() {
                 )}
 
                 <form onSubmit={handleLogin} className="space-y-4">
-                  <div className="relative">
-                    <FiMail className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-500" />
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
-                      placeholder="Email Address"
-                      required
-                    />
-                  </div>
-
-                  <div className="relative">
-                    <FiLock className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-500" />
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full pl-10 pr-12 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
-                      placeholder="Password"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-white"
-                    >
-                      {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                  {/* Toggle */}
+                  <div className="flex bg-gray-950/60 p-1 rounded-xl mb-4 border border-white/5">
+                    <button type="button" onClick={() => { setAuthMethod('email'); setError(''); }}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${authMethod === 'email' ? 'bg-blue-600/80 text-white shadow' : 'text-gray-500 hover:text-gray-300'}`}>
+                      <FiMail size={14} /> Email
+                    </button>
+                    <button type="button" onClick={() => { setAuthMethod('phone'); setError(''); }}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${authMethod === 'phone' ? 'bg-blue-600/80 text-white shadow' : 'text-gray-500 hover:text-gray-300'}`}>
+                      <svg stroke="currentColor" fill="none" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round" height="14" width="14" xmlns="http://www.w3.org/2000/svg"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg> Phone
                     </button>
                   </div>
 
-                  <div className="flex justify-end pt-1 pb-2">
-                    <button 
-                      type="button" 
-                      onClick={() => { setError(''); setSuccess(''); setStep('forgot'); }}
-                      className="text-sm text-blue-400 hover:text-blue-300 font-medium transition-colors"
-                    >
-                      Forgot password?
-                    </button>
-                  </div>
+                  {authMethod === 'email' ? (
+                    <>
+                      <div className="relative">
+                        <FiMail className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-500" />
+                        <input
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="w-full pl-10 pr-4 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+                          placeholder="Email Address"
+                          required
+                        />
+                      </div>
+
+                      <div className="relative">
+                        <FiLock className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-500" />
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className="w-full pl-10 pr-12 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+                          placeholder="Password"
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
+                        >
+                          {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                        </button>
+                      </div>
+
+                      <div className="flex justify-end pt-1 pb-2">
+                        <button
+                          type="button"
+                          onClick={() => { setError(''); setSuccess(''); setStep('forgot'); }}
+                          className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
+                        >
+                          Forgot Password?
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">+91</span>
+                      <input
+                        type="tel"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, ''))}
+                        className="w-full pl-12 pr-4 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+                        placeholder="10-digit mobile number"
+                        maxLength="10"
+                        required
+                      />
+                    </div>
+                  )}
 
                   <button
                     type="submit"
