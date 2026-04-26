@@ -1,7 +1,5 @@
 const User = require('../models/User');
 const Note = require('../models/Note');
-const path = require('path');
-const fs = require('fs');
 const sendEmail = require('../utils/sendEmail');
 const templates = require('../utils/emailTemplates');
 
@@ -116,22 +114,9 @@ exports.updateProfile = async (req, res) => {
       }
     }
 
-    // Profile image upload
-    if (req.file) {
-      const user = await User.findById(req.user._id);  // ✅ FIXED: Use _id
-      
-      // Delete old image if exists
-      if (user && user.profileImage) {
-        const oldPath = path.join(__dirname, '..', user.profileImage);
-        if (fs.existsSync(oldPath)) {
-          try {
-            fs.unlinkSync(oldPath);
-          } catch (unlinkErr) {
-            console.error('Error deleting old image:', unlinkErr);
-          }
-        }
-      }
-      updateData.profileImage = `/uploads/profiles/${req.file.filename}`;
+    // Profile image upload → Cloudinary URL is set by middleware
+    if (req.cloudinaryUrl) {
+      updateData.profileImage = req.cloudinaryUrl; // ✅ Permanent Cloudinary URL
     }
 
     const updatedUser = await User.findByIdAndUpdate(
