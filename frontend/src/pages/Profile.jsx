@@ -125,6 +125,7 @@ export default function Profile() {
   const [imagePreview, setImagePreview] = useState(null);
   const [imageFile, setImageFile] = useState(null);
   const [chartType, setChartType] = useState('earnings');
+  const [avatarError, setAvatarError] = useState(false);
   const fileInputRef = useRef(null);
 
   useEffect(() => { fetchProfile(); }, [id]);
@@ -230,9 +231,6 @@ export default function Profile() {
   };
   const avatarSrc = imagePreview || getImageUrl(profile.profileImage) || profile.avatar;
   const initials = profile.name?.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || '?';
-
-  // State to track if the main avatar image failed to load (e.g. old local file deleted by Render)
-  const [avatarError, setAvatarError] = useState(false);
 
   // Computed completion
   const requiredFields = ['name', 'college', 'bio', 'phoneNumber', 'expertise', 'stream'];
