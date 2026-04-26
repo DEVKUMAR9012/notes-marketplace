@@ -100,6 +100,17 @@ export default function Chat() {
 
   useEffect(() => { loadConversations(); }, [loadConversations]);
 
+  // ✅ Reload conversations when socket reconnects (auto-refresh like WhatsApp)
+  useEffect(() => {
+    if (!socket) return;
+    const onReconnect = () => {
+      console.log('🔄 Socket reconnected — reloading conversations...');
+      loadConversations();
+    };
+    socket.on('connect', onReconnect);
+    return () => socket.off('connect', onReconnect);
+  }, [socket, loadConversations]);
+
   // ── Load Messages for Active Chat
   useEffect(() => {
     if (!activeChat) return;
@@ -144,9 +155,24 @@ export default function Chat() {
     };
 
     const onConversationUpdated = ({ chatId, lastMessage, unreadCount }) => {
-      setConversations(prev => prev.map(c => c._id === chatId ? { ...c, lastMessage } : c));
+      setConversations(prev => {
+        const exists = prev.some(c => c._id === chatId);
+        if (!exists) {
+          // ✅ New chat not in list yet — reload full list
+          loadConversations();
+          return prev;
+        }
+        // ✅ Update lastMessage and move to TOP (WhatsApp style)
+        const updated = prev.map(c => c._id === chatId ? { ...c, lastMessage } : c);
+        const chatIndex = updated.findIndex(c => c._id === chatId);
+        if (chatIndex > 0) {
+          const [moved] = updated.splice(chatIndex, 1);
+          updated.unshift(moved); // move to top
+        }
+        return updated;
+      });
       if (!activeChat || activeChat._id !== chatId) {
-        setUnreadCounts(prev => ({ ...prev, [chatId]: unreadCount }));
+        setUnreadCounts(prev => ({ ...prev, [chatId]: (prev[chatId] || 0) + 1 }));
         // Play notification sound
         new Audio('/sounds/notification.mp3').play().catch(()=>{});
       }
