@@ -223,7 +223,12 @@ export default function Profile() {
     );
   }
 
-  const avatarSrc = imagePreview || (profile.profileImage ? `${API_BASE_URL}${profile.profileImage.startsWith('/') ? '' : '/'}${profile.profileImage}` : profile.avatar);
+  const getImageUrl = (url) => {
+    if (!url) return null;
+    if (url.startsWith('http')) return url;
+    return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url.replace(/\\/g, '/')}`;
+  };
+  const avatarSrc = imagePreview || getImageUrl(profile.profileImage) || profile.avatar;
   const initials = profile.name?.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || '?';
 
   // Computed completion

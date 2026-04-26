@@ -22,7 +22,12 @@ const getReceiptIcon = (msg, userId, participants) => {
 
 // ── Avatar Component
 const Avatar = ({ user, size = 40, isOnline }) => {
-  const src = user?.profileImage ? `${API_BASE_URL}${user.profileImage.startsWith('/') ? '' : '/'}${user.profileImage.replace(/\\/g, '/')}` : user?.avatar;
+  const getImageUrl = (url) => {
+    if (!url) return null;
+    if (url.startsWith('http')) return url;
+    return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url.replace(/\\/g, '/')}`;
+  };
+  const src = getImageUrl(user?.profileImage) || user?.avatar;
   const initials = user?.name?.charAt(0)?.toUpperCase() || '?';
   return (
     <div className="chat-avatar-wrapper" style={{ width: size, height: size }}>
