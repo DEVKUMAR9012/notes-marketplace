@@ -7,9 +7,22 @@ import './Chat.css';
 
 // ── Helper: Format time
 const formatTime = (dateStr) => {
+  if (!dateStr) return '';
   const d = new Date(dateStr);
   const now = new Date();
-  if (d.toDateString() === now.toDateString()) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const diffMs = now - d;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return 'just now';
+  if (diffMins < 60) return `${diffMins} min ago`;
+  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+  if (diffDays === 1) return 'yesterday';
+  if (diffDays < 7) return `${diffDays} days ago`;
+
+  if (d.toDateString() === now.toDateString())
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   return d.toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 };
 
@@ -50,6 +63,19 @@ const Avatar = ({ user, size = 40, isOnline }) => {
   );
 };
 
+// ── FIX 1: Typing Dots Component ────────────────────────────────────────────
+const TypingBubble = ({ name }) => (
+  <div className="message-row theirs">
+    <div className="message-bubble typing-bubble">
+      <div className="typing-indicator">
+        <span /><span /><span />
+      </div>
+      {name && <p className="typing-name">{name} is typing…</p>}
+    </div>
+  </div>
+);
+// ────────────────────────────────────────────────────────────────────────────
+
 export default function Chat() {
   const { user } = useAuth();
   const { socket } = useSocket();
@@ -83,7 +109,7 @@ export default function Chat() {
   useEffect(() => { activeChatRef.current = activeChat; }, [activeChat]);
 
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  useEffect(scrollToBottom, [messages]);
+  useEffect(scrollToBottom, [messages, typingUser]);
 
   // ── Load Conversations
   const loadConversations = useCallback(async () => {
@@ -104,8 +130,14 @@ export default function Chat() {
   useEffect(() => {
     if (!socket) return;
     const onReconnect = () => {
-      console.log('🔄 Socket reconnected — reloading conversations...');
+      console.log('🔄 Socket reconnected — reloading data...');
       loadConversations();
+      const current = activeChatRef.current;
+      if (current) {
+        API.get(`/chat/${current._id}/messages`)
+          .then(r => setMessages(r.data.messages))
+          .catch(() => {});
+      }
     };
     socket.on('connect', onReconnect);
     return () => socket.off('connect', onReconnect);
@@ -125,6 +157,7 @@ export default function Chat() {
     fetchMessages();
     API.put(`/chat/${activeChat._id}/read`).catch(() => {});
     setUnreadCounts(prev => ({ ...prev, [activeChat._id]: 0 }));
+    setTypingUser(null);
   }, [activeChat]);
 
   // ── Socket Events
@@ -179,9 +212,11 @@ export default function Chat() {
     };
 
     const onUserTyping = ({ userId, name }) => {
-      if (userId !== String(user._id)) setTypingUser(name);
+      if (userId !== String(user._id)) setTypingUser({ userId, name });
     };
-    const onUserStoppedTyping = () => setTypingUser(null);
+    const onUserStoppedTyping = ({ userId }) => {
+      if (userId !== String(user._id)) setTypingUser(null);
+    };
     const onUserStatus = ({ userId, isOnline, lastSeen }) => {
       setConversations(prev => prev.map(c => {
         const pIndex = c.participants.findIndex(p => p._id === userId);
@@ -202,20 +237,37 @@ export default function Chat() {
 
     const onWarning = ({ text }) => { setWarningMsg(text); };
 
-    socket.on('new_message', onNewMessage);
+    const onMessagesDelivered = ({ chatId, deliveredTo }) => {
+      const current = activeChatRef.current;
+      if (current && chatId === current._id) {
+        setMessages(prev => prev.map(m => {
+          if (String(m.sender?._id || m.sender) === String(user._id)) {
+            const already = m.deliveredTo?.map(String) || [];
+            if (!already.includes(String(deliveredTo))) {
+              return { ...m, deliveredTo: [...already, String(deliveredTo)] };
+            }
+          }
+          return m;
+        }));
+      }
+    };
+
+    socket.on('new_message',          onNewMessage);
     socket.on('conversation_updated', onConversationUpdated);
-    socket.on('user_typing', onUserTyping);
-    socket.on('user_stopped_typing', onUserStoppedTyping);
-    socket.on('user_status', onUserStatus);
-    socket.on('personal_info_warning', onWarning);
+    socket.on('user_typing',          onUserTyping);
+    socket.on('user_stopped_typing',  onUserStoppedTyping);
+    socket.on('user_status',          onUserStatus);
+    socket.on('personal_info_warning',onWarning);
+    socket.on('messages_delivery_update', onMessagesDelivered);
 
     return () => {
-      socket.off('new_message', onNewMessage);
+      socket.off('new_message',          onNewMessage);
       socket.off('conversation_updated', onConversationUpdated);
-      socket.off('user_typing', onUserTyping);
-      socket.off('user_stopped_typing', onUserStoppedTyping);
-      socket.off('user_status', onUserStatus);
-      socket.off('personal_info_warning', onWarning);
+      socket.off('user_typing',          onUserTyping);
+      socket.off('user_stopped_typing',  onUserStoppedTyping);
+      socket.off('user_status',          onUserStatus);
+      socket.off('personal_info_warning',onWarning);
+      socket.off('messages_delivery_update', onMessagesDelivered);
     };
   }, [socket, activeChat, user._id]);
 
@@ -225,6 +277,7 @@ export default function Chat() {
     if (!text || !activeChat || !socket) return;
     socket.emit('send_message', { chatId: activeChat._id, text });
     setInputText('');
+    clearTimeout(typingTimeoutRef.current);
     socket.emit('typing_stop', { chatId: activeChat._id });
   };
 
@@ -292,6 +345,7 @@ export default function Chat() {
       setConversations(prev => prev.find(c => c._id === newChat._id) ? prev : [newChat, ...prev]);
       setActiveChat(newChat);
       setShowSearch(false);
+      setSearchQuery('');
     } catch (e) { console.error(e); }
   };
 
@@ -366,7 +420,9 @@ export default function Chat() {
                   </Link>
                   {otherParticipant?.totalSales > 0 && <span className="verified" title="Verified Seller">✓</span>}
                 </h3>
-                <span className="status">{typingUser ? 'typing...' : (otherParticipant?.isOnline ? 'Online' : `Last seen: ${otherParticipant?.lastSeen ? formatTime(otherParticipant.lastSeen) : 'N/A'}`)}</span>
+                <span className={`status ${typingUser ? 'typing-status' : ''}`}>
+                  {typingUser ? `${typingUser.name} is typing…` : (otherParticipant?.isOnline ? 'Online' : `Last seen: ${otherParticipant?.lastSeen ? formatTime(otherParticipant.lastSeen) : 'N/A'}`)}
+                </span>
               </div>
               <div className="header-actions">
                 <button title="Report/Block">⋮</button>
@@ -395,6 +451,10 @@ export default function Chat() {
                   </div>
                 );
               })}
+
+              {/* FIX 1: Typing bubble — shows INSIDE messages area like WhatsApp */}
+              {typingUser && <TypingBubble name={typingUser.name} />}
+
               <div ref={messagesEndRef} />
             </div>
 
