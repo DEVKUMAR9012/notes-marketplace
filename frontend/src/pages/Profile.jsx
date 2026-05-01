@@ -6,7 +6,7 @@ import {
   FiUser, FiMail, FiMapPin, FiUpload, FiDownload,
   FiDollarSign, FiBook, FiEdit2, FiCheck,
   FiCamera, FiTrendingUp, FiShoppingBag, FiEye, FiHeart,
-  FiMessageSquare, FiUserPlus, FiFlag, FiLinkedin, FiInstagram, FiMessageCircle, FiAward
+  FiMessageSquare, FiUserPlus, FiFlag, FiLinkedin, FiInstagram, FiMessageCircle, FiAward, FiStar
 } from 'react-icons/fi';
 import API, { API_BASE_URL } from '../utils/api';
 
@@ -126,6 +126,10 @@ export default function Profile() {
   const [imageFile, setImageFile] = useState(null);
   const [chartType, setChartType] = useState('earnings');
   const [avatarError, setAvatarError] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reporting, setReporting] = useState(false);
   const fileInputRef = useRef(null);
 
   useEffect(() => { fetchProfile(); }, [id]);
@@ -153,6 +157,9 @@ export default function Profile() {
           linkedin: u.socialLinks?.linkedin || '',
         }
       });
+      if (authUser) {
+        setIsFollowing(u.followers?.includes(authUser._id));
+      }
     } catch (err) {
       console.error('Profile fetch error:', err);
     } finally {
@@ -332,10 +339,32 @@ export default function Profile() {
                     <button onClick={() => navigate('/chat', { state: { startChatWith: profile } })} className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-sm font-medium transition text-gray-300">
                       <FiMessageSquare /> Message Seller
                     </button>
-                    <button className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 rounded-xl text-sm font-medium transition text-white shadow-lg shadow-violet-500/20">
-                      <FiUserPlus /> Follow
+                    <button 
+                      onClick={async () => {
+                        try {
+                          await API.post('/profile/follow/toggle', { targetUserId: profile._id });
+                          const newStatus = !isFollowing;
+                          setIsFollowing(newStatus);
+                          setProfile(p => ({
+                            ...p,
+                            followers: newStatus 
+                              ? [...(p.followers || []), authUser._id] 
+                              : (p.followers || []).filter(id => String(id) !== String(authUser._id))
+                          }));
+                        } catch (e) { console.error('Follow error:', e); }
+                      }}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition shadow-lg ${
+                        isFollowing 
+                          ? 'bg-white/10 hover:bg-white/20 text-gray-300 border border-white/10'
+                          : 'bg-violet-600 hover:bg-violet-700 text-white shadow-violet-500/20'
+                      }`}
+                    >
+                      {isFollowing ? <FiCheck /> : <FiUserPlus />} {isFollowing ? 'Following' : 'Follow'}
                     </button>
-                    <button className="p-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-xl transition tooltip-trigger relative group">
+                    <button 
+                      onClick={() => setShowReportModal(true)}
+                      className="p-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-xl transition tooltip-trigger relative group"
+                    >
                       <FiFlag />
                       <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-900 text-xs text-white px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none">Report</span>
                     </button>
@@ -389,6 +418,7 @@ export default function Profile() {
                     {profile.totalSales > 10 && <span className="bg-gradient-to-r from-orange-400 to-yellow-500 text-black text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1 font-bold">⭐ Top Seller</span>}
                     {(profile.uploadedNotes?.length || 0) > 5 && <span className="bg-emerald-500 text-white text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1 font-bold">📚 Active</span>}
                     <span className="bg-fuchsia-600/50 border border-fuchsia-500/30 text-fuchsia-100 text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1 font-bold">🎓 Student</span>
+                    <span className="bg-yellow-500/20 border border-yellow-500/30 text-yellow-300 text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1 font-bold"><FiStar className="fill-current" /> {profile.stars || 0} Stars</span>
                   </div>
                   
                   {profile.stream && <p className="text-violet-400 text-sm font-semibold mb-2">{profile.stream}</p>}
@@ -617,6 +647,68 @@ export default function Profile() {
           </motion.div>
         </AnimatePresence>
       </div>
+      
+      {/* Report Modal */}
+      <AnimatePresence>
+        {showReportModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setShowReportModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl"
+            >
+              <div className="p-4 border-b border-white/10 flex justify-between items-center bg-white/5">
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  <FiFlag className="text-red-400" /> Report User
+                </h3>
+                <button onClick={() => setShowReportModal(false)} className="text-gray-400 hover:text-white">✕</button>
+              </div>
+              <div className="p-5">
+                <p className="text-sm text-gray-400 mb-4">
+                  Please provide a reason for reporting <span className="text-white font-medium">{profile?.name}</span>. Our moderation team will review this shortly.
+                </p>
+                <textarea
+                  value={reportReason}
+                  onChange={e => setReportReason(e.target.value)}
+                  placeholder="Reason for reporting..."
+                  className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white focus:border-red-500/50 outline-none resize-none h-32 mb-4"
+                />
+                <div className="flex justify-end gap-3">
+                  <button onClick={() => setShowReportModal(false)} className="px-4 py-2 text-sm text-gray-400 hover:text-white transition">Cancel</button>
+                  <button 
+                    onClick={async () => {
+                      if (!reportReason.trim()) return alert('Reason is required');
+                      setReporting(true);
+                      try {
+                        await API.post(`/profile/${profile._id}/report`, { reason: reportReason });
+                        alert('Report submitted successfully. Thank you.');
+                        setShowReportModal(false);
+                        setReportReason('');
+                      } catch (e) {
+                        alert('Failed to submit report');
+                      } finally {
+                        setReporting(false);
+                      }
+                    }}
+                    disabled={reporting}
+                    className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-xl transition disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {reporting ? 'Submitting...' : 'Submit Report'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

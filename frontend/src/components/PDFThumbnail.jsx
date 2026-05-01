@@ -8,12 +8,34 @@ const PDFThumbnail = ({ pdfUrl, title }) => {
   const canvasRef = useRef(null);
   const renderTaskRef = useRef(null);  // ✅ Track active render task to cancel on cleanup
 
+  const ext = pdfUrl?.split('.').pop()?.toLowerCase() || '';
+  const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext);
+  const isPdf = ext === 'pdf';
+  
+  const fullUrl = pdfUrl?.startsWith('http')
+    ? pdfUrl
+    : `${process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL.replace('/api', '') : 'http://localhost:5000'}${pdfUrl}`;
+
   useEffect(() => {
     let cancelled = false;
 
     const generateThumbnail = async () => {
       if (!pdfUrl) {
         setLoading(false);
+        return;
+      }
+
+      if (isImage) {
+        setThumbnail(fullUrl);
+        setLoading(false);
+        return;
+      }
+
+      if (!isPdf) {
+        // If it's not a PDF and not an image, we can't generate a thumbnail.
+        // We'll show an icon based on the extension later.
+        setLoading(false);
+        setError(true);
         return;
       }
 
@@ -34,17 +56,11 @@ const PDFThumbnail = ({ pdfUrl, title }) => {
         const pdfjsLib = await import('pdfjs-dist');
         if (cancelled) return;
 
-        // ✅ Use local worker file (copied to public/pdf.worker.min.mjs)
         pdfjsLib.GlobalWorkerOptions.workerSrc = `${window.location.origin}/pdf.worker.min.mjs`;
-
-        const fullUrl = pdfUrl?.startsWith('http')
-          ? pdfUrl
-          : `${process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL.replace('/api', '') : 'http://localhost:5000'}${pdfUrl}`;
 
         const loadingTask = pdfjsLib.getDocument({
           url: fullUrl,
           useSystemFonts: true,
-          // ✅ jsDelivr for cMaps (separate from worker file)
           cMapUrl: `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/cmaps/`,
           cMapPacked: true,
           verbosity: 0,
@@ -69,7 +85,6 @@ const PDFThumbnail = ({ pdfUrl, title }) => {
         context.fillStyle = '#ffffff';
         context.fillRect(0, 0, canvas.width, canvas.height);
 
-        // ✅ Store render task so we can cancel it if effect re-runs
         const renderTask = page.render({ canvasContext: context, viewport });
         renderTaskRef.current = renderTask;
 
@@ -85,7 +100,6 @@ const PDFThumbnail = ({ pdfUrl, title }) => {
         pdf.destroy();
 
       } catch (err) {
-        // Ignore cancellation errors (expected when switching PDFs)
         if (err?.name === 'RenderingCancelledException') return;
         if (!cancelled) setError(true);
       } finally {
@@ -98,13 +112,12 @@ const PDFThumbnail = ({ pdfUrl, title }) => {
 
     return () => {
       cancelled = true;
-      // Cancel any in-progress pdfjs render task on unmount/re-run
       if (renderTaskRef.current) {
         try { renderTaskRef.current.cancel(); } catch (_) {}
         renderTaskRef.current = null;
       }
     };
-  }, [pdfUrl]);
+  }, [pdfUrl, isImage, isPdf, fullUrl]);
 
   const canvasEl = <canvas ref={canvasRef} style={{ display: 'none' }} />;
 
@@ -121,13 +134,45 @@ const PDFThumbnail = ({ pdfUrl, title }) => {
   }
 
   if (error || !thumbnail) {
+    const isOfficeDoc = ['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'].includes(ext);
+    const isPublicUrl = fullUrl.startsWith('http') && !fullUrl.includes('localhost');
+
+    // If it's a public Office document, use Microsoft's embed viewer for a live thumbnail
+    if (isOfficeDoc && isPublicUrl) {
+      const officeViewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fullUrl)}`;
+      return (
+        <div className="w-full h-full relative overflow-hidden bg-white">
+          {/* We scale the iframe up slightly and disable pointer events so it looks like an image thumbnail */}
+          <iframe
+            src={officeViewerUrl}
+            className="w-full h-[150%] -mt-12 pointer-events-none border-none"
+            title={title}
+            scrolling="no"
+          />
+          {/* Overlay to intercept clicks */}
+          <div className="absolute inset-0 z-10 bg-transparent" />
+        </div>
+      );
+    }
+
+    // Fallback specific icons for different file types or localhost
+    let IconComponent = '📄';
+    let typeName = 'Document';
+    
+    if (['doc', 'docx'].includes(ext)) { IconComponent = '📝'; typeName = 'Word Document'; }
+    else if (['ppt', 'pptx'].includes(ext)) { IconComponent = '📊'; typeName = 'PowerPoint'; }
+    else if (['xls', 'xlsx'].includes(ext)) { IconComponent = '📈'; typeName = 'Excel'; }
+    else if (['zip', 'rar'].includes(ext)) { IconComponent = '🗜️'; typeName = 'Archive'; }
+    else if (isPdf) { typeName = 'PDF'; }
+
     return (
       <>
         {canvasEl}
         <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-700 to-gray-800">
-          <div className="text-5xl mb-2">📄</div>
+          <div className="text-5xl mb-2">{IconComponent}</div>
+          <div className="text-white/80 font-bold text-sm mb-1">{typeName}</div>
           <div className="text-white/60 text-xs text-center px-3 line-clamp-2">
-            {title?.slice(0, 30) || 'PDF Preview'}
+            {title?.slice(0, 30)}
           </div>
         </div>
       </>
@@ -139,8 +184,8 @@ const PDFThumbnail = ({ pdfUrl, title }) => {
       {canvasEl}
       <img
         src={thumbnail}
-        alt={title || 'PDF Thumbnail'}
-        className="w-full h-full object-cover object-top"
+        alt={title || 'Thumbnail'}
+        className="w-full h-full object-cover object-top bg-white"
       />
     </>
   );

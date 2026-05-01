@@ -122,6 +122,7 @@ exports.verifyPayment = async (req, res) => {
       await User.findByIdAndUpdate(userId, {
         $addToSet: { purchasedNotes: note._id },
         $pull: { cart: note._id, wishlist: note._id },
+        $inc: { stars: 10 },
         $push: {
           transactions: {
             type: 'debit',

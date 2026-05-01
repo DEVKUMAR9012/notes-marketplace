@@ -55,9 +55,10 @@ router.get('/:id', protect, getPublicProfile);
 router.put('/update', protect, upload.single('profileImage'), uploadToCloudinary, updateProfile);
 router.get('/wallet', protect, getWallet);
 
-const { toggleCartItem, toggleWishlistItem, toggleFollow } = require('../controllers/profileController');
+const { toggleCartItem, toggleWishlistItem, toggleFollow, reportUser } = require('../controllers/profileController');
 router.post('/cart/toggle', protect, toggleCartItem);
 router.post('/wishlist/toggle', protect, toggleWishlistItem);
 router.post('/follow/toggle', protect, toggleFollow);
+router.post('/:id/report', protect, reportUser);
 
 module.exports = router;

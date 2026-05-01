@@ -140,6 +140,9 @@ exports.createNote = async (req, res) => {
     // ✅ Populate uploadedBy before sending response
     await note.populate('uploadedBy', 'name email college');
 
+    // ✅ Grant +1 Star for uploading a note
+    await User.findByIdAndUpdate(req.user._id, { $inc: { stars: 1 } });
+
     res.status(201).json({
       success: true,
       message: 'Note uploaded successfully',
@@ -349,6 +352,15 @@ exports.downloadNote = async (req, res) => {
     // ✅ Increment downloads
     note.downloads += 1;
     await note.save();
+
+    // ✅ Grant +3 Stars for downloading, if not already downloaded
+    const userDoc = await User.findById(req.user._id);
+    if (userDoc && !userDoc.downloadedNotes.includes(note._id)) {
+      await User.findByIdAndUpdate(req.user._id, {
+        $inc: { stars: 3 },
+        $push: { downloadedNotes: note._id }
+      });
+    }
 
     res.status(200).json({
       success: true,

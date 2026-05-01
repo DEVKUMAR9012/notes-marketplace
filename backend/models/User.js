@@ -160,6 +160,8 @@ const userSchema = new mongoose.Schema({
   lastSeen: { type: Date, default: Date.now },
   isOnline: { type: Boolean, default: false },
   blockedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  stars: { type: Number, default: 0, min: 0 },
+  downloadedNotes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Note' }],
 }, {
   timestamps: true  // Automatically adds createdAt and updatedAt
 });

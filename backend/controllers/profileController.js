@@ -242,3 +242,33 @@ exports.toggleFollow = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+// ── Report User ─────────────────────────────────────────────────────────────
+exports.reportUser = async (req, res) => {
+  try {
+    const Report = require('../models/Report');
+    const { id } = req.params; // The user being reported
+    const { reason } = req.body;
+
+    if (!reason || !reason.trim()) {
+      return res.status(400).json({ message: 'Reason is required' });
+    }
+
+    if (id === req.user._id.toString()) {
+      return res.status(400).json({ message: 'You cannot report yourself' });
+    }
+
+    const report = new Report({
+      reportedUser: id,
+      reportedBy: req.user._id,
+      reason: reason.trim(),
+    });
+
+    await report.save();
+
+    res.json({ message: 'User reported successfully' });
+  } catch (err) {
+    console.error('Report user error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
