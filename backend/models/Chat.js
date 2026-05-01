@@ -13,6 +13,11 @@ const chatSchema = new mongoose.Schema(
 
     unreadCounts: { type: Map, of: Number, default: {} },
 
+    // Group Chat features
+    isGroupChat: { type: Boolean, default: false },
+    chatName:    { type: String, trim: true },
+    groupAdmin:  { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+
     // Student features
     tags:       [{ type: String, trim: true }],
     pinnedNote: { type: mongoose.Schema.Types.ObjectId, ref: 'Note', default: null },

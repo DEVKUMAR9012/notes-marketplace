@@ -8,6 +8,9 @@ const messageSchema = new mongoose.Schema(
     // Text content (optional if file message)
     text: { type: String, trim: true, maxlength: 2000, default: '' },
 
+    // Reply to another message
+    replyTo: { type: mongoose.Schema.Types.ObjectId, ref: 'Message', default: null },
+
     // File attachment
     fileUrl:  { type: String, default: null },
     fileType: { type: String, enum: ['image', 'pdf', 'other', null], default: null },

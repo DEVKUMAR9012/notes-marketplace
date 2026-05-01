@@ -35,6 +35,40 @@ exports.getOrCreateConversation = async (req, res) => {
   }
 };
 
+// ─── POST /api/chat/group ────────────────────────────────────────────────────
+exports.createGroupChat = async (req, res) => {
+  try {
+    const { userIds, chatName } = req.body;
+    const myId = req.user._id;
+
+    if (!userIds || !Array.isArray(userIds) || userIds.length < 1) {
+      return res.status(400).json({ success: false, message: 'Group participants required' });
+    }
+    if (!chatName || !chatName.trim()) {
+      return res.status(400).json({ success: false, message: 'Group name required' });
+    }
+
+    const participants = [...new Set([...userIds, String(myId)])];
+    
+    const unreadCounts = {};
+    participants.forEach(p => unreadCounts[p] = 0);
+
+    let chat = await Chat.create({
+      isGroupChat: true,
+      chatName: chatName.trim(),
+      groupAdmin: myId,
+      participants,
+      unreadCounts
+    });
+
+    chat = await chat.populate('participants', 'name avatar profileImage isOnline lastSeen totalSales');
+    
+    res.status(201).json({ success: true, chat });
+  } catch (e) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
 // ─── GET /api/chat/:chatId/messages ──────────────────────────────────────────
 exports.getMessages = async (req, res) => {
   try {
@@ -47,6 +81,11 @@ exports.getMessages = async (req, res) => {
 
     const messages = await Message.find({ chat: chatId })
       .populate('sender', 'name avatar profileImage')
+      .populate({
+        path: 'replyTo',
+        select: 'text sender fileUrl fileType isDeleted',
+        populate: { path: 'sender', select: 'name' }
+      })
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit);
@@ -85,6 +124,33 @@ exports.searchUsers = async (req, res) => {
     const users = await User.find({ _id: { $ne: req.user._id }, name: { $regex: q, $options: 'i' } })
       .select('name avatar profileImage college totalSales isOnline lastSeen')
       .limit(10);
+    res.json({ success: true, users });
+  } catch (e) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// ─── GET /api/chat/users/suggestions ─────────────────────────────────────────
+exports.getSuggestedUsers = async (req, res) => {
+  try {
+    // Return recent active users
+    const users = await User.find({ _id: { $ne: req.user._id }, isOnline: true })
+      .select('name avatar profileImage college totalSales isOnline lastSeen')
+      .sort({ lastSeen: -1, totalSales: -1 })
+      .limit(10);
+    
+    // If not enough online users, backfill with top sellers
+    if (users.length < 5) {
+      const moreUsers = await User.find({ 
+        _id: { $ne: req.user._id, $nin: users.map(u => u._id) },
+        totalSales: { $gt: 0 }
+      })
+      .select('name avatar profileImage college totalSales isOnline lastSeen')
+      .sort({ totalSales: -1 })
+      .limit(10 - users.length);
+      users.push(...moreUsers);
+    }
+    
     res.json({ success: true, users });
   } catch (e) {
     res.status(500).json({ success: false, message: 'Server error' });

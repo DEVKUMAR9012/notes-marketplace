@@ -70,7 +70,7 @@ io.on('connection', async (socket) => {
   socket.on('leave_chat', (chatId) => socket.leave(chatId));
 
   // ── Send message
-  socket.on('send_message', async ({ chatId, text, quickReply }) => {
+  socket.on('send_message', async ({ chatId, text, quickReply, replyTo }) => {
     try {
       if (!text?.trim() && !quickReply) return;
 
@@ -91,10 +91,14 @@ io.on('connection', async (socket) => {
         sender: socket.user._id,
         text: quickReply || text.trim(),
         quickReply: quickReply || null,
+        replyTo: replyTo || null,
       };
 
       const msg = await Message.create(msgData);
       await msg.populate('sender', 'name avatar profileImage');
+      if (replyTo) {
+        await msg.populate({ path: 'replyTo', select: 'text sender fileUrl fileType isDeleted', populate: { path: 'sender', select: 'name' } });
+      }
 
       // Update chat lastMessage + unread counts
       chat.lastMessage = { text: msg.text, senderId: socket.user._id, sentAt: new Date(), type: quickReply ? 'quickReply' : 'text' };

@@ -3,8 +3,8 @@ const router  = express.Router();
 const { protect } = require('../middleware/authMiddleware');
 const chatUpload   = require('../middleware/chatUploadMiddleware');
 const {
-  getConversations, getOrCreateConversation,
-  getMessages, markAsRead, searchUsers,
+  getConversations, getOrCreateConversation, createGroupChat,
+  getMessages, markAsRead, searchUsers, getSuggestedUsers,
   editMessage, deleteMessage, reactToMessage,
   searchMessages, reportChat, blockUser, unblockUser,
   updateTags, uploadFile,
@@ -12,12 +12,14 @@ const {
 
 router.use(protect);
 
-// ── User search (new conversation)
+// ── User search & suggestions
 router.get('/users/search', searchUsers);
+router.get('/users/suggestions', getSuggestedUsers);
 
 // ── Conversations
 router.get('/',  getConversations);
 router.post('/', getOrCreateConversation);
+router.post('/group', createGroupChat);
 
 // ── Messages
 router.get( '/:chatId/messages', getMessages);

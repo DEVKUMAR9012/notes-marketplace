@@ -220,22 +220,32 @@
    .message-row {
      display: flex;
      width: 100%;
+     margin-bottom: 2px;
+     position: relative;
    }
+   .message-row.last { margin-bottom: 12px; }
    .message-row.mine { justify-content: flex-end; }
    .message-bubble {
      max-width: 70%;
-     padding: 12px 16px;
-     border-radius: 16px;
+     padding: 10px 16px;
+     border-radius: 20px;
      position: relative;
+     transition: background 0.2s;
    }
    .mine .message-bubble {
-     background: linear-gradient(135deg, #7c3aed, #6d28d9);
+     background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
      border-bottom-right-radius: 4px;
    }
    .theirs .message-bubble {
-     background: rgba(255, 255, 255, 0.1);
+     background: #262626;
      border-bottom-left-radius: 4px;
    }
+   
+   /* Instagram Grouping */
+   .message-row.mine:not(.last) .message-bubble { border-bottom-right-radius: 20px; }
+   .message-row.theirs:not(.last) .message-bubble { border-bottom-left-radius: 20px; }
+   .message-row.mine:not(.first) .message-bubble { border-top-right-radius: 4px; }
+   .message-row.theirs:not(.first) .message-bubble { border-top-left-radius: 4px; }
    .message-bubble p { margin: 0; line-height: 1.5; font-size: 0.95rem; }
    
    /* Attachments */
@@ -407,3 +417,153 @@
        height: 40px;
      }
    }
+
+   /* ── Group Creation UI & Suggestions ── */
+   .search-header {
+     display: flex;
+     gap: 10px;
+   }
+   .search-header input {
+     flex: 1;
+   }
+   .create-group-btn {
+     background: rgba(124, 58, 237, 0.2);
+     border: 1px solid #7c3aed;
+     color: white;
+     border-radius: 8px;
+     padding: 0 10px;
+     cursor: pointer;
+     transition: 0.2s;
+     white-space: nowrap;
+   }
+   .create-group-btn:hover {
+     background: #7c3aed;
+   }
+   .group-creation-panel {
+     padding: 10px;
+     background: rgba(0,0,0,0.2);
+     border-radius: 8px;
+     margin-top: 10px;
+     display: flex;
+     flex-direction: column;
+     gap: 10px;
+   }
+   .group-creation-panel input {
+     width: 100%;
+     padding: 10px;
+     border-radius: 8px;
+     border: 1px solid rgba(255,255,255,0.2);
+     background: transparent;
+     color: white;
+     outline: none;
+   }
+   .selected-users-chips {
+     display: flex;
+     flex-wrap: wrap;
+     gap: 5px;
+   }
+   .user-chip {
+     background: #7c3aed;
+     color: white;
+     font-size: 0.75rem;
+     padding: 4px 8px;
+     border-radius: 12px;
+     cursor: pointer;
+     display: flex;
+     align-items: center;
+     gap: 4px;
+   }
+   .submit-group-btn {
+     background: #10b981;
+     color: white;
+     border: none;
+     padding: 8px;
+     border-radius: 8px;
+     cursor: pointer;
+     font-weight: 600;
+   }
+   .submit-group-btn:hover {
+     background: #059669;
+   }
+   .suggestions-label {
+     padding: 10px;
+     font-size: 0.8rem;
+     color: #9ca3af;
+     text-transform: uppercase;
+     letter-spacing: 1px;
+   }
+   .sender-name {
+     font-size: 0.7rem;
+     color: #a78bfa;
+     margin-bottom: 4px;
+     font-weight: 600;
+   }
+
+   /* ── Instagram Features ── */
+   .msg-actions {
+     position: absolute;
+     top: 50%;
+     transform: translateY(-50%);
+     display: flex;
+     gap: 5px;
+     background: rgba(0,0,0,0.6);
+     padding: 4px 8px;
+     border-radius: 16px;
+     z-index: 10;
+     opacity: 0;
+     animation: fadeIn 0.2s forwards;
+   }
+   @keyframes fadeIn { to { opacity: 1; } }
+   .mine-actions { right: calc(100% + 10px); }
+   .theirs-actions { left: calc(100% + 10px); }
+   .msg-actions button {
+     background: none; border: none; font-size: 1rem; cursor: pointer; opacity: 0.7; transition: 0.2s; padding: 2px;
+   }
+   .msg-actions button:hover { transform: scale(1.2); opacity: 1; }
+
+   .reactions-display {
+     position: absolute;
+     bottom: -10px;
+     right: 10px;
+     background: #333;
+     border: 2px solid #000;
+     border-radius: 12px;
+     padding: 2px 6px;
+     display: flex;
+     align-items: center;
+     gap: 2px;
+     font-size: 0.75rem;
+     box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+   }
+   .react-count { color: #aaa; font-weight: bold; margin-left: 2px; }
+   .theirs .reactions-display { right: auto; left: 10px; }
+
+   .quoted-msg {
+     background: rgba(0,0,0,0.2);
+     border-left: 3px solid rgba(255,255,255,0.5);
+     padding: 6px 10px;
+     border-radius: 8px;
+     margin-bottom: 8px;
+     font-size: 0.85rem;
+   }
+   .quote-sender { font-weight: bold; color: rgba(255,255,255,0.8); display: block; margin-bottom: 2px; }
+   .quoted-msg p { margin: 0; color: rgba(255,255,255,0.7); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px; }
+   .quoted-msg.deleted { font-style: italic; opacity: 0.6; }
+
+   .input-container { display: flex; flex-direction: column; width: 100%; background: rgba(0,0,0,0.2); }
+   .reply-preview {
+     display: flex;
+     justify-content: space-between;
+     align-items: center;
+     padding: 10px 25px;
+     background: rgba(0,0,0,0.4);
+     border-top: 1px solid rgba(255,255,255,0.05);
+   }
+   .reply-content .reply-name { font-weight: bold; font-size: 0.8rem; color: #a78bfa; }
+   .reply-content p { margin: 0; font-size: 0.85rem; color: #ccc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 300px; }
+   .cancel-reply { background: none; border: none; color: #fff; cursor: pointer; opacity: 0.7; }
+   .cancel-reply:hover { opacity: 1; }
+   
+   .deleted-text { opacity: 0.6; margin: 0; }
+   /* Clear default input-area background since input-container has it */
+   .input-area { background: transparent; }
