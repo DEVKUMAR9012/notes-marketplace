@@ -137,7 +137,8 @@ export default function PaymentButton({ note, noteIds, user, onSuccess, classNam
       <motion.a
         whileHover={{ scale: 1.03 }}
         whileTap={{ scale: 0.97 }}
-        href={`http://localhost:5000${successData?.pdfUrl}`}
+        // ✅ BUG FIXED: Removed localhost, added dynamic URL checking
+        href={successData?.pdfUrl?.startsWith('http') ? successData.pdfUrl : `${API.defaults.baseURL.replace('/api', '')}${successData?.pdfUrl}`}
         target="_blank"
         rel="noopener noreferrer"
         className={`flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-green-500 rounded-xl text-white text-sm font-semibold ${className}`}
