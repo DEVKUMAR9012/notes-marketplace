@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import API, { warmupServer } from '../utils/api';
-import { FiMail, FiLock, FiEye, FiEyeOff, FiKey } from 'react-icons/fi';
+import { FiMail, FiLock, FiEye, FiEyeOff, FiKey, FiArrowLeft } from 'react-icons/fi';
 
 export default function Login() {
   const [authMethod, setAuthMethod] = useState('email'); // 'email' or 'phone'
@@ -63,13 +63,12 @@ export default function Login() {
         login(data);
         navigate('/');
       } else {
-        // Phone login
-        const cleanPhone = phone.replace(/[\s\-\(\)]/g, '').replace(/^\+91/, '');
-        if (cleanPhone.length < 10) {
+        // Phone login - simplified since onChange already ensures digits
+        if (phone.length < 10) {
           throw new Error('Please enter a valid 10-digit mobile number');
         }
         const { data } = await retryWithBackoff(async () => {
-          return await API.post('/auth/phone-login', { phone: cleanPhone });
+          return await API.post('/auth/phone-login', { phone: phone });
         }, 3);
         login(data);
         navigate('/');
@@ -215,6 +214,7 @@ export default function Login() {
                           onChange={(e) => setEmail(e.target.value)}
                           className="w-full pl-10 pr-4 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
                           placeholder="Email Address"
+                          aria-label="Email Address"
                           required
                         />
                       </div>
@@ -227,6 +227,7 @@ export default function Login() {
                           onChange={(e) => setPassword(e.target.value)}
                           className="w-full pl-10 pr-12 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
                           placeholder="Password"
+                          aria-label="Password"
                           required
                         />
                         <button
@@ -255,8 +256,9 @@ export default function Login() {
                         type="tel"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, ''))}
-                        className="w-full pl-12 pr-4 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+                        className="w-full pl-12 pr-4 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors font-medium tracking-wider"
                         placeholder="10-digit mobile number"
+                        aria-label="Mobile Number"
                         maxLength="10"
                         required
                       />
@@ -318,6 +320,7 @@ export default function Login() {
                       onChange={(e) => setEmail(e.target.value)}
                       className="w-full pl-10 pr-4 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-rose-500 transition-colors"
                       placeholder="Enter your email"
+                      aria-label="Email for password reset"
                       required
                     />
                   </div>
@@ -333,9 +336,9 @@ export default function Login() {
                   <button
                     type="button"
                     onClick={() => { setError(''); setStep('login'); }}
-                    className="w-full py-3 text-sm font-medium text-gray-400 hover:text-white transition-colors"
+                    className="w-full py-3 text-sm font-medium text-gray-400 hover:text-white transition-colors flex items-center justify-center gap-2"
                   >
-                    ← Back to login
+                    <FiArrowLeft /> Back to login
                   </button>
                 </form>
               </motion.div>
@@ -383,6 +386,7 @@ export default function Login() {
                       onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
                       className="w-full text-center tracking-[1em] font-mono text-xl py-3.5 bg-gray-950/50 border border-emerald-500/30 rounded-xl text-emerald-400 placeholder-gray-600 focus:outline-none focus:border-emerald-500 transition-colors"
                       placeholder="------"
+                      aria-label="6-digit reset code"
                       required
                     />
                   </div>
@@ -395,6 +399,7 @@ export default function Login() {
                       onChange={(e) => setNewPassword(e.target.value)}
                       className="w-full pl-10 pr-12 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 transition-colors"
                       placeholder="New Password (min 6 chars)"
+                      aria-label="New Password"
                       required
                     />
                     <button
@@ -417,9 +422,9 @@ export default function Login() {
                   <button
                     type="button"
                     onClick={() => { setError(''); setStep('login'); }}
-                    className="w-full py-3 text-sm font-medium text-gray-400 hover:text-white transition-colors"
+                    className="w-full py-3 text-sm font-medium text-gray-400 hover:text-white transition-colors flex items-center justify-center gap-2"
                   >
-                    ← Cancel
+                    <FiArrowLeft /> Cancel
                   </button>
                 </form>
               </motion.div>
