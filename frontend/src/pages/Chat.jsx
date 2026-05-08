@@ -9,6 +9,7 @@ import './Chat.css';
 const formatTime = (dateStr) => {
   if (!dateStr) return '';
   const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '';
   const now = new Date();
   const diffMs = now - d;
   const diffMins = Math.floor(diffMs / 60000);
@@ -33,6 +34,14 @@ const getReceiptIcon = (msg, userId, participants) => {
   return <span className="receipt sent">✓</span>; // Single Tick
 };
 
+// ── Helper: Get Attachment URL
+const getAttachmentUrl = (url) => {
+  if (!url) return '';
+  if (url.startsWith('http')) return url;
+  const cleanUrl = url.replace(/\\/g, '/');
+  return `${API_BASE_URL}${cleanUrl.startsWith('/') ? '' : '/'}${cleanUrl}`;
+};
+
 // ── Avatar Component
 const Avatar = ({ user, size = 40, isOnline }) => {
   const [imgError, setImgError] = useState(false);
@@ -42,18 +51,18 @@ const Avatar = ({ user, size = 40, isOnline }) => {
     if (url.startsWith('http')) return url;
     return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url.replace(/\\/g, '/')}`;
   };
-  
+
   const src = getImageUrl(user?.profileImage) || user?.avatar;
   const initials = user?.name?.charAt(0)?.toUpperCase() || '?';
-  
+
   return (
     <div className="chat-avatar-wrapper" style={{ width: size, height: size }}>
       {src && !imgError ? (
-        <img 
-          src={src} 
-          alt={user?.name} 
-          className="chat-avatar" 
-          onError={() => setImgError(true)} 
+        <img
+          src={src}
+          alt={user?.name}
+          className="chat-avatar"
+          onError={() => setImgError(true)}
         />
       ) : (
         <div className="chat-avatar initials" style={{ fontSize: size * 0.4 }}>{initials}</div>
@@ -89,41 +98,56 @@ export default function Chat() {
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
   const [msgLoading, setMsgLoading] = useState(false);
-  
+
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [showSearch, setShowSearch] = useState(false);
-  
+
   // Typing & UI states
   const [typingUser, setTypingUser] = useState(null);
   const [unreadCounts, setUnreadCounts] = useState({});
   const [uploading, setUploading] = useState(false);
   const [warningMsg, setWarningMsg] = useState(null);
+  const [toast, setToast] = useState(null);
+  const toastTimerRef = useRef(null);
+
+  const showToast = (msg, type = 'success') => {
+    setToast({ msg, type });
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 3000);
+  };
 
   // Group Chat & Suggestions State
   const [suggestedUsers, setSuggestedUsers] = useState([]);
   const [isCreatingGroup, setIsCreatingGroup] = useState(false);
   const [groupName, setGroupName] = useState('');
   const [selectedUsers, setSelectedUsers] = useState([]);
-  
+
   // Instagram Chat Features State
   const [replyingTo, setReplyingTo] = useState(null);
   const [hoveredMsg, setHoveredMsg] = useState(null);
-  
+
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const fileInputRef = useRef(null);
+  const textInputRef = useRef(null);
   // ✅ FIX: Keep activeChat in a ref so socket listeners always get the latest value
   const activeChatRef = useRef(null);
   useEffect(() => { activeChatRef.current = activeChat; }, [activeChat]);
 
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  useEffect(scrollToBottom, [messages, typingUser]);
+  useEffect(scrollToBottom, [messages]);
+
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    };
+  }, []);
 
   // ── Load Suggested Users
   useEffect(() => {
-    API.get('/chat/users/suggestions').then(res => setSuggestedUsers(res.data.users)).catch(()=>{});
+    API.get('/chat/users/suggestions').then(res => setSuggestedUsers(res.data.users)).catch(() => { });
   }, []);
 
   // ── Load Conversations
@@ -151,7 +175,7 @@ export default function Chat() {
       if (current) {
         API.get(`/chat/${current._id}/messages`)
           .then(r => setMessages(r.data.messages))
-          .catch(() => {});
+          .catch(() => { });
       }
     };
     socket.on('connect', onReconnect);
@@ -160,20 +184,21 @@ export default function Chat() {
 
   // ── Load Messages for Active Chat
   useEffect(() => {
-    if (!activeChat) return;
+    if (!activeChat?._id) return;
+    const chatId = activeChat._id;
     const fetchMessages = async () => {
       try {
         setMsgLoading(true);
-        const res = await API.get(`/chat/${activeChat._id}/messages`);
+        const res = await API.get(`/chat/${chatId}/messages`);
         setMessages(res.data.messages);
-      } catch (err) { console.error(err); } 
+      } catch (err) { console.error(err); }
       finally { setMsgLoading(false); }
     };
     fetchMessages();
-    API.put(`/chat/${activeChat._id}/read`).catch(() => {});
-    setUnreadCounts(prev => ({ ...prev, [activeChat._id]: 0 }));
+    API.put(`/chat/${chatId}/read`).catch(() => { });
+    setUnreadCounts(prev => ({ ...prev, [chatId]: 0 }));
     setTypingUser(null);
-  }, [activeChat]);
+  }, [activeChat?._id]);
 
   // ── Socket Events
   useEffect(() => {
@@ -197,7 +222,7 @@ export default function Chat() {
           if (prev.some(m => m._id === msg._id)) return prev;
           return [...prev, msg];
         });
-        API.put(`/chat/${currentChat._id}/read`).catch(() => {});
+        API.put(`/chat/${currentChat._id}/read`).catch(() => { });
         socket.emit('messages_delivered', { chatId: currentChat._id });
       }
     };
@@ -219,10 +244,10 @@ export default function Chat() {
         }
         return updated;
       });
-      if (!activeChat || activeChat._id !== chatId) {
+      if (!activeChatRef.current || activeChatRef.current._id !== chatId) {
         setUnreadCounts(prev => ({ ...prev, [chatId]: (prev[chatId] || 0) + 1 }));
         // Play notification sound
-        new Audio('/sounds/notification.mp3').play().catch(()=>{});
+        new Audio('/sounds/notification.mp3').play().catch(() => { });
       }
     };
 
@@ -235,18 +260,19 @@ export default function Chat() {
     const onUserStatus = ({ userId, isOnline, lastSeen }) => {
       setConversations(prev => prev.map(c => {
         const pIndex = c.participants.findIndex(p => p._id === userId);
-        if(pIndex > -1) {
-            const newP = [...c.participants];
-            newP[pIndex] = {...newP[pIndex], isOnline, lastSeen};
-            return {...c, participants: newP};
+        if (pIndex > -1) {
+          const newP = [...c.participants];
+          newP[pIndex] = { ...newP[pIndex], isOnline, lastSeen };
+          return { ...c, participants: newP };
         }
         return c;
       }));
-      if(activeChat && activeChat.participants.some(p => p._id === userId)) {
-         setActiveChat(prev => {
-             const newP = prev.participants.map(p => p._id === userId ? {...p, isOnline, lastSeen} : p);
-             return {...prev, participants: newP};
-         });
+      if (activeChatRef.current && activeChatRef.current.participants.some(p => p._id === userId)) {
+        setActiveChat(prev => {
+          if (!prev) return prev;
+          const newP = prev.participants.map(p => p._id === userId ? { ...p, isOnline, lastSeen } : p);
+          return { ...prev, participants: newP };
+        });
       }
     };
 
@@ -275,28 +301,28 @@ export default function Chat() {
       setMessages(prev => prev.map(m => m._id === msgId ? { ...m, isDeleted: true, text: '', fileUrl: null } : m));
     };
 
-    socket.on('new_message',          onNewMessage);
+    socket.on('new_message', onNewMessage);
     socket.on('conversation_updated', onConversationUpdated);
-    socket.on('user_typing',          onUserTyping);
-    socket.on('user_stopped_typing',  onUserStoppedTyping);
-    socket.on('user_status',          onUserStatus);
-    socket.on('personal_info_warning',onWarning);
+    socket.on('user_typing', onUserTyping);
+    socket.on('user_stopped_typing', onUserStoppedTyping);
+    socket.on('user_status', onUserStatus);
+    socket.on('personal_info_warning', onWarning);
     socket.on('messages_delivery_update', onMessagesDelivered);
-    socket.on('message_reacted',      onMessageReacted);
-    socket.on('message_deleted',      onMessageDeleted);
+    socket.on('message_reacted', onMessageReacted);
+    socket.on('message_deleted', onMessageDeleted);
 
     return () => {
-      socket.off('new_message',          onNewMessage);
+      socket.off('new_message', onNewMessage);
       socket.off('conversation_updated', onConversationUpdated);
-      socket.off('user_typing',          onUserTyping);
-      socket.off('user_stopped_typing',  onUserStoppedTyping);
-      socket.off('user_status',          onUserStatus);
-      socket.off('personal_info_warning',onWarning);
+      socket.off('user_typing', onUserTyping);
+      socket.off('user_stopped_typing', onUserStoppedTyping);
+      socket.off('user_status', onUserStatus);
+      socket.off('personal_info_warning', onWarning);
       socket.off('messages_delivery_update', onMessagesDelivered);
-      socket.off('message_reacted',      onMessageReacted);
-      socket.off('message_deleted',      onMessageDeleted);
+      socket.off('message_reacted', onMessageReacted);
+      socket.off('message_deleted', onMessageDeleted);
     };
-  }, [socket, activeChat, user._id]);
+  }, [socket, user._id]);
 
   // ── Instagram Features
   const handleReact = async (msgId, emoji = '❤️') => {
@@ -348,11 +374,11 @@ export default function Chat() {
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file || !activeChat) return;
-    if (file.size > 10 * 1024 * 1024) return alert("File size must be under 10MB");
+    if (file.size > 10 * 1024 * 1024) return showToast("File size must be under 10MB", "error");
 
     const formData = new FormData();
     formData.append('file', file);
-    
+
     try {
       setUploading(true);
       const res = await API.post(`/chat/${activeChat._id}/upload`, formData, {
@@ -361,7 +387,7 @@ export default function Chat() {
       // the socket will broadcast the new message automatically
     } catch (err) {
       console.error("Upload failed", err);
-      alert("Failed to upload file");
+      showToast("Failed to upload file", "error");
     } finally {
       setUploading(false);
       e.target.value = null; // reset input
@@ -391,15 +417,18 @@ export default function Chat() {
     } catch (e) { console.error(e); }
   };
 
+  const chatStartedRef = useRef(false);
+
   useEffect(() => {
-    if (location.state?.startChatWith) {
+    if (location.state?.startChatWith && !chatStartedRef.current) {
+      chatStartedRef.current = true;
       startChat(location.state.startChatWith);
       navigate(location.pathname, { replace: true, state: {} });
     }
   }, [location.state, navigate]);
 
   const handleCreateGroup = async () => {
-    if (selectedUsers.length < 1 || !groupName.trim()) return alert('Select users and enter a group name');
+    if (selectedUsers.length < 1 || !groupName.trim()) return showToast('Select users and enter a group name', 'error');
     try {
       const res = await API.post('/chat/group', {
         userIds: selectedUsers.map(u => u._id),
@@ -414,7 +443,7 @@ export default function Chat() {
       setSelectedUsers([]);
     } catch (e) {
       console.error(e);
-      alert('Failed to create group');
+      showToast('Failed to create group', 'error');
     }
   };
 
@@ -429,12 +458,25 @@ export default function Chat() {
   const isGroup = activeChat?.isGroupChat;
   const otherParticipant = !isGroup ? activeChat?.participants?.find(p => String(p._id) !== String(user._id)) : null;
   const chatTitle = isGroup ? activeChat.chatName : otherParticipant?.name;
-  const chatStatus = isGroup 
-    ? `${activeChat.participants.length} participants` 
+  const chatStatus = isGroup
+    ? `${activeChat.participants.length} participants`
     : (otherParticipant?.isOnline ? 'Online' : `Last seen: ${otherParticipant?.lastSeen ? formatTime(otherParticipant.lastSeen) : 'N/A'}`);
 
   return (
     <div className="chat-page">
+      {toast && (
+        <div style={{
+          position: 'fixed', top: 24, right: 24, zIndex: 9999,
+          background: toast.type === 'error' ? '#7f1d1d' : '#14532d',
+          border: `1px solid ${toast.type === 'error' ? '#f87171' : '#22c55e'}`,
+          color: '#fff', borderRadius: 12, padding: '14px 20px',
+          fontSize: 14, fontWeight: 600, maxWidth: 380,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+          animation: 'fadeIn 0.2s ease'
+        }}>
+          {toast.type === 'error' ? '❌' : '✅'} {toast.msg}
+        </div>
+      )}
       {/* ──────── LEFT PANEL: Inbox ──────── */}
       <aside className={`chat-sidebar ${activeChat ? 'hidden-mobile' : ''}`}>
         <div className="sidebar-header">
@@ -450,7 +492,7 @@ export default function Chat() {
                 {isCreatingGroup ? 'Cancel' : 'Group'}
               </button>
             </div>
-            
+
             {isCreatingGroup && (
               <div className="group-creation-panel">
                 <input type="text" placeholder="Group Name" value={groupName} onChange={e => setGroupName(e.target.value)} />
@@ -487,11 +529,11 @@ export default function Chat() {
             const unread = unreadCounts[chat._id] || 0;
             const title = isGrp ? chat.chatName : other?.name;
             const isOnline = isGrp ? false : other?.isOnline;
-            
+
             return (
               <div key={chat._id} className={`chat-item ${activeChat?._id === chat._id ? 'active' : ''}`} onClick={() => setActiveChat(chat)}>
                 {isGrp ? (
-                  <div className="chat-avatar initials" style={{ width: 48, height: 48, fontSize: 20 }}>{title?.charAt(0)?.toUpperCase()}</div>
+                  <div className="chat-avatar initials" style={{ width: 48, height: 48, fontSize: 20 }}>{(title?.charAt(0) || '?').toUpperCase()}</div>
                 ) : (
                   <Avatar user={other} size={48} isOnline={isOnline} />
                 )}
@@ -520,7 +562,7 @@ export default function Chat() {
             <div className="chat-header">
               <button className="back-btn" onClick={() => setActiveChat(null)}>←</button>
               {isGroup ? (
-                 <div className="chat-avatar initials" style={{ width: 40, height: 40, fontSize: 16 }}>{chatTitle?.charAt(0)?.toUpperCase()}</div>
+                <div className="chat-avatar initials" style={{ width: 40, height: 40, fontSize: 16 }}>{(chatTitle?.charAt(0) || '?').toUpperCase()}</div>
               ) : (
                 <Link to={`/profile/${otherParticipant?._id}`} style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', color: 'inherit' }}>
                   <Avatar user={otherParticipant} size={40} isOnline={otherParticipant?.isOnline} />
@@ -553,10 +595,10 @@ export default function Chat() {
                 const nextMsg = messages[idx + 1];
                 const isFirstInGroup = !prevMsg || String(prevMsg.sender?._id || prevMsg.sender) !== String(msg.sender?._id || msg.sender);
                 const isLastInGroup = !nextMsg || String(nextMsg.sender?._id || nextMsg.sender) !== String(msg.sender?._id || msg.sender);
-                
+
                 return (
-                  <div 
-                    key={msg._id} 
+                  <div
+                    key={msg._id}
                     className={`message-row ${isMine ? 'mine' : 'theirs'} ${isFirstInGroup ? 'first' : ''} ${isLastInGroup ? 'last' : ''}`}
                     onMouseEnter={() => setHoveredMsg(msg._id)}
                     onMouseLeave={() => setHoveredMsg(null)}
@@ -564,11 +606,11 @@ export default function Chat() {
                     {hoveredMsg === msg._id && !msg.isDeleted && (
                       <div className={`msg-actions ${isMine ? 'mine-actions' : 'theirs-actions'}`}>
                         <button onClick={() => handleReact(msg._id, '❤️')} title="Like">❤️</button>
-                        <button onClick={() => setReplyingTo(msg)} title="Reply">↩️</button>
+                        <button onClick={() => { setReplyingTo(msg); textInputRef.current?.focus(); }} title="Reply">↩️</button>
                         {isMine && <button onClick={() => handleUnsend(msg._id)} title="Unsend">🗑️</button>}
                       </div>
                     )}
-                    
+
                     <div className="message-bubble" onDoubleClick={() => !msg.isDeleted && handleReact(msg._id, '❤️')}>
                       {msg.isDeleted ? (
                         <p className="deleted-text"><i>This message was unsent</i></p>
@@ -582,24 +624,24 @@ export default function Chat() {
                             </div>
                           )}
                           {msg.replyTo && msg.replyTo.isDeleted && (
-                             <div className="quoted-msg deleted"><i>Original message was unsent</i></div>
+                            <div className="quoted-msg deleted"><i>Original message was unsent</i></div>
                           )}
                           {msg.fileUrl ? (
                             msg.fileType === 'image' ? (
-                               <img src={msg.fileUrl.startsWith('http') ? msg.fileUrl : `${API_BASE_URL}${msg.fileUrl.startsWith('/') ? '' : '/'}${msg.fileUrl.replace(/\\/g, '/')}`} alt="attachment" className="msg-image" />
+                              <img src={getAttachmentUrl(msg.fileUrl)} alt="attachment" className="msg-image" />
                             ) : (
-                               <a href={msg.fileUrl.startsWith('http') ? msg.fileUrl : `${API_BASE_URL}${msg.fileUrl.startsWith('/') ? '' : '/'}${msg.fileUrl.replace(/\\/g, '/')}`} target="_blank" rel="noreferrer" className="msg-pdf">📎 View Document</a>
+                              <a href={getAttachmentUrl(msg.fileUrl)} target="_blank" rel="noopener noreferrer" className="msg-pdf">📎 View Document</a>
                             )
                           ) : null}
                           {msg.text && <p>{msg.text}</p>}
-                          
+
                           {msg.reactions && Object.keys(msg.reactions).length > 0 && (
                             <div className="reactions-display">
                               {Object.values(msg.reactions).slice(0, 3).map((r, i) => <span key={i} className="react-icon">{r}</span>)}
                               {Object.keys(msg.reactions).length > 1 && <span className="react-count">{Object.keys(msg.reactions).length}</span>}
                             </div>
                           )}
-                          
+
                           <div className="msg-meta">
                             <span>{formatTime(msg.createdAt)}</span>
                             {isMine && getReceiptIcon(msg, user._id, activeChat.participants)}
@@ -646,11 +688,11 @@ export default function Chat() {
                 </div>
               )}
               <div className="input-area">
-                <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*,.pdf" style={{display: 'none'}} />
+                <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*,.pdf" style={{ display: 'none' }} />
                 <button className="attach-btn" onClick={() => fileInputRef.current.click()} disabled={uploading}>
                   {uploading ? '⏳' : '📎'}
                 </button>
-                <input type="text" value={inputText} onChange={handleTyping} onKeyDown={e => e.key === 'Enter' && handleSend()} placeholder="Message..." />
+                <input type="text" ref={textInputRef} value={inputText} onChange={handleTyping} onKeyDown={e => e.key === 'Enter' && handleSend()} placeholder="Message..." />
                 <button className="send-btn" onClick={handleSend}>➤</button>
               </div>
             </div>

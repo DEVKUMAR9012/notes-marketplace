@@ -1,5 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import API from '../utils/api';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 
 // ── Stat Card ───────────────────────────────────────────────────────────────
 const StatCard = ({ icon, label, value, color }) => (
@@ -60,10 +62,19 @@ export default function AdminEmailDashboard() {
   const [testTemplate, setTestTemplate] = useState('welcome');
   const [testEmail, setTestEmail] = useState('');
 
+  const toastTimerRef = useRef(null);
+
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type });
-    setTimeout(() => setToast(null), 4000);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 4000);
   };
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   const fetchStats = useCallback(async () => {
     try {
@@ -92,12 +103,12 @@ export default function AdminEmailDashboard() {
 
   useEffect(() => {
     fetchStats();
-    fetchLogs();
+    fetchLogs(1);
   }, [fetchStats, fetchLogs]);
 
   const sendCampaign = async (e) => {
     e.preventDefault();
-    if (!subject.trim() || !htmlBody.trim()) {
+    if (!subject.trim() || !htmlBody.trim() || htmlBody === '<p><br></p>') {
       showToast('Subject and body are required', 'error');
       return;
     }
@@ -216,8 +227,8 @@ export default function AdminEmailDashboard() {
               }}>
                 <h3 style={{ margin: '0 0 20px', fontSize: 16, color: 'rgba(255,255,255,0.7)' }}>Emails by Type</h3>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-                  {stats.byType.map((item, i) => (
-                    <div key={i} style={{
+                  {stats.byType.map((item) => (
+                    <div key={item._id.type} style={{
                       background: 'rgba(255,255,255,0.04)',
                       border: `1px solid ${TYPE_COLORS[item._id.type] || '#7c3aed'}33`,
                       borderRadius: 10, padding: '12px 18px',
@@ -240,11 +251,14 @@ export default function AdminEmailDashboard() {
                 }}>
                   <h3 style={{ margin: '0 0 20px', fontSize: 16, color: 'rgba(255,255,255,0.7)' }}>Last 7 Days Volume</h3>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', height: 100 }}>
-                    {stats.dailyVolume.map((day, i) => {
-                      const max = Math.max(...stats.dailyVolume.map(d => d.count), 1);
-                      const h = Math.round((day.count / max) * 80);
-                      return (
-                        <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                    {(() => {
+                      const maxVolume = stats.dailyVolume.length > 0 
+                        ? Math.max(...stats.dailyVolume.map(d => d.count), 1) 
+                        : 1;
+                      return stats.dailyVolume.map((day) => {
+                        const h = Math.round((day.count / maxVolume) * 80);
+                        return (
+                          <div key={day._id} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
                           <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11 }}>{day.count}</span>
                           <div style={{
                             width: '100%', height: h || 4,
@@ -256,7 +270,8 @@ export default function AdminEmailDashboard() {
                           </span>
                         </div>
                       );
-                    })}
+                    });
+                  })()}
                   </div>
                 </div>
               )}
@@ -299,9 +314,9 @@ export default function AdminEmailDashboard() {
           <div style={{
             background: 'rgba(255,255,255,0.03)',
             border: '1px solid rgba(124,58,237,0.2)',
-            borderRadius: 16, overflow: 'hidden'
+            borderRadius: 16, overflow: 'hidden', overflowX: 'auto'
           }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 800 }}>
               <thead>
                 <tr style={{ background: 'rgba(124,58,237,0.1)' }}>
                   {['To', 'Subject', 'Type', 'Status', 'Sent At'].map(h => (
@@ -392,13 +407,14 @@ export default function AdminEmailDashboard() {
                 <label style={{ display: 'block', color: 'rgba(255,255,255,0.5)', fontSize: 13, marginBottom: 6 }}>
                   Email Body <span style={{ color: 'rgba(255,255,255,0.3)' }}>(HTML supported)</span>
                 </label>
-                <textarea
-                  value={htmlBody}
-                  onChange={e => setHtmlBody(e.target.value)}
-                  placeholder="<p>Hi! We just added <strong>50 new notes</strong> this week...</p>"
-                  rows={8}
-                  style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.6 }}
-                />
+                <div style={{ background: '#fff', borderRadius: 10, overflow: 'hidden', color: '#000' }}>
+                  <ReactQuill
+                    theme="snow"
+                    value={htmlBody}
+                    onChange={setHtmlBody}
+                    placeholder="Hi! We just added 50 new notes this week..."
+                  />
+                </div>
               </div>
               <button
                 type="submit"

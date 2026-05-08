@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -48,9 +48,9 @@ const NoteRow = ({ note, type }) => (
     )}
     {type === 'purchased' && (
       <a
-        href={`${API_BASE_URL}${note.pdfUrl.startsWith('/') ? '' : '/'}${note.pdfUrl}`}
+        href={`${API_BASE_URL}${note.pdfUrl?.startsWith('/') ? '' : '/'}${note.pdfUrl}`}
         target="_blank"
-        rel="noreferrer"
+        rel="noopener noreferrer"
         className="flex items-center gap-1 px-2.5 py-1.5 bg-violet-600/30 hover:bg-violet-600/60 rounded-lg text-violet-300 text-xs transition flex-shrink-0"
       >
         <FiEye className="text-xs" /> View
@@ -132,9 +132,7 @@ export default function Profile() {
   const [reporting, setReporting] = useState(false);
   const fileInputRef = useRef(null);
 
-  useEffect(() => { fetchProfile(); }, [id]);
-
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     try {
       const endpoint = isOwnProfile ? '/profile/me' : `/profile/${id}`;
       const res = await API.get(endpoint);
@@ -165,7 +163,15 @@ export default function Profile() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, isOwnProfile, authUser?._id]);
+
+  useEffect(() => { fetchProfile(); }, [fetchProfile]);
+
+  useEffect(() => {
+    return () => {
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
+    };
+  }, [imagePreview]);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -192,7 +198,11 @@ export default function Profile() {
       const res = await API.put('/profile/update', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      setProfile(prev => ({ ...prev, ...res.data.user }));
+      if (res.data.user) {
+        setProfile(res.data.user);
+      } else {
+        await fetchProfile();
+      }
       setEditing(false);
       setImageFile(null);
     } catch (err) {
@@ -234,7 +244,8 @@ export default function Profile() {
   const getImageUrl = (url) => {
     if (!url) return null;
     if (url.startsWith('http')) return url;
-    return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url.replace(/\\/g, '/')}`;
+    const cleanUrl = url.replace(/\\/g, '/');
+    return `${API_BASE_URL}${cleanUrl.startsWith('/') ? '' : '/'}${cleanUrl}`;
   };
   const avatarSrc = imagePreview || getImageUrl(profile.profileImage) || profile.avatar;
   const initials = profile.name?.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || '?';
@@ -250,6 +261,56 @@ export default function Profile() {
   if (!editForm.socialLinks.whatsapp && !editForm.socialLinks.instagram && !editForm.socialLinks.linkedin) missingFields.push('Social links');
   if (!editForm.expertise) missingFields.push('Expertise');
   if (!editForm.stream) missingFields.push('Stream');
+
+  // ─── Real Achievement Logic ──────────────────────────────────────────────
+  const avgRating = profile.uploadedNotes?.length 
+    ? profile.uploadedNotes.reduce((acc, n) => acc + (n.rating || 0), 0) / profile.uploadedNotes.length 
+    : 0;
+  const totalDownloads = profile.uploadedNotes?.reduce((acc, n) => acc + (n.downloads || 0), 0) || 0;
+  const positiveFeedback = profile.uploadedNotes?.every(n => (n.rating || 0) >= 4) && profile.uploadedNotes.length > 0;
+  
+  const achievements = [
+    {
+      id: 'top-rated',
+      icon: '🏆',
+      title: 'Top Rated',
+      desc: 'Avg rating 4.5+',
+      active: avgRating >= 4.5,
+      sub: `${avgRating.toFixed(1)} stars`
+    },
+    {
+      id: 'trending',
+      icon: '🔥',
+      title: 'Trending',
+      desc: 'High activity',
+      active: totalDownloads > 50 || profile.uploadedNotes?.length > 5,
+      sub: `${totalDownloads} downloads`
+    },
+    {
+      id: 'positive',
+      icon: '💯',
+      title: '100% Positive',
+      desc: 'Consistent quality',
+      active: positiveFeedback,
+      sub: 'All 4★+'
+    },
+    {
+      id: 'impact',
+      icon: '📈',
+      title: 'Impact',
+      desc: `${profile.totalSales || 0}+ Sales`,
+      active: (profile.totalSales || 0) > 0,
+      sub: 'Community impact'
+    }
+  ];
+
+  const timelineEvents = [
+    { title: 'Joined Notes Marketplace', time: new Date(profile.createdAt).toLocaleDateString('en-US', {month: 'long', year: 'numeric'}) },
+    ...(profile.uploadedNotes || []).slice(0, 5).map(n => ({
+      title: `Uploaded "${n.title}"`,
+      time: new Date(n.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
+    })).sort((a, b) => new Date(b.time) - new Date(a.time))
+  ];
 
   return (
     <div className="min-h-screen bg-[#07070f] text-white">
@@ -362,11 +423,11 @@ export default function Profile() {
                       {isFollowing ? <FiCheck /> : <FiUserPlus />} {isFollowing ? 'Following' : 'Follow'}
                     </button>
                     <button 
+                      title="Report"
                       onClick={() => setShowReportModal(true)}
-                      className="p-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-xl transition tooltip-trigger relative group"
+                      className="p-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-xl transition"
                     >
                       <FiFlag />
-                      <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-900 text-xs text-white px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none">Report</span>
                     </button>
                   </>
                 )}
@@ -442,22 +503,22 @@ export default function Profile() {
                   {/* Social Buttons */}
                   <div className="flex gap-2">
                     {profile.socialLinks?.whatsapp && (
-                      <a href={`https://wa.me/${profile.socialLinks.whatsapp}`} target="_blank" rel="noreferrer" className="w-9 h-9 flex items-center justify-center rounded-full bg-[#25D366]/20 text-[#25D366] hover:bg-[#25D366] hover:text-white transition tooltip-trigger relative group">
+                      <a href={`https://wa.me/${profile.socialLinks.whatsapp}`} target="_blank" rel="noopener noreferrer" title="WhatsApp" className="w-9 h-9 flex items-center justify-center rounded-full bg-[#25D366]/20 text-[#25D366] hover:bg-[#25D366] hover:text-white transition">
                         <FiMessageCircle size={18} />
                       </a>
                     )}
                     {profile.socialLinks?.telegram && (
-                      <a href={`https://t.me/${profile.socialLinks.telegram}`} target="_blank" rel="noreferrer" className="w-9 h-9 flex items-center justify-center rounded-full bg-[#0088cc]/20 text-[#0088cc] hover:bg-[#0088cc] hover:text-white transition">
+                      <a href={`https://t.me/${profile.socialLinks.telegram}`} target="_blank" rel="noopener noreferrer" title="Telegram" className="w-9 h-9 flex items-center justify-center rounded-full bg-[#0088cc]/20 text-[#0088cc] hover:bg-[#0088cc] hover:text-white transition">
                         <svg className="w-[18px] h-[18px]" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .24z"/></svg>
                       </a>
                     )}
                     {profile.socialLinks?.linkedin && (
-                      <a href={profile.socialLinks.linkedin} target="_blank" rel="noreferrer" className="w-9 h-9 flex items-center justify-center rounded-full bg-[#0077b5]/20 text-[#0077b5] hover:bg-[#0077b5] hover:text-white transition">
+                      <a href={profile.socialLinks.linkedin} target="_blank" rel="noopener noreferrer" title="LinkedIn" className="w-9 h-9 flex items-center justify-center rounded-full bg-[#0077b5]/20 text-[#0077b5] hover:bg-[#0077b5] hover:text-white transition">
                         <FiLinkedin size={18} />
                       </a>
                     )}
                     {profile.socialLinks?.instagram && (
-                      <a href={`https://instagram.com/${profile.socialLinks.instagram}`} target="_blank" rel="noreferrer" className="w-9 h-9 flex items-center justify-center rounded-full bg-gradient-to-tr from-[#f09433] via-[#e6683c] to-[#bc1888] bg-opacity-20 text-pink-400 hover:text-white transition border border-pink-500/20 hover:border-transparent">
+                      <a href={`https://instagram.com/${profile.socialLinks.instagram}`} target="_blank" rel="noopener noreferrer" title="Instagram" className="w-9 h-9 flex items-center justify-center rounded-full bg-gradient-to-tr from-[#f09433] via-[#e6683c] to-[#bc1888] bg-opacity-20 text-pink-400 hover:text-white transition border border-pink-500/20 hover:border-transparent">
                         <FiInstagram size={18} />
                       </a>
                     )}
@@ -604,39 +665,25 @@ export default function Profile() {
                    <div>
                      <h4 className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-4">Timeline</h4>
                      <div className="space-y-0 relative">
-                       <TimelineRow title="Joined Notes Marketplace" time={new Date(profile.createdAt).toLocaleDateString('en-US', {month: 'long', year: 'numeric'})} />
-                       {profile.uploadedNotes?.slice(0, 3).map((n, i) => (
-                         <TimelineRow key={i} title={`Uploaded "${n.title}"`} time="Recently" />
-                       ))}
-                       {profile.totalSales > 0 && <TimelineRow title={`Reached ${profile.totalSales} sales!`} time="Recently" />}
-                     </div>
-                   </div>
-                   {/* Achievements */}
-                   <div>
-                     <h4 className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-4">Achievements</h4>
-                     <div className="grid grid-cols-2 gap-3">
-                       <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-center">
-                         <div className="text-3xl mb-2">🏆</div>
-                         <p className="text-xs text-white font-semibold">Top Rated</p>
-                         <p className="text-[10px] text-gray-500 mt-1">Maintained 4.5+ stars</p>
-                       </div>
-                       <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-center">
-                         <div className="text-3xl mb-2">🔥</div>
-                         <p className="text-xs text-white font-semibold">Trending</p>
-                         <p className="text-[10px] text-gray-500 mt-1">High recent activity</p>
-                       </div>
-                       <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-center">
-                         <div className="text-3xl mb-2">💯</div>
-                         <p className="text-xs text-white font-semibold">100% Positive</p>
-                         <p className="text-[10px] text-gray-500 mt-1">Great feedback</p>
-                       </div>
-                       <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-center">
-                         <div className="text-3xl mb-2">📈</div>
-                         <p className="text-xs text-white font-semibold">{profile.totalSales || 0}+ Downloads</p>
-                         <p className="text-[10px] text-gray-500 mt-1">Community impact</p>
-                       </div>
-                     </div>
-                   </div>
+                        {timelineEvents.map((ev, i) => (
+                          <TimelineRow key={i} title={ev.title} time={ev.time} />
+                        ))}
+                      </div>
+                    </div>
+                    {/* Achievements */}
+                    <div>
+                      <h4 className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-4">Achievements</h4>
+                      <div className="grid grid-cols-2 gap-3">
+                        {achievements.map(ach => (
+                          <div key={ach.id} className={`border rounded-xl p-4 text-center transition-all ${ach.active ? 'bg-white/5 border-white/10 opacity-100' : 'bg-white/2 border-white/5 opacity-40 grayscale'}`}>
+                            <div className="text-3xl mb-2">{ach.icon}</div>
+                            <p className="text-xs text-white font-semibold">{ach.title}</p>
+                            <p className="text-[10px] text-gray-500 mt-1">{ach.active ? ach.sub : ach.desc}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
                  </div>
                </div>
             )}
@@ -694,6 +741,8 @@ export default function Profile() {
                         setReportReason('');
                       } catch (e) {
                         alert('Failed to submit report');
+                        setShowReportModal(false);
+                        setReportReason('');
                       } finally {
                         setReporting(false);
                       }
@@ -720,9 +769,7 @@ function WalletTab({ profile, onRefresh }) {
   const [wallet, setWallet] = useState(null);
   const [loadingWallet, setLoadingWallet] = useState(true);
 
-  useEffect(() => { fetchWallet(); }, []);
-
-  const fetchWallet = async () => {
+  const fetchWallet = useCallback(async () => {
     try {
       const res = await API.get('/profile/wallet');
       setWallet(res.data);
@@ -731,7 +778,9 @@ function WalletTab({ profile, onRefresh }) {
     } finally {
       setLoadingWallet(false);
     }
-  };
+  }, []);
+
+  useEffect(() => { fetchWallet(); }, [fetchWallet]);
 
   const handleWithdraw = async () => {
     if (!withdrawForm.amount || !withdrawForm.upiId) return alert('Fill all fields');
@@ -799,7 +848,7 @@ function WalletTab({ profile, onRefresh }) {
           <motion.button
             whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
             onClick={handleWithdraw}
-            disabled={withdrawing || !wallet?.balance}
+            disabled={withdrawing || !wallet?.balance || wallet.balance < 50}
             className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 rounded-xl text-sm font-semibold text-white transition disabled:opacity-40 whitespace-nowrap"
           >
             {withdrawing ? 'Processing...' : 'Withdraw'}

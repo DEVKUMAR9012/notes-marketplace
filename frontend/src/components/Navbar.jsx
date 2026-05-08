@@ -2,7 +2,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { motion } from 'framer-motion';
-import { FiLogOut, FiHome, FiUpload, FiUser, FiMenu, FiX, FiShoppingCart, FiBook, FiHeadphones, FiMessageSquare } from 'react-icons/fi';
+import { FiLogOut, FiHome, FiUpload, FiUser, FiMenu, FiX, FiShoppingCart, FiBook, FiHeadphones, FiMessageSquare, FiShield } from 'react-icons/fi';
 import { useState } from 'react';
 import AnimatedLogo from './AnimatedLogo';
 
@@ -34,6 +34,10 @@ export default function Navbar() {
     { label: 'Contact', icon: FiHeadphones, path: '/contact' },
     { label: 'Cart', icon: FiShoppingCart, path: '/cart' },
   ];
+
+  if (user?.role === 'admin') {
+    navItems.push({ label: 'Admin', icon: FiShield, path: '/admin/dashboard' });
+  }
 
   const isActive = (path) => location.pathname === path;
 

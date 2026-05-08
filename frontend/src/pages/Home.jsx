@@ -168,7 +168,7 @@ const PreviewModal = ({ note, onClose, onBuy }) => {
           <div className="flex items-center gap-2">
             {/* Download only if free or already purchased */}
             {canViewFull && (
-              <a href={note.pdfUrl?.startsWith('http') ? note.pdfUrl : `${process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL.replace('/api', '') : 'http://localhost:5000'}${note.pdfUrl}`} target="_blank" rel="noreferrer"
+              <a href={note.pdfUrl?.startsWith('http') ? note.pdfUrl : `${process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL.replace('/api', '') : 'http://localhost:5000'}${note.pdfUrl}`} target="_blank" rel="noopener noreferrer"
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-700 rounded-lg text-xs text-white font-medium transition">
                 <FiDownload /> {isPaid ? 'Download' : 'Open Full'}
               </a>

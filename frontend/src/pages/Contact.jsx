@@ -460,9 +460,9 @@ export default function Contact() {
   ];
 
   const socialLinks = [
-    { name: 'Twitter', icon: FiTwitter, color: 'hover:text-blue-400', url: '#' },
+    { name: 'Twitter', icon: FiTwitter, color: 'hover:text-blue-400', url: 'https://twitter.com/devkumar' },
     { name: 'Instagram', icon: FiInstagram, color: 'hover:text-pink-400', url: 'https://instagram.com/kaisehodev' },
-    { name: 'LinkedIn', icon: FiLinkedin, color: 'hover:text-blue-600', url: 'https://www.linkedin.com/in/dev-kumar-950376305/?skipRedirect=true' },
+    { name: 'LinkedIn', icon: FiLinkedin, color: 'hover:text-blue-600', url: 'https://www.linkedin.com/in/dev-kumar-950376305/' },
     { name: 'GitHub', icon: FiGithub, color: 'hover:text-gray-300', url: 'https://github.com/DEVKUMAR9012' },
   ];
 
@@ -663,8 +663,8 @@ export default function Contact() {
                 </div>
                 <div>
                   <h3 className="text-white font-bold mb-1">Email</h3>
-                  <p className="text-gray-400">dk25042008@gmail.com</p>
-                  <p className="text-gray-500 text-sm">We respond within 24 hours</p>
+                  <p className="text-gray-400">devkumar9012@gmail.com</p>
+                  <p className="text-gray-500 text-sm">Official support address</p>
                 </div>
               </div>
             </motion.div>

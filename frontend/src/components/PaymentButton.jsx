@@ -38,7 +38,7 @@ const SuccessOverlay = ({ note, onClose }) => (
         <a
           href={note?.pdfUrl?.startsWith('http') ? note.pdfUrl : `${API.defaults.baseURL.replace('/api', '')}${note?.pdfUrl}`}
           target="_blank"
-          rel="noreferrer"
+          rel="noopener noreferrer"
           className="flex items-center justify-center gap-2 w-full py-3 bg-emerald-600 hover:bg-emerald-700 rounded-xl text-white font-semibold transition"
         >
           <FiDownload /> Download Now
@@ -64,7 +64,7 @@ export default function PaymentButton({ note, noteIds, user, onSuccess, classNam
         whileTap={{ scale: 0.97 }}
         href={note?.pdfUrl?.startsWith('http') ? note.pdfUrl : `${API.defaults.baseURL.replace('/api', '')}${note?.pdfUrl}`}
         target="_blank"
-        rel="noreferrer"
+        rel="noopener noreferrer"
         className={`flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 rounded-xl text-white text-sm font-semibold transition-all shadow-lg ${className}`}
       >
         <FiDownload /> Get Free
@@ -139,7 +139,7 @@ export default function PaymentButton({ note, noteIds, user, onSuccess, classNam
         whileTap={{ scale: 0.97 }}
         href={`http://localhost:5000${successData?.pdfUrl}`}
         target="_blank"
-        rel="noreferrer"
+        rel="noopener noreferrer"
         className={`flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-green-500 rounded-xl text-white text-sm font-semibold ${className}`}
       >
         <FiCheck /> Download
