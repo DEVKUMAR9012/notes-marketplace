@@ -12,7 +12,7 @@ const server = http.createServer(app);
 
 // ========== CORS ==========
 const corsOptions = {
-  origin: ['http://localhost:3000', 'http://localhost:3001', 'https://noteshere.site'],
+  origin: ['http://localhost:3000', 'http://localhost:3001', 'https://noteshere.site', 'https://www.noteshere.site'],
   credentials: true,
 };
 app.use(cors(corsOptions));
