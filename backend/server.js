@@ -12,7 +12,7 @@ const server = http.createServer(app);
 
 // ========== CORS ==========
 const corsOptions = {
-  origin: ['http://localhost:3000', 'http://localhost:3001', 'https://notes-marketplace-rho.vercel.app'],
+  origin: ['http://localhost:3000', 'http://localhost:3001', 'https://noteshere.site'],
   credentials: true,
 };
 app.use(cors(corsOptions));

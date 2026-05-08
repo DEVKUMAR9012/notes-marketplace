@@ -126,6 +126,9 @@
    .chat-item:hover, .chat-item.active {
      background: rgba(255, 255, 255, 0.08);
    }
+   .chat-item.active {
+     border-left: 4px solid #a855f7;
+   }
    .chat-item-info {
      flex: 1;
      overflow: hidden;
@@ -188,7 +191,9 @@
      display: flex;
      align-items: center;
      gap: 15px;
-     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+     z-index: 10;
    }
    .back-btn {
      display: none;
@@ -233,8 +238,9 @@
      transition: background 0.2s;
    }
    .mine .message-bubble {
-     background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+     background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
      border-bottom-right-radius: 4px;
+     box-shadow: 0 2px 8px rgba(139, 92, 246, 0.2);
    }
    .theirs .message-bubble {
      background: #262626;

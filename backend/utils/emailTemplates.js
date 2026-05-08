@@ -3,7 +3,7 @@
 // All templates are mobile-responsive, dark-themed HTML emails
 // ============================================================
 
-const BASE_URL = process.env.FRONTEND_URL || 'https://notes-marketplace-rho.vercel.app';
+const BASE_URL = process.env.FRONTEND_URL || 'https://noteshere.site';
 const BACKEND_URL = process.env.BACKEND_URL || 'https://notes-marketplace-backend.onrender.com';
 
 // ── Shared email wrapper (header + footer) ─────────────────────────────────────

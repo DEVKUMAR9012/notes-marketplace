@@ -1,35 +1,36 @@
-import React, { useEffect } from 'react';
+import React, { useMemo } from 'react';
 import './AnimatedLogo.css';
 
 const AnimatedLogo = ({ size = 'medium' }) => {
-  useEffect(() => {
-    // Generate floating particles
-    const container = document.getElementById('particles-container');
-    if (container) {
-      container.innerHTML = '';
-      const particleCount = size === 'small' ? 15 : 30;
-      
-      for (let i = 0; i < particleCount; i++) {
-        const particle = document.createElement('div');
-        particle.className = 'particle';
-        
-        const leftPos = Math.random() * 100;
-        const delay = Math.random() * 5;
-        const duration = 5 + Math.random() * 5;
-        
-        particle.style.left = leftPos + '%';
-        particle.style.top = '100%';
-        particle.style.animation = `particle-float ${duration}s linear infinite`;
-        particle.style.animationDelay = delay + 's';
-        
-        container.appendChild(particle);
-      }
-    }
+  // useMemo ensures particles only calculate once per size change
+  const particles = useMemo(() => {
+    const particleCount = size === 'small' ? 15 : 30;
+    
+    return Array.from({ length: particleCount }).map((_, index) => ({
+      id: index,
+      left: `${Math.random() * 100}%`,
+      delay: `${Math.random() * 5}s`,
+      duration: `${5 + Math.random() * 5}s`
+    }));
   }, [size]);
 
   return (
     <div className={`animated-logo-wrapper ${size}`}>
-      <div id="particles-container" className="particles"></div>
+      {/* 🚀 React-way of rendering particles */}
+      <div className="particles">
+        {particles.map((p) => (
+          <div
+            key={p.id}
+            className="particle"
+            style={{
+              left: p.left,
+              top: '100%',
+              animation: `particle-float ${p.duration} linear infinite`,
+              animationDelay: p.delay
+            }}
+          />
+        ))}
+      </div>
       
       <div className="glow-orb orb1"></div>
       <div className="glow-orb orb2"></div>

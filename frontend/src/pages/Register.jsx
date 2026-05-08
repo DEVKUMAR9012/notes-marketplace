@@ -60,7 +60,7 @@ export default function Register() {
 
   const handlePhoneDataChange = (e) => {
     const { name, value } = e.target;
-    // Only allow digits for phone field
+    // Only allow digits, plus, minus, and spaces
     const val = name === 'phone' ? value.replace(/[^0-9+\- ]/g, '') : value;
     setPhoneData(prev => ({ ...prev, [name]: val }));
     if (error) setError('');
@@ -127,9 +127,18 @@ export default function Register() {
     e.preventDefault();
     if (!phoneData.name.trim()) return setError('Please enter your name');
 
-    // ✅ Strict Indian phone validation
-    const cleanPhone = phoneData.phone.replace(/[\s\-\(\)]/g, '').replace(/^\+91/, '');
-    const indianPhoneRegex = /^[6-9]\d{9}$/; // Must be 10 digits starting with 6/7/8/9
+    // ✅ Bulletproof Phone Validation
+    // Extract purely digits
+    let cleanPhone = phoneData.phone.replace(/\D/g, '');
+
+    // Handle common user mistakes like typing '91' or '0' instead of '+91'
+    if (cleanPhone.length === 11 && cleanPhone.startsWith('0')) {
+      cleanPhone = cleanPhone.slice(1);
+    } else if (cleanPhone.length === 12 && cleanPhone.startsWith('91')) {
+      cleanPhone = cleanPhone.slice(2);
+    }
+
+    const indianPhoneRegex = /^[6-9]\d{9}$/; // Strictly 10 digits starting with 6/7/8/9
     if (!indianPhoneRegex.test(cleanPhone)) {
       return setError('Please enter a valid 10-digit Indian mobile number (starting with 6, 7, 8, or 9)');
     }
@@ -138,7 +147,7 @@ export default function Register() {
     try {
       const { data } = await retryWithBackoff(() => API.post('/auth/phone-register', {
         name: phoneData.name.trim(),
-        phone: cleanPhone, // send clean 10-digit number
+        phone: cleanPhone, // ALWAYS sends the clean 10-digit format
         college: phoneData.college.trim()
       }));
       login(data);
@@ -211,10 +220,11 @@ export default function Register() {
 
                   <div className="relative">
                     <FiPhone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
+                    {/* Fixed maxLength from 13 to 16 to accommodate format like +91 98765 43210 */}
                     <input type="tel" name="phone" value={phoneData.phone} onChange={handlePhoneDataChange}
-                      disabled={loading} required maxLength={13}
+                      disabled={loading} required maxLength={16}
                       className="w-full pl-10 pr-4 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-violet-500 transition-colors disabled:opacity-50"
-                      placeholder="+91 9876543210" />
+                      placeholder="+91 98765 43210" />
                   </div>
 
                   <div className="relative">
@@ -227,7 +237,7 @@ export default function Register() {
 
                   <button type="submit" disabled={loading}
                     className="w-full bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white py-4 rounded-xl font-bold shadow-[0_0_15px_rgba(139,92,246,0.3)] hover:shadow-[0_0_25px_rgba(139,92,246,0.5)] transition-all disabled:opacity-50 mt-2 flex items-center justify-center gap-2">
-                    {loading ? 'Please wait...' : <><FiPhone size={16}/> Enter Website</>}
+                    {loading ? 'Please wait...' : <><FiPhone size={16} /> Enter Website</>}
                   </button>
                 </form>
 
@@ -331,5 +341,5 @@ export default function Register() {
         </div>
       </motion.div>
     </div>
-  );
+  )
 }

@@ -85,7 +85,7 @@ export default function AdminEmailDashboard() {
     }
   }, []);
 
-  const fetchLogs = useCallback(async (page = 1) => {
+  const fetchLogs = async (page = 1) => {
     setLoading(true);
     try {
       const params = new URLSearchParams({ page, limit: 15 });
@@ -99,12 +99,13 @@ export default function AdminEmailDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [filterType, filterStatus]);
+  };
 
   useEffect(() => {
     fetchStats();
     fetchLogs(1);
-  }, [fetchStats, fetchLogs]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const sendCampaign = async (e) => {
     e.preventDefault();

@@ -350,11 +350,15 @@ export default function Profile() {
           className="relative bg-white/4 border border-white/10 rounded-3xl mb-8 overflow-hidden"
         >
           {/* Header Cover Image/Gradient */}
-          <div className="h-40 sm:h-56 w-full relative">
+          <div className="h-40 sm:h-56 w-full relative overflow-hidden bg-[#1a103c]">
             {profile.headerImage ? (
-               <img src={profile.headerImage} alt="Cover" className="w-full h-full object-cover" />
+               <img src={profile.headerImage} alt="Cover" className="w-full h-full object-cover relative z-10" />
             ) : (
-               <div className="w-full h-full bg-gradient-to-r from-violet-900/60 via-purple-900/60 to-fuchsia-900/60" />
+               <>
+                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,_#4c1d95_0%,_transparent_50%)]" />
+                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_80%,_#701a75_0%,_transparent_50%)]" />
+                 <div className="absolute inset-0 bg-black/40 backdrop-blur-3xl" />
+               </>
             )}
             {editing && (
                <div className="absolute top-4 right-4">
@@ -501,28 +505,33 @@ export default function Profile() {
                   )}
 
                   {/* Social Buttons */}
-                  <div className="flex gap-2">
-                    {profile.socialLinks?.whatsapp && (
-                      <a href={`https://wa.me/${profile.socialLinks.whatsapp}`} target="_blank" rel="noopener noreferrer" title="WhatsApp" className="w-9 h-9 flex items-center justify-center rounded-full bg-[#25D366]/20 text-[#25D366] hover:bg-[#25D366] hover:text-white transition">
-                        <FiMessageCircle size={18} />
-                      </a>
-                    )}
-                    {profile.socialLinks?.telegram && (
-                      <a href={`https://t.me/${profile.socialLinks.telegram}`} target="_blank" rel="noopener noreferrer" title="Telegram" className="w-9 h-9 flex items-center justify-center rounded-full bg-[#0088cc]/20 text-[#0088cc] hover:bg-[#0088cc] hover:text-white transition">
-                        <svg className="w-[18px] h-[18px]" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .24z"/></svg>
-                      </a>
-                    )}
-                    {profile.socialLinks?.linkedin && (
-                      <a href={profile.socialLinks.linkedin} target="_blank" rel="noopener noreferrer" title="LinkedIn" className="w-9 h-9 flex items-center justify-center rounded-full bg-[#0077b5]/20 text-[#0077b5] hover:bg-[#0077b5] hover:text-white transition">
-                        <FiLinkedin size={18} />
-                      </a>
-                    )}
-                    {profile.socialLinks?.instagram && (
-                      <a href={`https://instagram.com/${profile.socialLinks.instagram}`} target="_blank" rel="noopener noreferrer" title="Instagram" className="w-9 h-9 flex items-center justify-center rounded-full bg-gradient-to-tr from-[#f09433] via-[#e6683c] to-[#bc1888] bg-opacity-20 text-pink-400 hover:text-white transition border border-pink-500/20 hover:border-transparent">
-                        <FiInstagram size={18} />
-                      </a>
-                    )}
-                  </div>
+                  {(profile.socialLinks?.whatsapp || profile.socialLinks?.telegram || profile.socialLinks?.linkedin || profile.socialLinks?.instagram) && (
+                    <div className="bg-white/5 border border-white/10 p-4 rounded-2xl inline-block mt-2">
+                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3">Social Links</p>
+                      <div className="flex gap-3">
+                        {profile.socialLinks?.whatsapp && (
+                          <a href={`https://wa.me/${profile.socialLinks.whatsapp}`} target="_blank" rel="noopener noreferrer" title="WhatsApp" className="w-10 h-10 flex items-center justify-center rounded-xl bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366] hover:text-white transition">
+                            <FiMessageCircle size={18} />
+                          </a>
+                        )}
+                        {profile.socialLinks?.telegram && (
+                          <a href={`https://t.me/${profile.socialLinks.telegram}`} target="_blank" rel="noopener noreferrer" title="Telegram" className="w-10 h-10 flex items-center justify-center rounded-xl bg-[#0088cc]/10 text-[#0088cc] hover:bg-[#0088cc] hover:text-white transition">
+                            <svg className="w-[18px] h-[18px]" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .24z"/></svg>
+                          </a>
+                        )}
+                        {profile.socialLinks?.linkedin && (
+                          <a href={profile.socialLinks.linkedin} target="_blank" rel="noopener noreferrer" title="LinkedIn" className="w-10 h-10 flex items-center justify-center rounded-xl bg-[#0077b5]/10 text-[#0077b5] hover:bg-[#0077b5] hover:text-white transition">
+                            <FiLinkedin size={18} />
+                          </a>
+                        )}
+                        {profile.socialLinks?.instagram && (
+                          <a href={`https://instagram.com/${profile.socialLinks.instagram}`} target="_blank" rel="noopener noreferrer" title="Instagram" className="w-10 h-10 flex items-center justify-center rounded-xl bg-gradient-to-tr from-[#f09433] via-[#e6683c] to-[#bc1888] bg-opacity-10 text-pink-400 hover:text-white transition border border-pink-500/20 hover:border-transparent">
+                            <FiInstagram size={18} />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -530,13 +539,13 @@ export default function Profile() {
         </motion.div>
 
         {/* ── Tabs ── */}
-        <div className="flex gap-2 overflow-x-auto pb-1 mb-6 scrollbar-none border-b border-white/5">
+        <div className="flex gap-2 overflow-x-auto p-1.5 mb-6 scrollbar-none bg-white/5 rounded-2xl w-max max-w-full">
           {tabs.map(tab => (
             <motion.button key={tab.id} whileTap={{ scale: 0.96 }}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-shrink-0 flex items-center gap-1.5 px-5 py-3 text-sm font-semibold border-b-2 transition-all duration-200
-                ${activeTab === tab.id ? 'border-violet-500 text-violet-400' : 'border-transparent text-gray-500 hover:text-gray-300 hover:border-white/20'}`}>
-              <tab.icon className="text-sm" /> {tab.label}
+              className={`flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
+                ${activeTab === tab.id ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'}`}>
+              <tab.icon className={`text-base ${activeTab === tab.id ? 'text-violet-400' : ''}`} /> {tab.label}
             </motion.button>
           ))}
         </div>

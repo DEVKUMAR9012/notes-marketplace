@@ -55,8 +55,8 @@
 .glow-orb {
   position: absolute;
   border-radius: 50%;
-  filter: blur(60px);
-  opacity: 0.15;
+  filter: blur(40px);
+  opacity: 0.3;
   pointer-events: none;
 }
 
@@ -173,7 +173,7 @@
 .main-text {
   font-size: 24px;
   font-weight: 800;
-  background: linear-gradient(135deg, #5DCAA5, #378ADD, #7F77DD);
+  background: linear-gradient(to right, #a78bfa, #e879f9); /* Violet to Fuchsia */
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;

@@ -80,14 +80,18 @@ const FeedRowSkeleton = () => (
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 
 const colorMap = {
-  blue: { wrap: 'bg-blue-500/15 border-blue-500/25', text: 'text-blue-400', bar: 'bg-blue-400' },
-  emerald: { wrap: 'bg-emerald-500/15 border-emerald-500/25', text: 'text-emerald-400', bar: 'bg-emerald-400' },
-  orange: { wrap: 'bg-orange-500/15 border-orange-500/25', text: 'text-orange-400', bar: 'bg-orange-400' },
+  blue: { wrap: 'bg-blue-500/15 border-blue-500/25', text: 'text-blue-400', bar: 'bg-blue-400', stroke: 'stroke-blue-500' },
+  emerald: { wrap: 'bg-emerald-500/15 border-emerald-500/25', text: 'text-emerald-400', bar: 'bg-emerald-400', stroke: 'stroke-emerald-500' },
+  orange: { wrap: 'bg-orange-500/15 border-orange-500/25', text: 'text-orange-400', bar: 'bg-orange-400', stroke: 'stroke-orange-500' },
 };
 
 const StatCard = ({ title, rawValue = 0, icon: Icon, color, delay, prefix = '', suffix = '' }) => {
   const animated = useCountUp(rawValue, 1000, rawValue > 0);
   const c = colorMap[color];
+
+  const points = color === 'blue' ? "0,25 20,20 40,30 60,15 80,20 100,5" :
+                 color === 'emerald' ? "0,30 20,15 40,25 60,10 80,15 100,0" :
+                 "0,20 20,25 40,15 60,20 80,5 100,10";
 
   return (
     <motion.div
@@ -99,10 +103,15 @@ const StatCard = ({ title, rawValue = 0, icon: Icon, color, delay, prefix = '', 
       <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
         <div className={`absolute -top-8 -right-8 w-32 h-32 rounded-full blur-2xl opacity-20 ${c.bar}`} />
       </div>
-      <div className={`w-14 h-14 rounded-xl flex items-center justify-center border flex-shrink-0 ${c.wrap} ${c.text}`}>
+      
+      <svg className={`absolute bottom-0 right-0 w-1/2 h-12 opacity-20 pointer-events-none ${c.stroke}`} viewBox="0 0 100 35" preserveAspectRatio="none">
+        <polyline points={points} fill="none" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+      </svg>
+
+      <div className={`relative z-10 w-14 h-14 rounded-xl flex items-center justify-center border flex-shrink-0 ${c.wrap} ${c.text}`}>
         <Icon size={22} />
       </div>
-      <div>
+      <div className="relative z-10">
         <p className="text-gray-400 text-sm font-medium mb-1">{title}</p>
         <p className="text-white text-3xl font-bold tracking-tight tabular-nums">
           {prefix}{animated.toLocaleString()}{suffix}
@@ -261,21 +270,21 @@ const Overview = () => {
         </motion.div>
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-3">
           {timeSince && (
-            <span className="text-xs text-gray-600 hidden md:block">Updated {timeSince}</span>
+            <span className="text-xs text-gray-500 hidden md:block">Updated {timeSince}</span>
           )}
           <button
             onClick={() => fetchData(true)}
             disabled={refreshing}
-            className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-2.5 rounded-xl transition-all text-sm font-medium text-gray-300 hover:text-white disabled:opacity-50"
+            title="Refresh Dashboard"
+            className="flex items-center justify-center bg-white/5 hover:bg-white/10 border border-white/10 w-10 h-10 rounded-full transition-all text-gray-300 hover:text-white disabled:opacity-50"
           >
-            <FiRefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
-            Refresh
+            <FiRefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
           </button>
           <button
             onClick={() => navigate('/admin/email')}
-            className="flex items-center gap-2 bg-violet-600/20 hover:bg-violet-600/30 border border-violet-500/30 px-4 py-2.5 rounded-xl transition-all text-sm font-medium text-violet-300"
+            className="flex items-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 shadow-lg shadow-violet-500/25 px-5 py-2.5 rounded-xl transition-all text-sm font-bold text-white"
           >
-            <FiMail size={14} /> Email Dashboard
+            <FiMail size={16} /> Email Dashboard
           </button>
         </motion.div>
       </div>
@@ -301,23 +310,29 @@ const Overview = () => {
             title="Revenue"
           />
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-black/30 rounded-2xl p-5 border border-white/5">
-              <p className="text-gray-500 text-xs font-medium uppercase tracking-wider mb-3">Gross Sales</p>
-              <p className="text-3xl font-bold text-white tabular-nums">
-                ₹{(metrics?.grossSales || 0).toLocaleString()}
-              </p>
-              <div className="mt-3 flex items-center gap-1.5 text-xs text-emerald-400">
-                <FiArrowUpRight size={12} /> All time
+            <div className="bg-black/30 rounded-2xl p-5 border border-white/5 relative overflow-hidden">
+              <FiDollarSign className="absolute -right-4 -bottom-4 w-28 h-28 text-white/[0.03] transform -rotate-12 pointer-events-none" />
+              <div className="relative z-10">
+                <p className="text-gray-500 text-xs font-medium uppercase tracking-wider mb-3">Gross Sales</p>
+                <p className="text-3xl font-bold text-white tabular-nums">
+                  ₹{(metrics?.grossSales || 0).toLocaleString()}
+                </p>
+                <div className="mt-3 flex items-center gap-1.5 text-xs text-emerald-400">
+                  <FiArrowUpRight size={12} /> All time
+                </div>
               </div>
             </div>
             <div className="bg-violet-600/10 rounded-2xl p-5 border border-violet-500/20 relative overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-br from-violet-600/5 to-transparent" />
-              <p className="text-violet-400/70 text-xs font-medium uppercase tracking-wider mb-3">Platform Cut (10%)</p>
-              <p className="text-3xl font-bold text-violet-300 tabular-nums">
-                ₹{(metrics?.platformRevenue || 0).toLocaleString()}
-              </p>
-              <div className="mt-3 flex items-center gap-1.5 text-xs text-violet-400/60">
-                <FiArrowUpRight size={12} /> Net revenue
+              <FiDollarSign className="absolute -right-4 -bottom-4 w-28 h-28 text-violet-500/10 transform -rotate-12 pointer-events-none" />
+              <div className="relative z-10">
+                <p className="text-violet-400/70 text-xs font-medium uppercase tracking-wider mb-3">Platform Cut (10%)</p>
+                <p className="text-3xl font-bold text-violet-300 tabular-nums">
+                  ₹{(metrics?.platformRevenue || 0).toLocaleString()}
+                </p>
+                <div className="mt-3 flex items-center gap-1.5 text-xs text-violet-400/60">
+                  <FiArrowUpRight size={12} /> Net revenue
+                </div>
               </div>
             </div>
           </div>
@@ -340,7 +355,7 @@ const Overview = () => {
                 key={user._id}
                 initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.3 + i * 0.05 }}
-                className="flex items-center justify-between p-3 rounded-2xl bg-black/20 border border-white/5 hover:bg-black/40 transition-colors group"
+                className="flex items-center justify-between p-3 rounded-2xl bg-black/20 border border-white/5 hover:bg-black/40 hover:translate-x-1 transition-all duration-300 group"
               >
                 <div className="flex items-center gap-3">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold overflow-hidden flex-shrink-0 ${avatarColor(user.name)}`}>
@@ -384,7 +399,7 @@ const Overview = () => {
                 key={i}
                 initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.35 + i * 0.04 }}
-                className="flex items-center gap-3 p-3.5 rounded-2xl bg-black/20 border border-white/5 hover:bg-black/40 transition-colors"
+                className="flex items-center gap-3 p-3.5 rounded-2xl bg-black/20 border border-white/5 hover:bg-black/40 hover:translate-x-1 transition-all duration-300"
               >
                 <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${tx.type === 'credit'
                     ? 'bg-emerald-500/15 text-emerald-400'
@@ -430,7 +445,7 @@ const Overview = () => {
                 key={note._id}
                 initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.4 + i * 0.04 }}
-                className="flex items-center justify-between p-3.5 rounded-2xl bg-black/20 border border-white/5 hover:bg-black/40 transition-colors group"
+                className="flex items-center justify-between p-3.5 rounded-2xl bg-black/20 border border-white/5 hover:bg-black/40 hover:translate-x-1 transition-all duration-300 group"
               >
                 <div className="min-w-0 pr-3">
                   <p className="text-white text-sm font-medium truncate group-hover:text-violet-300 transition-colors">{note.title}</p>
@@ -438,7 +453,7 @@ const Overview = () => {
                     By {note.uploadedBy?.name || 'Unknown'} · {new Date(note.createdAt).toLocaleDateString()}
                   </p>
                 </div>
-                <span className={`flex-shrink-0 text-sm font-bold px-3 py-1.5 rounded-lg ${note.price === 0
+                <span className={`ml-auto flex-shrink-0 text-sm font-bold px-3 py-1.5 rounded-lg ${note.price === 0
                     ? 'bg-emerald-500/10 text-emerald-400'
                     : 'bg-violet-500/10 text-violet-300'
                   }`}>
@@ -546,13 +561,14 @@ export default function AdminDashboard() {
               <button
                 key={item.id}
                 onClick={() => handleTabClick(item.id)}
-                className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl transition-all text-sm font-medium
+                className={`relative w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl transition-all text-sm font-medium overflow-hidden
                   ${isActive
                     ? 'bg-violet-600/15 text-violet-300 shadow-[inset_0_0_0_1px_rgba(139,92,246,0.2)]'
                     : 'text-gray-500 hover:text-white hover:bg-white/[0.05]'
                   }`}
               >
-                <div className="flex items-center gap-3">
+                {isActive && <div className="absolute left-0 top-0 w-1 h-full bg-violet-500" />}
+                <div className="flex items-center gap-3 relative z-10">
                   <item.icon size={16} className={isActive ? 'text-violet-400' : 'text-gray-600'} />
                   {item.label}
                 </div>
