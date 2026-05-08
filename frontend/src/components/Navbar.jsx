@@ -1,10 +1,13 @@
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { FiLogOut, FiHome, FiUpload, FiUser, FiMenu, FiX, FiShoppingCart, FiBook, FiHeadphones, FiMessageSquare, FiShield } from 'react-icons/fi';
 import { useState } from 'react';
 import AnimatedLogo from './AnimatedLogo';
+
+// Create animated Link component
+const MotionLink = motion(Link);
 
 export default function Navbar() {
   const { logout, user } = useAuth();
@@ -15,7 +18,6 @@ export default function Navbar() {
 
   const handleLogout = async () => {
     try {
-      // Optional: Call backend logout endpoint
       // await API.post('/auth/logout');
     } catch (err) {
       console.error('Logout error:', err);
@@ -42,24 +44,25 @@ export default function Navbar() {
   const isActive = (path) => location.pathname === path;
 
   return (
-    <nav className="fixed top-0 w-full z-50 bg-gray-900/80 backdrop-blur-xl border-b border-white/10 sticky">
+    <nav className="sticky top-0 w-full z-50 bg-gray-900/80 backdrop-blur-xl border-b border-white/10">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
+          
           {/* Logo */}
-          <button
-            onClick={() => navigate('/')}
+          <Link
+            to="/"
             className="overflow-visible flex items-center transition-transform hover:scale-105 active:scale-95"
             style={{ padding: '4px' }}
           >
             <AnimatedLogo size={window.innerWidth < 768 ? 'small' : 'medium'} />
-          </button>
+          </Link>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-6">
             {navItems.map(({ label, icon: Icon, path }) => (
-              <motion.button
+              <MotionLink
                 key={path}
-                onClick={() => navigate(path)}
+                to={path}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
                   isActive(path)
                     ? 'bg-violet-600/30 text-violet-300 border border-violet-500/50'
@@ -70,7 +73,7 @@ export default function Navbar() {
               >
                 <div className="relative">
                   <Icon size={18} />
-                  {label === 'Cart' && cart.length > 0 && (
+                  {label === 'Cart' && cart?.length > 0 && (
                     <motion.span
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
@@ -81,7 +84,7 @@ export default function Navbar() {
                   )}
                 </div>
                 <span className="text-sm font-medium">{label}</span>
-              </motion.button>
+              </MotionLink>
             ))}
           </div>
 
@@ -115,57 +118,58 @@ export default function Navbar() {
         </div>
 
         {/* Mobile Navigation */}
-        {mobileMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="md:hidden mt-4 space-y-2"
-          >
-            {navItems.map(({ label, icon: Icon, path }) => (
-              <motion.button
-                key={path}
-                onClick={() => {
-                  navigate(path);
-                  setMobileMenuOpen(false);
-                }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
-                  isActive(path)
-                    ? 'bg-violet-600/30 text-violet-300 border border-violet-500/50'
-                    : 'text-gray-300 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <div className="relative">
-                  <Icon size={18} />
-                  {label === 'Cart' && cart.length > 0 && (
-                    <span className="absolute -top-2 -right-2 w-4 h-4 bg-red-500 text-[10px] text-white font-bold flex items-center justify-center rounded-full">
-                      {cart.length}
-                    </span>
-                  )}
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0, y: -10 }}
+              animate={{ opacity: 1, height: 'auto', y: 0 }}
+              exit={{ opacity: 0, height: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className="md:hidden mt-4 space-y-2 overflow-hidden"
+            >
+              {navItems.map(({ label, icon: Icon, path }) => (
+                <MotionLink
+                  key={path}
+                  to={path}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                    isActive(path)
+                      ? 'bg-violet-600/30 text-violet-300 border border-violet-500/50'
+                      : 'text-gray-300 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  <div className="relative">
+                    <Icon size={18} />
+                    {label === 'Cart' && cart?.length > 0 && (
+                      <span className="absolute -top-2 -right-2 w-4 h-4 bg-red-500 text-[10px] text-white font-bold flex items-center justify-center rounded-full">
+                        {cart.length}
+                      </span>
+                    )}
+                  </div>
+                  <span className="font-medium">{label}</span>
+                </MotionLink>
+              ))}
+
+              <div className="border-t border-white/10 pt-2 mt-2">
+                <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-lg mb-2">
+                  <div className="w-2 h-2 rounded-full bg-green-500" />
+                  <span className="text-sm text-gray-400">{user?.name || 'User'}</span>
                 </div>
-                <span className="font-medium">{label}</span>
-              </motion.button>
-            ))}
 
-            <div className="border-t border-white/10 pt-2 mt-2">
-              <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-lg mb-2">
-                <div className="w-2 h-2 rounded-full bg-green-500" />
-                <span className="text-sm text-gray-400">{user?.name || 'User'}</span>
+                <motion.button
+                  onClick={() => {
+                    handleLogout();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg border border-red-500/30 transition-all"
+                >
+                  <FiLogOut size={18} />
+                  <span className="font-medium">Logout</span>
+                </motion.button>
               </div>
-
-              <motion.button
-                onClick={() => {
-                  handleLogout();
-                  setMobileMenuOpen(false);
-                }}
-                className="w-full flex items-center gap-3 px-4 py-3 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg border border-red-500/30 transition-all"
-              >
-                <FiLogOut size={18} />
-                <span className="font-medium">Logout</span>
-              </motion.button>
-            </div>
-          </motion.div>
-        )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </nav>
   );
