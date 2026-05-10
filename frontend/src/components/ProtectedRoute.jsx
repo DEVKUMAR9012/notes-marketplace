@@ -1,26 +1,26 @@
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export default function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
+  const location = useLocation();
 
-  // Show loading spinner while checking auth
   if (loading) {
+    // ✅ FIX 1: Consistent Dark Theme ecosystem matched, no sudden bright flashes
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 to-purple-600">
+      <div className="min-h-screen flex items-center justify-center bg-[#050508]">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-16 h-16 border-4 border-white/30 border-t-white rounded-full animate-spin" />
-          <p className="text-white text-lg font-medium">Loading...</p>
+          <div className="w-12 h-12 border-2 border-violet-500/30 border-t-violet-500 rounded-full animate-spin" />
+          <p className="text-gray-400 text-sm font-medium">Verifying access...</p>
         </div>
       </div>
     );
   }
 
-  // Redirect to login if not authenticated
   if (!user) {
-    return <Navigate to="/login" replace />;
+    // ✅ FIX 2: User ki current location pass ki taaki login ke baad wahi wapas aaye
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Render protected content
   return children;
 }

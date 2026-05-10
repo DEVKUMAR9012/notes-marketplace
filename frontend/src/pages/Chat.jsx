@@ -5,7 +5,7 @@ import { useSocket } from '../context/SocketContext';
 import API, { API_BASE_URL } from '../utils/api';
 import './Chat.css';
 
-// ── Helper: Format time
+// ── Helper: Format time strictly
 const formatTime = (dateStr) => {
   if (!dateStr) return '';
   const d = new Date(dateStr);
@@ -27,11 +27,31 @@ const formatTime = (dateStr) => {
   return d.toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 };
 
-// ── Helper: Read Receipt Icons
-const getReceiptIcon = (msg, userId, participants) => {
-  if (msg.readBy?.some(id => String(id) !== userId)) return <span className="receipt read">✓✓</span>; // Blue Double Tick
-  if (msg.deliveredTo?.some(id => String(id) !== userId)) return <span className="receipt delivered">✓✓</span>; // Grey Double Tick
-  return <span className="receipt sent">✓</span>; // Single Tick
+// ── Helper: Check if dates belong to different days (For Telegram Date Headers)
+const isDifferentDay = (d1, d2) => {
+  if (!d1 || !d2) return true;
+  const date1 = new Date(d1);
+  const date2 = new Date(d2);
+  return date1.toDateString() !== date2.toDateString();
+};
+
+// ── Helper: Beautiful Date Capsule Formatter
+const formatDateSeparator = (dateStr) => {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  const now = new Date();
+  if (d.toDateString() === now.toDateString()) return 'Today';
+  const yesterday = new Date();
+  yesterday.setDate(now.getDate() - 1);
+  if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return d.toLocaleDateString([], { month: 'short', day: 'numeric', year: d.getFullYear() !== now.getFullYear() ? 'numeric' : undefined });
+};
+
+// ── Helper: Read Receipt Icons (Telegram style vibrant blue ticks)
+const getReceiptIcon = (msg, userId) => {
+  if (msg.readBy?.some(id => String(id) !== String(userId))) return <span className="receipt read" title="Read">✓✓</span>;
+  if (msg.deliveredTo?.some(id => String(id) !== String(userId))) return <span className="receipt delivered" title="Delivered">✓✓</span>;
+  return <span className="receipt sent" title="Sent">✓</span>;
 };
 
 // ── Helper: Get Attachment URL
@@ -58,12 +78,7 @@ const Avatar = ({ user, size = 40, isOnline }) => {
   return (
     <div className="chat-avatar-wrapper" style={{ width: size, height: size }}>
       {src && !imgError ? (
-        <img
-          src={src}
-          alt={user?.name}
-          className="chat-avatar"
-          onError={() => setImgError(true)}
-        />
+        <img src={src} alt={user?.name} className="chat-avatar" onError={() => setImgError(true)} />
       ) : (
         <div className="chat-avatar initials" style={{ fontSize: size * 0.4 }}>{initials}</div>
       )}
@@ -72,7 +87,7 @@ const Avatar = ({ user, size = 40, isOnline }) => {
   );
 };
 
-// ── FIX 1: Typing Dots Component ────────────────────────────────────────────
+// ── Typing Bubble Component (Renders sleekly inside message container)
 const TypingBubble = ({ name }) => (
   <div className="message-row theirs">
     <div className="message-bubble typing-bubble">
@@ -83,7 +98,6 @@ const TypingBubble = ({ name }) => (
     </div>
   </div>
 );
-// ────────────────────────────────────────────────────────────────────────────
 
 export default function Chat() {
   const { user } = useAuth();
@@ -110,13 +124,6 @@ export default function Chat() {
   const [uploading, setUploading] = useState(false);
   const [warningMsg, setWarningMsg] = useState(null);
   const [toast, setToast] = useState(null);
-  const toastTimerRef = useRef(null);
-
-  const showToast = (msg, type = 'success') => {
-    setToast({ msg, type });
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    toastTimerRef.current = setTimeout(() => setToast(null), 3000);
-  };
 
   // Group Chat & Suggestions State
   const [suggestedUsers, setSuggestedUsers] = useState([]);
@@ -130,20 +137,49 @@ export default function Chat() {
 
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
+  const isTypingEmittedRef = useRef(false); // ✅ Keeps typing packet load tightly throttled
+  const isInitialScrollRef = useRef(true);  // ✅ Solves long sweeping scrolls on page entry
+  const toastTimerRef = useRef(null);
   const fileInputRef = useRef(null);
   const textInputRef = useRef(null);
-  // ✅ FIX: Keep activeChat in a ref so socket listeners always get the latest value
+  
   const activeChatRef = useRef(null);
-  useEffect(() => { activeChatRef.current = activeChat; }, [activeChat]);
+  useEffect(() => { 
+    activeChatRef.current = activeChat; 
+    isInitialScrollRef.current = true; // Reset instant scroll for new chat load
+  }, [activeChat]);
 
-  const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  useEffect(scrollToBottom, [messages]);
+  // ✅ Smart scrolling: instant snap on load, smooth sweep on real-time messages
+  useEffect(() => {
+    if (!messagesEndRef.current) return;
+    if (isInitialScrollRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'auto' });
+      setTimeout(() => { isInitialScrollRef.current = false; }, 100);
+    } else {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
 
   useEffect(() => {
     return () => {
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     };
   }, []);
+
+  const showToast = (msg, type = 'success') => {
+    setToast({ msg, type });
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 3000);
+  };
+
+  const playNotificationSound = () => {
+    try {
+      const audio = new Audio('/sounds/notification.mp3');
+      audio.volume = 0.4;
+      audio.play().catch(() => {});
+    } catch(e) {}
+  };
 
   // ── Load Suggested Users
   useEffect(() => {
@@ -152,6 +188,7 @@ export default function Chat() {
 
   // ── Load Conversations
   const loadConversations = useCallback(async () => {
+    if (!user?._id) return;
     try {
       setLoading(true);
       const res = await API.get('/chat');
@@ -161,15 +198,14 @@ export default function Chat() {
       setUnreadCounts(counts);
     } catch (err) { console.error('Failed to load conversations:', err); }
     finally { setLoading(false); }
-  }, [user._id]);
+  }, [user?._id]);
 
   useEffect(() => { loadConversations(); }, [loadConversations]);
 
-  // ✅ Reload conversations when socket reconnects (auto-refresh like WhatsApp)
+  // ✅ Auto-refresh on reconnect
   useEffect(() => {
     if (!socket) return;
     const onReconnect = () => {
-      console.log('🔄 Socket reconnected — reloading data...');
       loadConversations();
       const current = activeChatRef.current;
       if (current) {
@@ -200,25 +236,22 @@ export default function Chat() {
     setTypingUser(null);
   }, [activeChat?._id]);
 
-  // ── Socket Events
+  // ── Socket Join/Leave
   useEffect(() => {
-    if (!socket || !activeChat) return;
+    if (!socket || !activeChat?._id) return;
     socket.emit('join_chat', activeChat._id);
-    // Tell sender we opened the chat (delivered/read logic)
     socket.emit('messages_delivered', { chatId: activeChat._id });
-
     return () => { socket.emit('leave_chat', activeChat._id); };
   }, [socket, activeChat]);
 
+  // ── Listeners
   useEffect(() => {
-    if (!socket) return;
+    if (!socket || !user?._id) return;
 
     const onNewMessage = (msg) => {
       const currentChat = activeChatRef.current;
       if (currentChat && msg.chat === currentChat._id) {
-        // ✅ Use functional update to avoid stale state
         setMessages(prev => {
-          // Prevent duplicate messages
           if (prev.some(m => m._id === msg._id)) return prev;
           return [...prev, msg];
         });
@@ -227,39 +260,36 @@ export default function Chat() {
       }
     };
 
-    const onConversationUpdated = ({ chatId, lastMessage, unreadCount }) => {
+    const onConversationUpdated = ({ chatId, lastMessage }) => {
       setConversations(prev => {
         const exists = prev.some(c => c._id === chatId);
         if (!exists) {
-          // ✅ New chat not in list yet — reload full list
           loadConversations();
           return prev;
         }
-        // ✅ Update lastMessage and move to TOP (WhatsApp style)
         const updated = prev.map(c => c._id === chatId ? { ...c, lastMessage } : c);
         const chatIndex = updated.findIndex(c => c._id === chatId);
         if (chatIndex > 0) {
           const [moved] = updated.splice(chatIndex, 1);
-          updated.unshift(moved); // move to top
+          updated.unshift(moved);
         }
         return updated;
       });
       if (!activeChatRef.current || activeChatRef.current._id !== chatId) {
         setUnreadCounts(prev => ({ ...prev, [chatId]: (prev[chatId] || 0) + 1 }));
-        // Play notification sound
-        new Audio('/sounds/notification.mp3').play().catch(() => { });
+        playNotificationSound();
       }
     };
 
     const onUserTyping = ({ userId, name }) => {
-      if (userId !== String(user._id)) setTypingUser({ userId, name });
+      if (String(userId) !== String(user._id)) setTypingUser({ userId, name });
     };
     const onUserStoppedTyping = ({ userId }) => {
-      if (userId !== String(user._id)) setTypingUser(null);
+      if (String(userId) !== String(user._id)) setTypingUser(null);
     };
     const onUserStatus = ({ userId, isOnline, lastSeen }) => {
       setConversations(prev => prev.map(c => {
-        const pIndex = c.participants.findIndex(p => p._id === userId);
+        const pIndex = c.participants?.findIndex(p => String(p._id) === String(userId));
         if (pIndex > -1) {
           const newP = [...c.participants];
           newP[pIndex] = { ...newP[pIndex], isOnline, lastSeen };
@@ -267,10 +297,10 @@ export default function Chat() {
         }
         return c;
       }));
-      if (activeChatRef.current && activeChatRef.current.participants.some(p => p._id === userId)) {
+      if (activeChatRef.current && activeChatRef.current.participants?.some(p => String(p._id) === String(userId))) {
         setActiveChat(prev => {
           if (!prev) return prev;
-          const newP = prev.participants.map(p => p._id === userId ? { ...p, isOnline, lastSeen } : p);
+          const newP = prev.participants.map(p => String(p._id) === String(userId) ? { ...p, isOnline, lastSeen } : p);
           return { ...prev, participants: newP };
         });
       }
@@ -322,13 +352,11 @@ export default function Chat() {
       socket.off('message_reacted', onMessageReacted);
       socket.off('message_deleted', onMessageDeleted);
     };
-  }, [socket, user._id]);
+  }, [socket, user?._id, loadConversations]);
 
-  // ── Instagram Features
+  // ── Actions
   const handleReact = async (msgId, emoji = '❤️') => {
-    try {
-      await API.post(`/chat/messages/${msgId}/react`, { emoji });
-    } catch (e) { console.error(e); }
+    try { await API.post(`/chat/messages/${msgId}/react`, { emoji }); } catch (e) { console.error(e); }
   };
 
   const handleUnsend = async (msgId) => {
@@ -338,13 +366,13 @@ export default function Chat() {
     } catch (e) { console.error(e); }
   };
 
-  // ── Send Message
   const handleSend = () => {
     const text = inputText.trim();
     if (!text || !activeChat || !socket) return;
     socket.emit('send_message', { chatId: activeChat._id, text, replyTo: replyingTo?._id });
     setInputText('');
     setReplyingTo(null);
+    isTypingEmittedRef.current = false;
     clearTimeout(typingTimeoutRef.current);
     socket.emit('typing_stop', { chatId: activeChat._id });
   };
@@ -356,21 +384,28 @@ export default function Chat() {
     setInputText('');
   };
 
+  // ✅ FIX: Elegant network throttling prevents socket packet drops
   const handleTyping = (e) => {
     setInputText(e.target.value);
     if (!socket || !activeChat) return;
-    socket.emit('typing_start', { chatId: activeChat._id });
-    clearTimeout(typingTimeoutRef.current);
-    typingTimeoutRef.current = setTimeout(() => { socket.emit('typing_stop', { chatId: activeChat._id }); }, 1500);
+
+    if (!isTypingEmittedRef.current) {
+      isTypingEmittedRef.current = true;
+      socket.emit('typing_start', { chatId: activeChat._id });
+    }
+
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => { 
+      isTypingEmittedRef.current = false;
+      socket.emit('typing_stop', { chatId: activeChat._id }); 
+    }, 1500);
   };
 
-  // ── Quick Replies
   const sendQuickReply = (text) => {
     if (!activeChat || !socket) return;
     socket.emit('send_message', { chatId: activeChat._id, text, quickReply: text });
   };
 
-  // ── File Upload
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file || !activeChat) return;
@@ -381,16 +416,15 @@ export default function Chat() {
 
     try {
       setUploading(true);
-      const res = await API.post(`/chat/${activeChat._id}/upload`, formData, {
+      await API.post(`/chat/${activeChat._id}/upload`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      // the socket will broadcast the new message automatically
     } catch (err) {
       console.error("Upload failed", err);
       showToast("Failed to upload file", "error");
     } finally {
       setUploading(false);
-      e.target.value = null; // reset input
+      e.target.value = null;
     }
   };
 
@@ -418,7 +452,6 @@ export default function Chat() {
   };
 
   const chatStartedRef = useRef(false);
-
   useEffect(() => {
     if (location.state?.startChatWith && !chatStartedRef.current) {
       chatStartedRef.current = true;
@@ -456,10 +489,10 @@ export default function Chat() {
   };
 
   const isGroup = activeChat?.isGroupChat;
-  const otherParticipant = !isGroup ? activeChat?.participants?.find(p => String(p._id) !== String(user._id)) : null;
+  const otherParticipant = !isGroup ? activeChat?.participants?.find(p => String(p._id) !== String(user?._id)) : null;
   const chatTitle = isGroup ? activeChat.chatName : otherParticipant?.name;
   const chatStatus = isGroup
-    ? `${activeChat.participants.length} participants`
+    ? `${activeChat.participants?.length || 0} participants`
     : (otherParticipant?.isOnline ? 'Online' : `Last seen: ${otherParticipant?.lastSeen ? formatTime(otherParticipant.lastSeen) : 'N/A'}`);
 
   return (
@@ -477,11 +510,11 @@ export default function Chat() {
           {toast.type === 'error' ? '❌' : '✅'} {toast.msg}
         </div>
       )}
-      {/* ──────── LEFT PANEL: Inbox ──────── */}
+      
       <aside className={`chat-sidebar ${activeChat ? 'hidden-mobile' : ''}`}>
         <div className="sidebar-header">
           <h2>Messages {Object.values(unreadCounts).reduce((a, b) => a + b, 0) > 0 && <span className="badge">{Object.values(unreadCounts).reduce((a, b) => a + b, 0)}</span>}</h2>
-          <button onClick={() => setShowSearch(!showSearch)}>✏️</button>
+          <button onClick={() => setShowSearch(!showSearch)} title="New Chat / Search">✏️</button>
         </div>
 
         {showSearch && (
@@ -512,9 +545,7 @@ export default function Chat() {
                 <div key={u._id} className="search-result" onClick={() => isCreatingGroup ? toggleUserSelection(u) : startChat(u)}>
                   <Avatar user={u} size={32} isOnline={u.isOnline} />
                   <span>{u.name}</span>
-                  {isCreatingGroup && (
-                    <input type="checkbox" readOnly checked={!!selectedUsers.find(su => su._id === u._id)} />
-                  )}
+                  {isCreatingGroup && <input type="checkbox" readOnly checked={!!selectedUsers.find(su => su._id === u._id)} />}
                 </div>
               ))}
               {searchQuery.length < 2 && suggestedUsers.length > 0 && <div className="suggestions-label">Suggested Users</div>}
@@ -525,7 +556,7 @@ export default function Chat() {
         <div className="chat-list">
           {conversations.map(chat => {
             const isGrp = chat.isGroupChat;
-            const other = !isGrp ? chat.participants.find(p => String(p._id) !== String(user._id)) : null;
+            const other = !isGrp ? chat.participants?.find(p => String(p._id) !== String(user?._id)) : null;
             const unread = unreadCounts[chat._id] || 0;
             const title = isGrp ? chat.chatName : other?.name;
             const isOnline = isGrp ? false : other?.isOnline;
@@ -539,7 +570,7 @@ export default function Chat() {
                 )}
                 <div className="chat-item-info">
                   <div className="chat-item-top">
-                    <span className="name">{title}</span>
+                    <span className="name">{title || 'User'}</span>
                     <span className="time">{chat.lastMessage?.sentAt && formatTime(chat.lastMessage.sentAt)}</span>
                   </div>
                   <div className="preview">
@@ -553,7 +584,6 @@ export default function Chat() {
         </div>
       </aside>
 
-      {/* ──────── RIGHT PANEL: Thread ──────── */}
       <main className={`chat-main ${!activeChat ? 'hidden-mobile' : ''}`}>
         {!activeChat ? (
           <div className="welcome"><h2>Select a chat to start messaging</h2></div>
@@ -570,96 +600,124 @@ export default function Chat() {
               )}
               <div className="header-info">
                 <h3>
-                  {isGroup ? (
-                    chatTitle
-                  ) : (
-                    <Link to={`/profile/${otherParticipant?._id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-                      {chatTitle}
-                    </Link>
-                  )}
+                  {isGroup ? chatTitle : <Link to={`/profile/${otherParticipant?._id}`} style={{ textDecoration: 'none', color: 'inherit' }}>{chatTitle}</Link>}
                   {!isGroup && otherParticipant?.totalSales > 0 && <span className="verified" title="Verified Seller">✓</span>}
                 </h3>
                 <span className={`status ${typingUser ? 'typing-status' : ''}`}>
                   {typingUser ? `${typingUser.name} is typing…` : chatStatus}
                 </span>
               </div>
-              <div className="header-actions">
-                <button title="Report/Block">⋮</button>
-              </div>
+              <div className="header-actions"><button title="More options">⋮</button></div>
             </div>
 
             <div className="messages-area">
+              {msgLoading && <div className="text-center text-xs text-gray-500 my-2">Loading thread...</div>}
+              
               {messages.map((msg, idx) => {
-                const isMine = String(msg.sender?._id || msg.sender) === String(user._id);
+                const isMine = String(msg.sender?._id || msg.sender) === String(user?._id);
                 const prevMsg = messages[idx - 1];
                 const nextMsg = messages[idx + 1];
                 const isFirstInGroup = !prevMsg || String(prevMsg.sender?._id || prevMsg.sender) !== String(msg.sender?._id || msg.sender);
                 const isLastInGroup = !nextMsg || String(nextMsg.sender?._id || nextMsg.sender) !== String(msg.sender?._id || msg.sender);
+                
+                // ✅ Telegram/Insta Feature: Grouping consecutive dates via elegant capsules
+                const showDateSeparator = idx === 0 || isDifferentDay(prevMsg?.createdAt, msg.createdAt);
+                const isImg = msg.fileType === 'image' || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(msg.fileUrl || '');
 
                 return (
-                  <div
-                    key={msg._id}
-                    className={`message-row ${isMine ? 'mine' : 'theirs'} ${isFirstInGroup ? 'first' : ''} ${isLastInGroup ? 'last' : ''}`}
-                    onMouseEnter={() => setHoveredMsg(msg._id)}
-                    onMouseLeave={() => setHoveredMsg(null)}
-                  >
-                    {hoveredMsg === msg._id && !msg.isDeleted && (
-                      <div className={`msg-actions ${isMine ? 'mine-actions' : 'theirs-actions'}`}>
-                        <button onClick={() => handleReact(msg._id, '❤️')} title="Like">❤️</button>
-                        <button onClick={() => { setReplyingTo(msg); textInputRef.current?.focus(); }} title="Reply">↩️</button>
-                        {isMine && <button onClick={() => handleUnsend(msg._id)} title="Unsend">🗑️</button>}
+                  <div key={msg._id} className="message-container-block" style={{ width: '100%' }}>
+                    {showDateSeparator && (
+                      <div className="chat-date-separator">
+                        <span>{formatDateSeparator(msg.createdAt)}</span>
                       </div>
                     )}
 
-                    <div className="message-bubble" onDoubleClick={() => !msg.isDeleted && handleReact(msg._id, '❤️')}>
-                      {msg.isDeleted ? (
-                        <p className="deleted-text"><i>This message was unsent</i></p>
-                      ) : (
-                        <>
-                          {isGroup && !isMine && msg.sender && isFirstInGroup && <div className="sender-name">{msg.sender.name}</div>}
-                          {msg.replyTo && !msg.replyTo.isDeleted && (
-                            <div className="quoted-msg">
-                              <span className="quote-sender">{msg.replyTo.sender?.name || 'Someone'}</span>
-                              <p>{msg.replyTo.text || 'Attachment'}</p>
-                            </div>
-                          )}
-                          {msg.replyTo && msg.replyTo.isDeleted && (
-                            <div className="quoted-msg deleted"><i>Original message was unsent</i></div>
-                          )}
-                          {msg.fileUrl ? (
-                            msg.fileType === 'image' ? (
-                              <img src={getAttachmentUrl(msg.fileUrl)} alt="attachment" className="msg-image" />
-                            ) : (
-                              <a href={getAttachmentUrl(msg.fileUrl)} target="_blank" rel="noopener noreferrer" className="msg-pdf">📎 View Document</a>
-                            )
-                          ) : null}
-                          {msg.text && <p>{msg.text}</p>}
-
-                          {msg.reactions && Object.keys(msg.reactions).length > 0 && (
-                            <div className="reactions-display">
-                              {Object.values(msg.reactions).slice(0, 3).map((r, i) => <span key={i} className="react-icon">{r}</span>)}
-                              {Object.keys(msg.reactions).length > 1 && <span className="react-count">{Object.keys(msg.reactions).length}</span>}
-                            </div>
-                          )}
-
-                          <div className="msg-meta">
-                            <span>{formatTime(msg.createdAt)}</span>
-                            {isMine && getReceiptIcon(msg, user._id, activeChat.participants)}
+                    <div
+                      id={`msg-${msg._id}`}
+                      className={`message-row ${isMine ? 'mine' : 'theirs'} ${isFirstInGroup ? 'first' : ''} ${isLastInGroup ? 'last' : ''}`}
+                      onMouseEnter={() => setHoveredMsg(msg._id)}
+                      onMouseLeave={() => setHoveredMsg(null)}
+                    >
+                      {hoveredMsg === msg._id && !msg.isDeleted && (
+                        <div className={`msg-actions ${isMine ? 'mine-actions' : 'theirs-actions'}`}>
+                          {/* ✅ Multi-Emoji Hover Picker */}
+                          <div className="emoji-reaction-bar">
+                            {['❤️', '👍', '😂', '🔥', '👏'].map(emoji => (
+                              <button key={emoji} onClick={() => handleReact(msg._id, emoji)} title={`React ${emoji}`}>
+                                {emoji}
+                              </button>
+                            ))}
                           </div>
-                        </>
+                          <button onClick={() => { setReplyingTo(msg); textInputRef.current?.focus(); }} title="Reply">↩️</button>
+                          {isMine && <button onClick={() => handleUnsend(msg._id)} title="Unsend" className="delete-btn">🗑️</button>}
+                        </div>
                       )}
+
+                      <div className="message-bubble" onDoubleClick={() => !msg.isDeleted && handleReact(msg._id, '❤️')}>
+                        {msg.isDeleted ? (
+                          <p className="deleted-text"><i>This message was unsent</i></p>
+                        ) : (
+                          <>
+                            {isGroup && !isMine && msg.sender && isFirstInGroup && <div className="sender-name">{msg.sender.name}</div>}
+                            
+                            {/* ✅ Clickable Quoted Preview Box with Smooth Jumps */}
+                            {msg.replyTo && !msg.replyTo.isDeleted && (
+                              <div 
+                                className="quoted-msg clickable" 
+                                onClick={() => {
+                                  const targetEl = document.getElementById(`msg-${msg.replyTo._id}`);
+                                  if (targetEl) {
+                                    targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                    targetEl.classList.add('highlight-flash');
+                                    setTimeout(() => targetEl.classList.remove('highlight-flash'), 1500);
+                                  }
+                                }}
+                              >
+                                <span className="quote-sender">{msg.replyTo.sender?.name || 'Someone'}</span>
+                                <p>{msg.replyTo.text || (msg.replyTo.fileUrl ? '📎 Attachment' : 'Message')}</p>
+                              </div>
+                            )}
+
+                            {msg.replyTo && msg.replyTo.isDeleted && (
+                              <div className="quoted-msg deleted"><i>Original message was unsent</i></div>
+                            )}
+
+                            {msg.fileUrl ? (
+                              isImg ? (
+                                <div className="msg-image-wrapper">
+                                  <img src={getAttachmentUrl(msg.fileUrl)} alt="attachment" className="msg-image" />
+                                  <a href={getAttachmentUrl(msg.fileUrl)} target="_blank" rel="noopener noreferrer" className="download-overlay" title="Open full size">⛶</a>
+                                </div>
+                              ) : (
+                                <a href={getAttachmentUrl(msg.fileUrl)} target="_blank" rel="noopener noreferrer" className="msg-pdf">📎 View Document</a>
+                              )
+                            ) : null}
+
+                            {msg.text && <p>{msg.text}</p>}
+
+                            {msg.reactions && Object.keys(msg.reactions).length > 0 && (
+                              <div className="reactions-display">
+                                {Object.values(msg.reactions).slice(0, 3).map((r, i) => <span key={i} className="react-icon">{r}</span>)}
+                                {Object.keys(msg.reactions).length > 1 && <span className="react-count">{Object.keys(msg.reactions).length}</span>}
+                              </div>
+                            )}
+
+                            <div className="msg-meta">
+                              <span>{formatTime(msg.createdAt)}</span>
+                              {isMine && getReceiptIcon(msg, user?._id)}
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
               })}
 
-              {/* FIX 1: Typing bubble — shows INSIDE messages area like WhatsApp */}
               {typingUser && <TypingBubble name={typingUser.name} />}
-
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Quick Replies for buyers communicating with sellers */}
             {messages.length < 5 && (
               <div className="quick-replies">
                 <button onClick={() => sendQuickReply("Is this note still available?")}>👋 Is this available?</button>
@@ -668,7 +726,6 @@ export default function Chat() {
               </div>
             )}
 
-            {/* Warning Dialog */}
             {warningMsg && (
               <div className="warning-banner">
                 <p>⚠️ <strong>Safety Warning:</strong> Sharing phone numbers or UPI IDs is against our policy and can lead to fraud.</p>
@@ -692,7 +749,19 @@ export default function Chat() {
                 <button className="attach-btn" onClick={() => fileInputRef.current.click()} disabled={uploading}>
                   {uploading ? '⏳' : '📎'}
                 </button>
-                <input type="text" ref={textInputRef} value={inputText} onChange={handleTyping} onKeyDown={e => e.key === 'Enter' && handleSend()} placeholder="Message..." />
+                <input 
+                  type="text" 
+                  ref={textInputRef} 
+                  value={inputText} 
+                  onChange={handleTyping} 
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleSend();
+                    }
+                  }} 
+                  placeholder="Message..." 
+                />
                 <button className="send-btn" onClick={handleSend}>➤</button>
               </div>
             </div>

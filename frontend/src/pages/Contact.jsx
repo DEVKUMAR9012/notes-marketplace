@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FiMail, FiPhone, FiMapPin, FiSend, FiX, FiMessageCircle,
@@ -43,7 +43,7 @@ const ConfettiBurst = ({ onComplete }) => {
   }));
 
   return (
-    <div className="fixed inset-0 pointer-events-none">
+    <div className="fixed inset-0 pointer-events-none z-50">
       {confetti.map((conf) => (
         <motion.div
           key={conf.id}
@@ -227,18 +227,36 @@ const FAQItem = ({ question, answer, index }) => {
 };
 
 // ──────────────────────────────────────────────────────────────────
-// LIVE CHAT BUTTON
+// LIVE CHAT BUTTON (Fully Fixed: Auto-Focus & Auto-Scroll)
 // ──────────────────────────────────────────────────────────────────
 const LiveChatButton = () => {
   const [isHovered, setIsHovered] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [messages, setMessages] = useState([
-    { role: 'assistant', content: '👋 Hi! I\'m your AI support assistant for Notes Marketplace. How can I help you today?' }
+    { 
+      role: 'assistant', 
+      content: "👋 Greetings! I am the official AI Support Agent for Notes Marketplace. Whether you need help uploading academic notes, tracking Razorpay payouts, or filtering Dayalbagh Educational Institute materials, ask away!" 
+    }
   ]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const messagesEndRef = useState(null);
-  const inputRef = useState(null);
+  
+  const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
+
+  // Flawless smooth auto-scrolling
+  useEffect(() => {
+    if (isChatOpen) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, isTyping, isChatOpen]);
+
+  // Focus input automatically
+  useEffect(() => {
+    if (isChatOpen) {
+      setTimeout(() => inputRef.current?.focus(), 150);
+    }
+  }, [isChatOpen]);
 
   const sendMessage = async () => {
     const text = inputText.trim();
@@ -251,20 +269,35 @@ const LiveChatButton = () => {
     setIsTyping(true);
 
     try {
-      const apiMessages = updatedMessages.filter(m => !(m.role === 'assistant' && m.content.startsWith('👋')));
+      // Filter out greetings and send robust payload to backend
+      const apiMessages = updatedMessages
+        .filter(m => !(m.role === 'assistant' && m.content.includes('👋')))
+        .map(m => ({ role: m.role, content: m.content }));
+
       const { data } = await API.post('/ai/chat', {
         messages: apiMessages.length ? apiMessages : [userMsg]
       });
-      setMessages(prev => [...prev, { role: 'assistant', content: data.reply || 'Sorry, I could not process that.' }]);
-    } catch {
-      setMessages(prev => [...prev, { role: 'assistant', content: '❌ Connection error. Please try again.' }]);
+
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: data.reply || "I'm having trouble retrieving that from our catalog. Please contact support directly." 
+      }]);
+    } catch (err) {
+      console.error("AI Live Chat API Error:", err);
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: "❌ System timeout. Our Google Gemini backend is currently busy processing academic summaries. Please try again in a moment." 
+      }]);
     } finally {
       setIsTyping(false);
     }
   };
 
   const handleKey = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+    if (e.key === 'Enter' && !e.shiftKey) { 
+      e.preventDefault(); 
+      sendMessage(); 
+    }
   };
 
   return (
@@ -274,7 +307,7 @@ const LiveChatButton = () => {
       transition={{ delay: 1, type: 'spring' }}
       className="fixed bottom-6 right-6 z-40"
     >
-      {/* Chat Bubble */}
+      {/* Trigger Button */}
       <motion.button
         onHoverStart={() => setIsHovered(true)}
         onHoverEnd={() => setIsHovered(false)}
@@ -300,7 +333,7 @@ const LiveChatButton = () => {
             exit={{ opacity: 0, x: 10 }}
             className="absolute right-20 top-1/2 transform -translate-y-1/2 bg-gray-900 px-4 py-2 rounded-lg text-white text-sm font-medium whitespace-nowrap border border-white/20"
           >
-            💬 Chat with AI!
+            💬 Live Support Agent
           </motion.div>
         )}
       </AnimatePresence>
@@ -313,15 +346,15 @@ const LiveChatButton = () => {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.8, y: 20 }}
             transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-            className="absolute bottom-24 right-0 w-80 h-[480px] bg-gray-950 border border-white/20 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+            className="absolute bottom-24 right-0 w-80 sm:w-96 h-[480px] bg-gray-950 border border-white/20 rounded-2xl shadow-2xl overflow-hidden flex flex-col z-50"
           >
             {/* Header */}
             <div className="bg-gradient-to-r from-emerald-600 to-cyan-600 px-4 py-3 flex items-center justify-between flex-shrink-0">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-green-300 rounded-full animate-pulse" />
                 <div>
-                  <h3 className="text-white font-bold text-sm">AI Support</h3>
-                  <p className="text-white/70 text-xs">Powered by Claude</p>
+                  <h3 className="text-white font-bold text-sm">Notes Support Engine</h3>
+                  <p className="text-white/70 text-xs">Powered by Google Gemini AI</p>
                 </div>
               </div>
               <button onClick={() => setIsChatOpen(false)} className="text-white hover:bg-white/20 p-1 rounded">
@@ -329,7 +362,7 @@ const LiveChatButton = () => {
               </button>
             </div>
 
-            {/* Messages */}
+            {/* Messages Area */}
             <div className="flex-1 overflow-y-auto p-3 space-y-3">
               {messages.map((msg, i) => (
                 <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -342,6 +375,7 @@ const LiveChatButton = () => {
                   </div>
                 </div>
               ))}
+              
               {isTyping && (
                 <div className="flex justify-start">
                   <div className="bg-gray-800 border border-white/10 px-3 py-2 rounded-2xl rounded-tl-sm flex gap-1 items-center">
@@ -351,24 +385,25 @@ const LiveChatButton = () => {
                   </div>
                 </div>
               )}
+              <div ref={messagesEndRef} />
             </div>
 
-            {/* Input */}
-            <div className="px-3 py-3 border-t border-white/10 flex gap-2 flex-shrink-0">
+            {/* Input Area */}
+            <div className="px-3 py-3 border-t border-white/10 flex gap-2 flex-shrink-0 bg-gray-950">
               <input
-                ref={inputRef[0]}
+                ref={inputRef}
                 type="text"
                 value={inputText}
                 onChange={e => setInputText(e.target.value)}
                 onKeyDown={handleKey}
                 disabled={isTyping}
-                placeholder="Ask anything..."
+                placeholder="Ask your support query..."
                 className="flex-1 bg-gray-900 border border-white/20 rounded-xl px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-emerald-500 transition disabled:opacity-50"
               />
               <button
                 onClick={sendMessage}
                 disabled={!inputText.trim() || isTyping}
-                className="bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 disabled:opacity-40 text-white p-2 rounded-xl transition"
+                className="bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 disabled:opacity-40 text-white p-2 rounded-xl transition flex items-center justify-center"
               >
                 <FiSend size={16} />
               </button>
@@ -379,7 +414,6 @@ const LiveChatButton = () => {
     </motion.div>
   );
 };
-
 
 // ──────────────────────────────────────────────────────────────────
 // MAIN CONTACT PAGE
@@ -478,9 +512,7 @@ export default function Contact() {
       <LiveChatButton />
 
       <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6">
-        {/* ══════════════════════════════════════════════════════════════
-            HERO SECTION
-            ══════════════════════════════════════════════════════════════ */}
+        {/* HERO SECTION */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -524,9 +556,7 @@ export default function Contact() {
           </motion.div>
         </motion.section>
 
-        {/* ══════════════════════════════════════════════════════════════
-            CONTACT FORM & INFO SECTION
-            ══════════════════════════════════════════════════════════════ */}
+        {/* CONTACT FORM & INFO SECTION */}
         <section className="grid md:grid-cols-2 gap-8 mb-20">
           {/* Contact Form */}
           <TiltCard>
@@ -537,7 +567,6 @@ export default function Contact() {
               <h2 className="text-2xl font-bold text-white mb-6">Send us a Message</h2>
 
               <div className="space-y-4">
-                {/* Name Input */}
                 <div>
                   <label className="text-sm text-gray-400 mb-2 block">Full Name</label>
                   <motion.input
@@ -547,12 +576,9 @@ export default function Contact() {
                     className="w-full px-4 py-3 bg-gray-900/40 border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-violet-500 transition-all"
                     whileFocus={{ scale: 1.02 }}
                   />
-                  {errors.name && (
-                    <p className="text-red-400 text-xs mt-1">{errors.name.message}</p>
-                  )}
+                  {errors.name && <p className="text-red-400 text-xs mt-1">{errors.name.message}</p>}
                 </div>
 
-                {/* Email Input */}
                 <div>
                   <label className="text-sm text-gray-400 mb-2 block">Email Address</label>
                   <motion.input
@@ -562,12 +588,9 @@ export default function Contact() {
                     className="w-full px-4 py-3 bg-gray-900/40 border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-violet-500 transition-all"
                     whileFocus={{ scale: 1.02 }}
                   />
-                  {errors.email && (
-                    <p className="text-red-400 text-xs mt-1">{errors.email.message}</p>
-                  )}
+                  {errors.email && <p className="text-red-400 text-xs mt-1">{errors.email.message}</p>}
                 </div>
 
-                {/* Subject Input */}
                 <div>
                   <label className="text-sm text-gray-400 mb-2 block">Subject</label>
                   <motion.input
@@ -577,12 +600,9 @@ export default function Contact() {
                     className="w-full px-4 py-3 bg-gray-900/40 border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-violet-500 transition-all"
                     whileFocus={{ scale: 1.02 }}
                   />
-                  {errors.subject && (
-                    <p className="text-red-400 text-xs mt-1">{errors.subject.message}</p>
-                  )}
+                  {errors.subject && <p className="text-red-400 text-xs mt-1">{errors.subject.message}</p>}
                 </div>
 
-                {/* Message Textarea */}
                 <div>
                   <label className="text-sm text-gray-400 mb-2 block">Message</label>
                   <motion.textarea
@@ -592,13 +612,10 @@ export default function Contact() {
                     className="w-full px-4 py-3 bg-gray-900/40 border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-violet-500 transition-all resize-none"
                     whileFocus={{ scale: 1.02 }}
                   />
-                  {errors.message && (
-                    <p className="text-red-400 text-xs mt-1">{errors.message.message}</p>
-                  )}
+                  {errors.message && <p className="text-red-400 text-xs mt-1">{errors.message.message}</p>}
                 </div>
               </div>
 
-              {/* Submit Button */}
               <motion.button
                 type="submit"
                 disabled={isSubmitting}
@@ -629,7 +646,6 @@ export default function Contact() {
                 </span>
               </motion.button>
 
-              {/* Success Message */}
               <AnimatePresence>
                 {submitMessage && (
                   <motion.div
@@ -649,7 +665,7 @@ export default function Contact() {
             </motion.form>
           </TiltCard>
 
-          {/* Contact Info */}
+          {/* ✅ FIX 3: Authentic Native Platform Info Aligned */}
           <div className="space-y-6">
             <motion.div
               initial={{ opacity: 0, x: 20 }}
@@ -699,17 +715,15 @@ export default function Contact() {
                 </div>
                 <div>
                   <h3 className="text-white font-bold mb-1">Address</h3>
-                  <p className="text-gray-400">New Delhi, India</p>
-                  <p className="text-gray-500 text-sm">Available online 24/7</p>
+                  <p className="text-gray-400">Agra, Uttar Pradesh, India</p>
+                  <p className="text-gray-500 text-sm">Dayalbagh Educational Institute Ecosystem</p>
                 </div>
               </div>
             </motion.div>
           </div>
         </section>
 
-        {/* ══════════════════════════════════════════════════════════════
-            SUPPORT CATEGORIES (FLIP CARDS)
-            ══════════════════════════════════════════════════════════════ */}
+        {/* SUPPORT CATEGORIES (FLIP CARDS) */}
         <motion.section
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
@@ -732,9 +746,7 @@ export default function Contact() {
           </div>
         </motion.section>
 
-        {/* ══════════════════════════════════════════════════════════════
-            FAQ SECTION
-            ══════════════════════════════════════════════════════════════ */}
+        {/* FAQ SECTION */}
         <motion.section
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
@@ -751,9 +763,7 @@ export default function Contact() {
           </div>
         </motion.section>
 
-        {/* ══════════════════════════════════════════════════════════════
-            SOCIAL LINKS
-            ══════════════════════════════════════════════════════════════ */}
+        {/* SOCIAL LINKS */}
         <motion.section
           initial={{ opacity: 0, x: 100 }}
           whileInView={{ opacity: 1, x: 0 }}

@@ -21,17 +21,18 @@ export const SocketProvider = ({ children }) => {
 
   useEffect(() => {
     const token = localStorage.getItem('token');
+    
+    // Agar user nahi hai ya token nahi hai, toh turant sab saaf karo
     if (!user || !token) {
       if (socketRef.current) {
         socketRef.current.disconnect();
         socketRef.current = null;
-        setSocket(null);
-        setConnected(false);
       }
+      setSocket(null);
+      setConnected(false);
       return;
     }
 
-    // Already connected? Skip
     if (socketRef.current?.connected) return;
 
     const newSocket = io(BACKEND_URL, {
@@ -49,8 +50,7 @@ export const SocketProvider = ({ children }) => {
     newSocket.on('connect', () => {
       console.log('✅ Socket connected:', newSocket.id);
       setConnected(true);
-      // ✅ Update state so all consumers get the fresh socket instance
-      setSocket(newSocket);
+      setSocket(newSocket); // ✅ Sirf connect hone par hi state ko active karo
     });
 
     newSocket.io.on('upgrade', () => {
@@ -71,8 +71,6 @@ export const SocketProvider = ({ children }) => {
     });
 
     socketRef.current = newSocket;
-    // Set immediately so chat can register listeners before 'connect' fires
-    setSocket(newSocket);
 
     return () => {
       newSocket.disconnect();

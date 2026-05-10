@@ -8,7 +8,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import API from '../utils/api';
 
-import UserManagement from './admin/UserManagement';
+import UserManagement from '../components/admin/UserManagement';
 
 // ─── Hooks ────────────────────────────────────────────────────────────────────
 
@@ -104,8 +104,8 @@ const StatCard = ({ title, rawValue = 0, icon: Icon, color, delay, prefix = '', 
         <div className={`absolute -top-8 -right-8 w-32 h-32 rounded-full blur-2xl opacity-20 ${c.bar}`} />
       </div>
       
-      <svg className={`absolute bottom-0 right-0 w-1/2 h-12 opacity-20 pointer-events-none ${c.stroke}`} viewBox="0 0 100 35" preserveAspectRatio="none">
-        <polyline points={points} fill="none" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+      <svg className={`absolute bottom-0 right-0 w-1/2 h-12 opacity-20 pointer-events-none ${c.stroke}`} viewBox="0 0 120 35" preserveAspectRatio="xMidYMax meet">
+        <polyline points={points} fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
       </svg>
 
       <div className={`relative z-10 w-14 h-14 rounded-xl flex items-center justify-center border flex-shrink-0 ${c.wrap} ${c.text}`}>
@@ -200,7 +200,11 @@ const Overview = () => {
       setData(res.data);
       setLastUpdated(new Date());
     } catch (err) {
-      setError('Failed to load dashboard data. Please check your backend connection.');
+      if (!navigator.onLine) {
+        setError('No internet connection. Please check your network and try again.');
+      } else {
+        setError('Failed to load dashboard data. Please check your backend connection.');
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);

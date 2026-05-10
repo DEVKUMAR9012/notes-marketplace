@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   FiDownload, FiEye, FiStar, FiUser, FiMapPin,
   FiSearch, FiFilter, FiX, FiBook, FiTrendingUp,
-  FiZap, FiHeart, FiShoppingCart, FiAward, FiChevronDown
+  FiZap, FiHeart, FiShoppingCart, FiChevronDown
 } from 'react-icons/fi';
 import API from '../utils/api';
 import { useAuth } from '../context/AuthContext';
@@ -301,7 +301,7 @@ const NoteCard = ({ note, onPreview, onBuy, onAddToCart, gradient, isWishlisted,
         {/* Thumbnail */}
         <div className="relative h-36 sm:h-52 flex-shrink-0 overflow-hidden">
           <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`} />
-          <div className="absolute inset-0"><PDFThumbnail pdfUrl={note.pdfUrl} title={note.title} /></div>
+          <div className="absolute inset-0"><PDFThumbnail pdfUrl={note.pdfUrl} title={note.title} note={note} /></div>
 
           {/* Quick Action Overlay */}
           <AnimatePresence>
@@ -611,23 +611,6 @@ export default function Home() {
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-14">
 
-        {/* Hero */}
-        <motion.div initial={{ opacity: 0, y: -30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="text-center mb-12">
-          <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-violet-500/40 bg-violet-500/10 text-violet-300 text-xs font-medium mb-5">
-            <FiZap className="fill-violet-400 text-violet-400" /> Notes Marketplace — India's Best
-          </motion.div>
-          <h1 className="text-3xl sm:text-5xl lg:text-7xl font-black tracking-tighter mb-4 leading-none">
-            <span className="bg-gradient-to-r from-violet-400 via-fuchsia-400 to-pink-400 bg-clip-text text-transparent">Study Smarter</span>
-            <br /><span className="text-white/90 text-2xl sm:text-4xl lg:text-5xl">Not Harder 📚</span>
-          </h1>
-          <p className="text-gray-400 text-xs sm:text-sm lg:text-base max-w-lg mx-auto px-2">Top-rated notes from students across India. Free & paid — all in one place.</p>
-          <div className="flex items-center justify-center gap-6 mt-6">
-            {[{ icon: FiBook, label: `${notes.length} Notes`, color: 'text-violet-400' }, { icon: FiTrendingUp, label: 'Trending', color: 'text-fuchsia-400' }, { icon: FiAward, label: 'Top Rated', color: 'text-yellow-400' }].map(({ icon: Icon, label, color }) => (
-              <div key={label} className={`flex items-center gap-1.5 text-xs ${color} font-medium`}><Icon /> {label}</div>
-            ))}
-          </div>
-        </motion.div>
 
         {/* Search + Filters */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mb-6">

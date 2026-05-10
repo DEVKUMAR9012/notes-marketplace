@@ -287,7 +287,7 @@ const NoteCard = ({ note, onPreview, onBuy, onAddToCart, gradient, isWishlisted,
       >
         <div className="relative h-36 sm:h-52 flex-shrink-0 overflow-hidden">
           <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`} />
-          <div className="absolute inset-0"><PDFThumbnail pdfUrl={note.pdfUrl} title={note.title} /></div>
+          <div className="absolute inset-0"><PDFThumbnail pdfUrl={note.pdfUrl} title={note.title} note={note} /></div>
 
           <AnimatePresence>
             {hovered && (

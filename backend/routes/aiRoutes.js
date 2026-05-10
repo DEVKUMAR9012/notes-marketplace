@@ -1,93 +1,58 @@
+// backend/routes/aiRoutes.js
 const express = require('express');
 const router = express.Router();
-const https = require('https');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-// POST /api/ai/chat
+// Ensure API key is configured in your .env
+const genAI = new GoogleGenerativeAI(process.env.SUPPORT_CHAT_API_KEY || process.env.GEMINI_API_KEY);
+
+// Highly strict enterprise persona for Notes Marketplace
+const SYSTEM_PROMPT = `You are the official Customer Support Agent for "Notes Marketplace".
+Your core ecosystem revolves around Dayalbagh Educational Institute (DEI) located in Agra, Uttar Pradesh, India.
+
+CRITICAL INSTRUCTIONS:
+1. Always maintain a professional, helpful, and courteous tone.
+2. Platform features: Users can upload notes (PDF format max 25MB), monetization is 80% to creators/sellers and 10% platform fee, smart summaries use Gemini AI, secure payments go through Razorpay.
+3. If a user asks about physical book delivery or topics completely unrelated to academic notes/marketplace support, politely inform them that you only handle digital academic note inquiries for the DEI community ecosystem.
+4. Keep your answers clear, actionable, and relatively concise. Keep answers within 3-4 sentences maximum to fit nicely in the support chat window.`;
+
 router.post('/chat', async (req, res) => {
   try {
     const { messages } = req.body;
-    if (!messages || !messages.length) {
-      return res.status(400).json({ success: false, message: 'Messages required' });
-    }
-
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return res.status(500).json({ success: false, message: 'AI not configured' });
-    }
-
-    // Build Gemini conversation history
-    const systemPrompt = `You are a helpful support assistant for Notes Marketplace — an online platform where Indian students buy and sell study notes.
-Answer questions about: buying/selling notes, payments, account issues, refunds, note uploads, and general platform support.
-Be friendly, concise, and helpful. Keep responses to 2-3 sentences max.
-If asked something unrelated, politely redirect to Notes Marketplace support topics.`;
-
-    // Gemini needs alternating user/model roles, starting with user
-    const contents = [];
     
-    // Add system context as first user message + model ack
-    contents.push({ role: 'user', parts: [{ text: systemPrompt }] });
-    contents.push({ role: 'model', parts: [{ text: 'Understood! I am ready to help Notes Marketplace users.' }] });
-
-    // Add conversation history
-    for (const msg of messages) {
-      contents.push({
-        role: msg.role === 'user' ? 'user' : 'model',
-        parts: [{ text: msg.content }]
-      });
+    if (!messages || !Array.isArray(messages)) {
+      return res.status(400).json({ error: "Invalid message history array." });
     }
 
-    const body = JSON.stringify({
-      contents,
+    // Format chat turns strictly for Google GenAI SDK format
+    // Filter and map to parts
+    const contents = messages.map(m => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }]
+    }));
+
+    // Use gemini-1.5-flash for rapid real-time support
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-1.5-flash",
+      systemInstruction: SYSTEM_PROMPT 
+    });
+
+    const result = await model.generateContent({
+      contents: contents,
       generationConfig: {
-        maxOutputTokens: 256,
-        temperature: 0.7
+        temperature: 0.5, // low temperature for highly accurate platform answers
+        maxOutputTokens: 500,
       }
     });
 
-    const model = 'gemini-pro';
-    const path = `/v1/models/${model}:generateContent?key=${apiKey}`;
+    const responseText = result.response.text();
+    return res.json({ reply: responseText });
 
-    const result = await new Promise((resolve, reject) => {
-      const options = {
-        hostname: 'generativelanguage.googleapis.com',
-        path,
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(body)
-        }
-      };
-
-      const reqHttp = https.request(options, (response) => {
-        let data = '';
-        response.on('data', chunk => { data += chunk; });
-        response.on('end', () => {
-          if (response.statusCode !== 200) {
-            console.error('Gemini error:', response.statusCode, data);
-            reject(new Error(`Gemini error ${response.statusCode}: ${data}`));
-          } else {
-            try { resolve(JSON.parse(data)); }
-            catch (e) { reject(new Error('Failed to parse Gemini response')); }
-          }
-        });
-      });
-
-      reqHttp.on('error', reject);
-      reqHttp.write(body);
-      reqHttp.end();
-    });
-
-    const reply = result?.candidates?.[0]?.content?.parts?.[0]?.text
-      || "I'm sorry, I couldn't process that. Please try again.";
-
-    res.json({ success: true, reply });
-
-  } catch (error) {
-    console.error('AI chat error:', error.message);
-    res.status(500).json({
-      success: false,
-      message: 'AI service error. Please try again.',
-      detail: error.message
+  } catch (err) {
+    console.error("Gemini Enterprise Controller Error:", err);
+    return res.status(500).json({ 
+      error: "Internal Support Engine Error", 
+      message: err.message 
     });
   }
 });

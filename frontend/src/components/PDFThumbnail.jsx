@@ -1,7 +1,7 @@
 // frontend/src/components/PDFThumbnail.jsx
 import { useState, useEffect, useRef } from 'react';
 
-const PDFThumbnail = ({ pdfUrl, title }) => {
+const PDFThumbnail = ({ pdfUrl, title, note }) => {
   const [thumbnail, setThumbnail] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -32,14 +32,11 @@ const PDFThumbnail = ({ pdfUrl, title }) => {
       }
 
       if (!isPdf) {
-        // If it's not a PDF and not an image, we can't generate a thumbnail.
-        // We'll show an icon based on the extension later.
         setLoading(false);
         setError(true);
         return;
       }
 
-      // Cancel any in-progress render from a previous effect run
       if (renderTaskRef.current) {
         try { renderTaskRef.current.cancel(); } catch (_) {}
         renderTaskRef.current = null;
@@ -119,7 +116,8 @@ const PDFThumbnail = ({ pdfUrl, title }) => {
     };
   }, [pdfUrl, isImage, isPdf, fullUrl]);
 
-  const canvasEl = <canvas ref={canvasRef} style={{ display: 'none' }} />;
+  // ✅ FIX: Unnecessary DOM Bloat — only keep canvas while generating
+  const canvasEl = !thumbnail ? <canvas ref={canvasRef} style={{ display: 'none' }} /> : null;
 
   if (loading) {
     return (
@@ -136,26 +134,24 @@ const PDFThumbnail = ({ pdfUrl, title }) => {
   if (error || !thumbnail) {
     const isOfficeDoc = ['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'].includes(ext);
     const isPublicUrl = fullUrl.startsWith('http') && !fullUrl.includes('localhost');
+    // ✅ FIX: Only use Microsoft viewer for FREE/PUBLIC files to avoid 403 Forbidden on secured files
+    const isFreeNote = note?.price === 0;
 
-    // If it's a public Office document, use Microsoft's embed viewer for a live thumbnail
-    if (isOfficeDoc && isPublicUrl) {
+    if (isOfficeDoc && isPublicUrl && isFreeNote) {
       const officeViewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fullUrl)}`;
       return (
         <div className="w-full h-full relative overflow-hidden bg-white">
-          {/* We scale the iframe up slightly and disable pointer events so it looks like an image thumbnail */}
           <iframe
             src={officeViewerUrl}
             className="w-full h-[150%] -mt-12 pointer-events-none border-none"
             title={title}
             scrolling="no"
           />
-          {/* Overlay to intercept clicks */}
           <div className="absolute inset-0 z-10 bg-transparent" />
         </div>
       );
     }
 
-    // Fallback specific icons for different file types or localhost
     let IconComponent = '📄';
     let typeName = 'Document';
     

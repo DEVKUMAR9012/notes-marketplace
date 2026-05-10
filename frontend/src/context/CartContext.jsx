@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import API from '../utils/api';
 import { useAuth } from './AuthContext';
 
@@ -9,7 +9,7 @@ export const CartProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
-  const fetchCart = async () => {
+  const fetchCart = useCallback(async () => {
     if (!user) {
       setCart([]);
       setLoading(false);
@@ -23,28 +23,32 @@ export const CartProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     fetchCart();
   }, [user]);
 
-  const toggleCartItem = async (noteId) => {
+  const toggleCartItem = useCallback(async (noteId) => {
     try {
       const res = await API.post('/profile/cart/toggle', { noteId });
-      // The toggle endpoint returns the new cart array/message
-      // Re-fetch or manually update to ensure consistency
-      fetchCart(); 
+      // ✅ OPTIMIZATION: Nayi API call karne ke bajaye direct backend response se state update karo
+      if (res.data.cart) {
+        setCart(res.data.cart);
+      } else {
+        // Fallback agar backend sirf message bhej raha ho
+        fetchCart(); 
+      }
       return res.data.message;
     } catch (err) {
       console.error('Toggle cart error:', err);
       throw err;
     }
-  };
+  }, [fetchCart]); // Using useCallback as suggested
 
-  const isInCart = (noteId) => {
+  const isInCart = useCallback((noteId) => {
     return cart.some(item => item._id === noteId);
-  };
+  }, [cart]);
 
   const clearCart = () => setCart([]);
 
