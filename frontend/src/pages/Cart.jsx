@@ -4,12 +4,14 @@ import { FiTrash2, FiShoppingCart, FiCreditCard, FiLock } from 'react-icons/fi';
 import API from '../utils/api';
 import PaymentButton from '../components/PaymentButton';
 import { useAuth } from '../context/AuthContext';
+import { useGuestGuard } from '../hooks/useGuestGuard';
 
 export default function Cart() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [checkoutMode, setCheckoutMode] = useState(false);
   const { user } = useAuth();
+  const { guard, GuestModal } = useGuestGuard('checking out');
 
   const fetchCart = async () => {
     try {
@@ -130,7 +132,7 @@ export default function Cart() {
                   />
                 ) : (
                   <button
-                    onClick={() => setCheckoutMode(true)}
+                    onClick={() => guard(() => setCheckoutMode(true))}
                     className="w-full bg-violet-600 hover:bg-violet-700 text-white font-bold py-2.5 sm:py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition shadow-lg shadow-violet-500/20 text-sm sm:text-base min-h-[44px]"
                   >
                     <FiCreditCard /> Checkout Now
@@ -145,6 +147,7 @@ export default function Cart() {
           </div>
         )}
       </div>
+      <GuestModal />
     </div>
   );
 }

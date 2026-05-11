@@ -470,3 +470,107 @@ exports.phoneLogin = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// ========== GUEST INIT (Silent Background Session) ==========
+exports.guestInit = async (req, res) => {
+  try {
+    // Generate a unique, fun 4-digit+4-digit token: NM-XXXX-YYYY
+    const guestTokenNo = `NM-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    const guest = await User.create({
+      name: `Guest ${guestTokenNo}`,
+      role: 'guest',
+      isGuest: true,
+      isVerified: false,
+      guestTokenNo,
+    });
+
+    const token = generateToken(guest._id);
+
+    console.log(`🎟️  New guest session created: ${guestTokenNo}`);
+
+    res.status(201).json({
+      success: true,
+      token,
+      user: {
+        _id: guest._id,
+        name: guest.name,
+        role: 'guest',
+        isGuest: true,
+        guestTokenNo: guest.guestTokenNo,
+      }
+    });
+  } catch (error) {
+    console.error('Guest init error:', error);
+    res.status(500).json({ success: false, message: 'Could not create guest session' });
+  }
+};
+
+// ========== CONVERT GUEST ➡️ PERMANENT USER ==========
+exports.convertGuestToUser = async (req, res) => {
+  try {
+    const { guestId, name, email, password, college } = req.body;
+
+    if (!guestId || !name || !email || !password) {
+      return res.status(400).json({ success: false, message: 'All fields are required' });
+    }
+
+    // 1. Guard: email must be unique among real (non-guest) accounts
+    const existingEmail = await User.findOne({ email: email.toLowerCase(), isGuest: false });
+    if (existingEmail) {
+      return res.status(400).json({ success: false, message: 'An account with this email already exists. Please login.' });
+    }
+
+    // 2. Find the guest document — it already has cart, wishlist, etc.
+    const guest = await User.findOne({ _id: guestId, isGuest: true });
+    if (!guest) {
+      // Guest may have already been converted or ID is wrong — fall back to normal register
+      return res.status(404).json({ success: false, message: 'Guest session not found. Please register normally.' });
+    }
+
+    // 3. Hash password manually (we use findByIdAndUpdate, not .save(), to skip pre-save hook re-hash)
+    const bcrypt = require('bcryptjs');
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // 4. Upgrade the guest document IN-PLACE (cart/wishlist/activity preserved)
+    const upgradedUser = await User.findByIdAndUpdate(
+      guestId,
+      {
+        $set: {
+          name: name.trim(),
+          email: email.trim().toLowerCase(),
+          password: hashedPassword,
+          college: college?.trim() || '',
+          role: 'user',
+          isGuest: false,
+          isVerified: false, // will go through OTP flow
+        },
+        $unset: { guestTokenNo: 1 }
+      },
+      { new: true, runValidators: false }
+    );
+
+    // 5. Generate OTP for email verification
+    const otp = upgradedUser.generateAuthOTP();
+    await upgradedUser.save({ validateBeforeSave: false });
+
+    // 6. Send verification email (fire-and-forget)
+    sendEmailAsync({
+      email: upgradedUser.email,
+      subject: '📚 Notes Marketplace - Verify Your New Account',
+      html: generateOTPEmailHTML(upgradedUser.name, otp),
+      type: 'otp'
+    });
+
+    console.log(`✅ Guest ${guestId} converted to user: ${email}`);
+
+    res.status(200).json({
+      success: true,
+      message: 'Account created! Check your email for verification code.',
+      email: upgradedUser.email,
+    });
+  } catch (error) {
+    console.error('Guest conversion error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

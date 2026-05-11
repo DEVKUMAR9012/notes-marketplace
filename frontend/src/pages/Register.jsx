@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import API, { warmupServer } from '../utils/api';
 import {
   FiUser, FiMail, FiLock, FiEye, FiEyeOff, FiUserPlus,
-  FiHome, FiKey, FiArrowLeft, FiPhone, FiSmartphone
+  FiHome, FiKey, FiArrowLeft, FiPhone, FiSmartphone, FiGift
 } from 'react-icons/fi';
 
 export default function Register() {
@@ -27,7 +27,7 @@ export default function Register() {
   const [retrying, setRetrying] = useState(false);
   const [retryAttempt, setRetryAttempt] = useState(0);
 
-  const { login } = useAuth();
+  const { login, user, isGuest } = useAuth();
   const navigate = useNavigate();
   const otpInputRef = useRef(null);
 
@@ -88,12 +88,23 @@ export default function Register() {
     if (formData.password.length < 6) return setError('Password must be at least 6 characters');
     setLoading(true); setError(''); setRetryAttempt(0);
     try {
-      await retryWithBackoff(() => API.post('/auth/register', {
-        name: formData.name.trim(),
-        email: formData.email.trim(),
-        password: formData.password,
-        college: formData.college.trim()
-      }));
+      // ── If a guest session exists, upgrade it instead of creating a fresh account
+      if (isGuest && user?._id) {
+        await retryWithBackoff(() => API.post('/auth/convert-guest', {
+          guestId: user._id,
+          name: formData.name.trim(),
+          email: formData.email.trim(),
+          password: formData.password,
+          college: formData.college.trim(),
+        }));
+      } else {
+        await retryWithBackoff(() => API.post('/auth/register', {
+          name: formData.name.trim(),
+          email: formData.email.trim(),
+          password: formData.password,
+          college: formData.college.trim()
+        }));
+      }
       setStep(2);
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Registration failed');
@@ -173,9 +184,24 @@ export default function Register() {
             <div className="w-16 h-16 bg-gradient-to-tr from-violet-500 to-fuchsia-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
               <FiUserPlus className="text-2xl text-white" />
             </div>
-            <h2 className="text-3xl font-bold text-white">Create Account</h2>
-            <p className="text-gray-400 mt-1 text-sm">Join Notes Marketplace</p>
+            <h2 className="text-3xl font-bold text-white">
+              {isGuest ? 'Claim Your Account' : 'Create Account'}
+            </h2>
+            <p className="text-gray-400 mt-1 text-sm">
+              {isGuest ? 'Upgrade your guest pass — your cart stays safe 🔒' : 'Join Notes Marketplace'}
+            </p>
           </div>
+
+          {/* Guest Pass Reminder Banner */}
+          {isGuest && user?.guestTokenNo && (
+            <div className="flex items-center gap-3 bg-violet-600/10 border border-violet-500/20 rounded-2xl px-4 py-3 mb-5">
+              <FiGift className="text-violet-400 flex-shrink-0" size={16} />
+              <div>
+                <p className="text-[10px] text-violet-400 font-bold uppercase tracking-widest">Your Guest Pass is being upgraded</p>
+                <p className="text-white font-mono text-xs font-bold">{user.guestTokenNo}</p>
+              </div>
+            </div>
+          )}
 
           {/* Toggle — only show on step 1 */}
           {step === 1 && (

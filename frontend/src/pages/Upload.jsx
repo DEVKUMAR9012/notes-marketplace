@@ -1,13 +1,20 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import API from '../utils/api';
 import { FiUpload, FiFile } from 'react-icons/fi';
 import { motion } from 'framer-motion';
+import { useAuth } from '../context/AuthContext';
 
 export default function Upload() {
   const navigate = useNavigate();
+  const { isGuest } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  // ── Redirect guest users to register ───────────────────────────────
+  useEffect(() => {
+    if (isGuest) navigate('/register', { state: { triggerReason: 'uploading notes' } });
+  }, [isGuest, navigate]);
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',

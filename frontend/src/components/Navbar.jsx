@@ -2,19 +2,19 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiLogOut, FiHome, FiUpload, FiUser, FiMenu, FiX, FiShoppingCart, FiBook, FiHeadphones, FiMessageSquare, FiShield } from 'react-icons/fi';
+import { FiLogOut, FiHome, FiUpload, FiUser, FiMenu, FiX, FiShoppingCart, FiBook, FiHeadphones, FiMessageSquare, FiShield, FiUserPlus } from 'react-icons/fi';
 import { useState } from 'react';
 import AnimatedLogo from './AnimatedLogo';
 
-// Create animated Link component
 const MotionLink = motion(Link);
 
 export default function Navbar() {
-  const { logout, user } = useAuth();
+  const { logout, user, isGuest } = useAuth();
   const { cart } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [guestCopied, setGuestCopied] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -27,11 +27,19 @@ export default function Navbar() {
     }
   };
 
+  const copyGuestPass = () => {
+    if (user?.guestTokenNo) {
+      navigator.clipboard.writeText(user.guestTokenNo);
+      setGuestCopied(true);
+      setTimeout(() => setGuestCopied(false), 2000);
+    }
+  };
+
+  // Build nav items — guest cannot access Upload or Profile directly
   const navItems = [
     { label: 'Home', icon: FiHome, path: '/' },
     { label: 'Books', icon: FiBook, path: '/books' },
-    { label: 'Upload', icon: FiUpload, path: '/upload' },
-    { label: 'Profile', icon: FiUser, path: '/profile' },
+    ...(!isGuest ? [{ label: 'Upload', icon: FiUpload, path: '/upload' }] : []),
     { label: 'Chat', icon: FiMessageSquare, path: '/chat' },
     { label: 'Contact', icon: FiHeadphones, path: '/contact' },
     { label: 'Cart', icon: FiShoppingCart, path: '/cart' },
@@ -47,7 +55,7 @@ export default function Navbar() {
     <nav className="sticky top-0 w-full z-50 bg-gray-900/80 backdrop-blur-xl border-b border-white/10">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
-          
+
           {/* Logo */}
           <Link
             to="/"
@@ -58,7 +66,7 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-6">
+          <div className="hidden md:flex items-center gap-5">
             {navItems.map(({ label, icon: Icon, path }) => (
               <MotionLink
                 key={path}
@@ -86,26 +94,84 @@ export default function Navbar() {
                 <span className="text-sm font-medium">{label}</span>
               </MotionLink>
             ))}
+
+            {/* Profile / Claim Profile */}
+            {!isGuest ? (
+              <MotionLink
+                to="/profile"
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
+                  isActive('/profile')
+                    ? 'bg-violet-600/30 text-violet-300 border border-violet-500/50'
+                    : 'text-gray-300 hover:text-white hover:bg-white/5'
+                }`}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <FiUser size={18} />
+                <span className="text-sm font-medium">Profile</span>
+              </MotionLink>
+            ) : (
+              <MotionLink
+                to="/register"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-violet-600/30 to-fuchsia-600/30 border border-violet-500/40 text-violet-300 hover:from-violet-600/50 hover:to-fuchsia-600/50 transition-all"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <FiUserPlus size={18} />
+                <span className="text-sm font-medium">✨ Claim Profile</span>
+              </MotionLink>
+            )}
           </div>
 
-          {/* User Info + Logout - Desktop */}
-          <div className="hidden md:flex items-center gap-4">
-            <div className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-lg border border-white/10">
-              <div className="w-2 h-2 rounded-full bg-green-500" />
-              <span className="text-xs text-gray-400 font-medium truncate max-w-[150px]">
-                {user?.name || 'User'}
-              </span>
-            </div>
+          {/* Right Side: User Info / Guest Badge + Action */}
+          <div className="hidden md:flex items-center gap-3">
+            {isGuest ? (
+              // ── Guest Pass Badge ────────────────────────────────────────
+              <motion.button
+                onClick={copyGuestPass}
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                title="Click to copy your Guest Pass token"
+                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-violet-600/15 border border-violet-500/30 hover:border-violet-500/60 hover:bg-violet-600/25 transition-all group"
+              >
+                <span className="text-base leading-none">🎟️</span>
+                <div className="text-left">
+                  <p className="text-[9px] text-violet-400 font-bold uppercase tracking-widest leading-none">Guest Pass</p>
+                  <p className="text-xs text-white font-mono font-bold leading-none mt-0.5">
+                    {guestCopied ? '✅ Copied!' : user?.guestTokenNo || '…'}
+                  </p>
+                </div>
+              </motion.button>
+            ) : (
+              <div className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-lg border border-white/10">
+                <div className="w-2 h-2 rounded-full bg-green-500" />
+                <span className="text-xs text-gray-400 font-medium truncate max-w-[150px]">
+                  {user?.name || 'User'}
+                </span>
+              </div>
+            )}
 
-            <motion.button
-              onClick={handleLogout}
-              className="flex items-center gap-2 px-4 py-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg border border-red-500/30 transition-all"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <FiLogOut size={18} />
-              <span className="text-sm font-medium">Logout</span>
-            </motion.button>
+            {isGuest ? (
+              <motion.button
+                onClick={() => navigate('/register')}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white rounded-lg font-semibold text-sm shadow-lg shadow-violet-900/30 hover:shadow-violet-900/50 transition-all"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <FiUserPlus size={16} />
+                Sign Up
+              </motion.button>
+            ) : (
+              <motion.button
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-4 py-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg border border-red-500/30 transition-all"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <FiLogOut size={18} />
+                <span className="text-sm font-medium">Logout</span>
+              </motion.button>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -150,21 +216,58 @@ export default function Navbar() {
                 </MotionLink>
               ))}
 
+              {/* Profile / Claim mobile */}
+              {!isGuest ? (
+                <MotionLink
+                  to="/profile"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                    isActive('/profile') ? 'bg-violet-600/30 text-violet-300 border border-violet-500/50' : 'text-gray-300 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  <FiUser size={18} />
+                  <span className="font-medium">Profile</span>
+                </MotionLink>
+              ) : (
+                <MotionLink
+                  to="/register"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-violet-600/20 border border-violet-500/30 text-violet-300"
+                >
+                  <FiUserPlus size={18} />
+                  <span className="font-medium">✨ Claim Profile (Sign Up)</span>
+                </MotionLink>
+              )}
+
               <div className="border-t border-white/10 pt-2 mt-2">
-                <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-lg mb-2">
-                  <div className="w-2 h-2 rounded-full bg-green-500" />
-                  <span className="text-sm text-gray-400">{user?.name || 'User'}</span>
-                </div>
+                {isGuest ? (
+                  <button
+                    onClick={copyGuestPass}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-violet-600/10 border border-violet-500/20 text-violet-300 mb-2"
+                  >
+                    <span>🎟️</span>
+                    <span className="font-mono text-sm">{guestCopied ? '✅ Copied!' : user?.guestTokenNo}</span>
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-lg mb-2">
+                    <div className="w-2 h-2 rounded-full bg-green-500" />
+                    <span className="text-sm text-gray-400">{user?.name || 'User'}</span>
+                  </div>
+                )}
 
                 <motion.button
                   onClick={() => {
-                    handleLogout();
+                    isGuest ? navigate('/register') : handleLogout();
                     setMobileMenuOpen(false);
                   }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg border border-red-500/30 transition-all"
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border transition-all ${
+                    isGuest
+                      ? 'bg-gradient-to-r from-violet-600/30 to-fuchsia-600/30 border-violet-500/30 text-violet-300'
+                      : 'text-red-400 hover:text-red-300 hover:bg-red-500/10 border-red-500/30'
+                  }`}
                 >
-                  <FiLogOut size={18} />
-                  <span className="font-medium">Logout</span>
+                  {isGuest ? <FiUserPlus size={18} /> : <FiLogOut size={18} />}
+                  <span className="font-medium">{isGuest ? 'Sign Up Free' : 'Logout'}</span>
                 </motion.button>
               </div>
             </motion.div>
@@ -174,3 +277,4 @@ export default function Navbar() {
     </nav>
   );
 }
+

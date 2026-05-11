@@ -140,9 +140,11 @@ const userSchema = new mongoose.Schema({
   }],
   role: {
     type: String,
-    enum: ['user', 'admin'],
+    enum: ['guest', 'user', 'seller', 'admin'],
     default: 'user'
   },
+  isGuest: { type: Boolean, default: false },
+  guestTokenNo: { type: String, unique: true, sparse: true }, // e.g. "NM-7482-9102"
   isVerified: {
     type: Boolean,
     default: false

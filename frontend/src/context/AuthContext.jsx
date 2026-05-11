@@ -1,41 +1,61 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import API from '../utils/api';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [guestInitializing, setGuestInitializing] = useState(false);
+
+  // ── Silent Guest Initialization ──────────────────────────────────────────
+  const initializeGuest = useCallback(async () => {
+    if (localStorage.getItem('token')) return; // Already has a session
+    setGuestInitializing(true);
+    try {
+      const { data } = await API.post('/auth/guest-init');
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      setUser(data.user);
+      console.log(`🎟️ Guest session ready: ${data.user.guestTokenNo}`);
+    } catch (err) {
+      console.error('Guest init failed — app works without session', err);
+    } finally {
+      setGuestInitializing(false);
+    }
+  }, []);
 
   useEffect(() => {
-    // Check localStorage for existing user
     const storedUser = localStorage.getItem('user');
     const token = localStorage.getItem('token');
-    
+
     if (storedUser && token) {
       try {
         setUser(JSON.parse(storedUser));
+        setLoading(false);
       } catch (error) {
         console.error('Failed to parse stored user:', error);
         localStorage.removeItem('user');
         localStorage.removeItem('token');
+        setLoading(false);
+        initializeGuest(); // Try to create fresh guest session
       }
+    } else {
+      setLoading(false);
+      initializeGuest(); // No session at all — create guest
     }
-    setLoading(false);
-  }, []);
+  }, [initializeGuest]);
 
   // ✅ FIXED: Handle both old and new response formats
   const login = (responseData) => {
     console.log('Login response:', responseData);
-    
-    // Handle different response formats from backend
+
     let userData, token;
-    
+
     if (responseData.user && responseData.token) {
-      // New format: { user: {...}, token: "..." }
       userData = responseData.user;
       token = responseData.token;
     } else if (responseData._id && responseData.token) {
-      // Old format: { _id: "...", name: "...", token: "..." }
       const { token: authToken, ...userInfo } = responseData;
       userData = userInfo;
       token = authToken;
@@ -43,12 +63,9 @@ export const AuthProvider = ({ children }) => {
       console.error('Invalid login data format:', responseData);
       throw new Error('Invalid login data received');
     }
-    
-    // Store in localStorage
+
     localStorage.setItem('user', JSON.stringify(userData));
     localStorage.setItem('token', token);
-    
-    // Update state
     setUser(userData);
   };
 
@@ -56,10 +73,21 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('user');
     localStorage.removeItem('token');
     setUser(null);
+    // Re-initialize as guest after logout so the app never feels empty
+    setTimeout(() => initializeGuest(), 300);
   };
 
+  // Helper to update user state (used after guest conversion or profile update)
+  const updateUser = (updatedData) => {
+    const merged = { ...user, ...updatedData };
+    localStorage.setItem('user', JSON.stringify(merged));
+    setUser(merged);
+  };
+
+  const isGuest = user?.role === 'guest' || user?.isGuest === true;
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, setUser, loading, guestInitializing, login, logout, updateUser, isGuest, initializeGuest }}>
       {children}
     </AuthContext.Provider>
   );
@@ -71,4 +99,4 @@ export const useAuth = () => {
     throw new Error('useAuth must be used within AuthProvider');
   }
   return context;
-};
+};
