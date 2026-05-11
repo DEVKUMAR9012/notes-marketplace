@@ -281,8 +281,6 @@ export default function Login() {
                   </Link>
                 </p>
 
-                {/* ── Guest Pass Resume ─────────────────────────────── */}
-                <GuestPassResumeWidget />
               </motion.div>
             ) : step === 'forgot' ? (
               <motion.div
