@@ -14,7 +14,6 @@ export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [guestCopied, setGuestCopied] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -27,15 +26,7 @@ export default function Navbar() {
     }
   };
 
-  const copyGuestPass = () => {
-    if (user?.guestTokenNo) {
-      navigator.clipboard.writeText(user.guestTokenNo);
-      setGuestCopied(true);
-      setTimeout(() => setGuestCopied(false), 2000);
-    }
-  };
-
-  // Build nav items — guest cannot access Upload or Profile directly
+  // Build nav items — guest cannot access Upload directly
   const navItems = [
     { label: 'Home', icon: FiHome, path: '/' },
     { label: 'Books', icon: FiBook, path: '/books' },
@@ -123,46 +114,14 @@ export default function Navbar() {
             )}
           </div>
 
-          {/* Right Side: User Info / Guest Badge + Action */}
+          {/* Right Side: silent status chip + action button */}
           <div className="hidden md:flex items-center gap-3">
+            {/* Status chip */}
             {isGuest ? (
-              // ── Guest Pass Badge (with cross-device tooltip) ────────────
-              <div className="relative group/badge">
-                <motion.button
-                  onClick={copyGuestPass}
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
-                  className="flex items-center gap-2 px-3 py-2 rounded-xl bg-violet-600/15 border border-violet-500/30 hover:border-violet-500/60 hover:bg-violet-600/25 transition-all"
-                >
-                  <span className="text-base leading-none">🎟️</span>
-                  <div className="text-left">
-                    <p className="text-[9px] text-violet-400 font-bold uppercase tracking-widest leading-none">Guest Pass</p>
-                    <p className="text-xs text-white font-mono font-bold leading-none mt-0.5">
-                      {guestCopied ? '✅ Copied!' : user?.guestTokenNo || '…'}
-                    </p>
-                  </div>
-                </motion.button>
-
-                {/* Hover Tooltip — cross-device instructions */}
-                <div className="absolute top-full right-0 mt-2 w-64 opacity-0 group-hover/badge:opacity-100 pointer-events-none group-hover/badge:pointer-events-auto transition-all duration-200 translate-y-1 group-hover/badge:translate-y-0 z-50">
-                  <div className="bg-gray-900 border border-violet-500/30 rounded-2xl p-4 shadow-2xl shadow-violet-900/30">
-                    <div className="absolute -top-1.5 right-5 w-3 h-3 bg-gray-900 border-l border-t border-violet-500/30 rotate-45" />
-                    <p className="text-[11px] text-violet-400 font-bold uppercase tracking-widest mb-2">Cross-Device Magic 🪄</p>
-                    <p className="text-xs text-gray-400 leading-relaxed mb-3">
-                      Save this pass! Enter it on any device at
-                      {' '}<span className="text-violet-300 font-medium">Login → Have a Guest Pass?</span>
-                      {' '}to restore your cart & activity.
-                    </p>
-                    <button
-                      onClick={copyGuestPass}
-                      className="w-full text-center font-mono text-sm font-bold py-2 rounded-xl bg-violet-600/20 border border-violet-500/30 hover:bg-violet-600/40 text-violet-300 transition-all"
-                    >
-                      {guestCopied ? '✅ Copied!' : `📋 ${user?.guestTokenNo}`}
-                    </button>
-                  </div>
-                </div>
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/8">
+                <div className="w-2 h-2 rounded-full bg-violet-400 animate-pulse" />
+                <span className="text-xs text-gray-500 font-medium">Visitor</span>
               </div>
-
             ) : (
               <div className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-lg border border-white/10">
                 <div className="w-2 h-2 rounded-full bg-green-500" />
@@ -172,6 +131,7 @@ export default function Navbar() {
               </div>
             )}
 
+            {/* Action button */}
             {isGuest ? (
               <motion.button
                 onClick={() => navigate('/register')}
@@ -194,6 +154,7 @@ export default function Navbar() {
               </motion.button>
             )}
           </div>
+
 
           {/* Mobile Menu Button */}
           <button
@@ -261,15 +222,7 @@ export default function Navbar() {
               )}
 
               <div className="border-t border-white/10 pt-2 mt-2">
-                {isGuest ? (
-                  <button
-                    onClick={copyGuestPass}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-violet-600/10 border border-violet-500/20 text-violet-300 mb-2"
-                  >
-                    <span>🎟️</span>
-                    <span className="font-mono text-sm">{guestCopied ? '✅ Copied!' : user?.guestTokenNo}</span>
-                  </button>
-                ) : (
+                {!isGuest && (
                   <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-lg mb-2">
                     <div className="w-2 h-2 rounded-full bg-green-500" />
                     <span className="text-sm text-gray-400">{user?.name || 'User'}</span>

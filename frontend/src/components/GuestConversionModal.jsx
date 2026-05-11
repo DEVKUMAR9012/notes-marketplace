@@ -216,23 +216,6 @@ export default function GuestConversionModal({ isOpen, onClose, triggerReason = 
                       </p>
                     </div>
 
-                    {/* Guest Pass Badge */}
-                    {user?.guestTokenNo && (
-                      <div
-                        className="flex items-center justify-between bg-violet-600/10 border border-violet-500/20 rounded-2xl px-4 py-3 mb-5 cursor-pointer group"
-                        onClick={() => {
-                          navigator.clipboard.writeText(user.guestTokenNo);
-                        }}
-                        title="Click to copy your Guest Pass"
-                      >
-                        <div>
-                          <p className="text-[10px] text-violet-400 font-bold uppercase tracking-widest">Your Guest Pass</p>
-                          <p className="text-white font-bold text-sm font-mono">{user.guestTokenNo}</p>
-                        </div>
-                        <span className="text-xs text-gray-500 group-hover:text-violet-400 transition">Tap to copy</span>
-                      </div>
-                    )}
-
                     {error && (
                       <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-xl mb-4 text-sm text-center">
                         {error}
