@@ -41,8 +41,8 @@ function App() {
     <AuthProvider>
       <SocketProvider>
         <CartProvider>
-        <GuestGuardProvider>
         <BrowserRouter>
+        <GuestGuardProvider>
           <Routes>
             {/* ========== PUBLIC ROUTES (No Navbar) ========== */}
             <Route path="/login" element={<Login />} />
@@ -173,8 +173,8 @@ function App() {
             {/* ========== 404 - Unknown Routes ========== */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-        </BrowserRouter>
         </GuestGuardProvider>
+        </BrowserRouter>
         </CartProvider>
       </SocketProvider>
     </AuthProvider>
