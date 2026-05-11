@@ -10,7 +10,7 @@ export default function Cart() {
   const [loading, setLoading] = useState(true);
   const [checkoutMode, setCheckoutMode] = useState(false);
   const { user } = useAuth();
-  
+
   const fetchCart = async () => {
     try {
       const res = await API.get('/profile/me');
@@ -28,7 +28,7 @@ export default function Cart() {
 
   const handleRemove = async (noteId) => {
     try {
-      const res = await API.post('/profile/cart/toggle', { noteId });
+      await API.post('/profile/cart/toggle', { noteId });
       setProfile(prev => ({
         ...prev,
         cart: prev.cart.filter(n => n._id !== noteId)
@@ -97,7 +97,7 @@ export default function Cart() {
               </AnimatePresence>
             </div>
 
-            {/* Summary - Mobile: below items, Desktop: sticky sidebar */}
+            {/* Summary */}
             <div className="lg:col-span-1">
               <div className="bg-gradient-to-br from-violet-900/30 to-fuchsia-900/30 border border-white/10 rounded-3xl p-5 sm:p-6 lg:sticky lg:top-24">
                 <h3 className="text-lg sm:text-xl font-black mb-4 border-b border-white/10 pb-4">Summary</h3>
@@ -122,21 +122,21 @@ export default function Cart() {
                     noteIds={cart.map(c => c._id)}
                     user={user}
                     onSuccess={() => {
-                        setCheckoutMode(false);
-                        fetchCart();
-                        alert("Checkout successful! View your purchased notes in Profile.");
+                      setCheckoutMode(false);
+                      fetchCart();
+                      alert("Checkout successful! View your purchased notes in Profile.");
                     }}
                     className="w-full py-2.5 sm:py-3 text-xs sm:text-sm font-bold justify-center min-h-[44px]"
                   />
                 ) : (
                   <button
                     onClick={() => setCheckoutMode(true)}
-                    className="w-full bg-violet-600 hover:bg-violet-700 text-white font-bold py-2.5 sm:py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition shadow-lg shadow-violet-500/20 text-sm sm:text-base min-h-[44px] sm:min-h-auto"
+                    className="w-full bg-violet-600 hover:bg-violet-700 text-white font-bold py-2.5 sm:py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition shadow-lg shadow-violet-500/20 text-sm sm:text-base min-h-[44px]"
                   >
                     <FiCreditCard /> Checkout Now
                   </button>
                 )}
-                
+
                 <p className="text-[10px] sm:text-xs text-center text-gray-500 mt-4 flex items-center justify-center gap-1">
                   <FiLock /> Secure payment via Razorpay
                 </p>

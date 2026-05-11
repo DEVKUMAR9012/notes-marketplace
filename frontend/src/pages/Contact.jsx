@@ -8,6 +8,15 @@ import {
 import { useForm } from 'react-hook-form';
 import API from '../utils/api';
 
+// ─── Safely resolve backend URL
+const getRawServerUrl = () => {
+  let url = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+  if (url.endsWith('/')) url = url.slice(0, -1);
+  if (url.endsWith('/api')) url = url.slice(0, -4);
+  return url;
+};
+const BACKEND_URL = getRawServerUrl();
+
 // ──────────────────────────────────────────────────────────────────
 // TYPING ANIMATION HOOK
 // ──────────────────────────────────────────────────────────────────
@@ -227,7 +236,7 @@ const FAQItem = ({ question, answer, index }) => {
 };
 
 // ──────────────────────────────────────────────────────────────────
-// LIVE CHAT BUTTON (Fully Fixed: Auto-Focus & Auto-Scroll)
+// LIVE STREAMING CHAT WIDGET (Google-Style Enterprise Streaming)
 // ──────────────────────────────────────────────────────────────────
 const LiveChatButton = () => {
   const [isHovered, setIsHovered] = useState(false);
@@ -244,50 +253,78 @@ const LiveChatButton = () => {
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
-  // Flawless smooth auto-scrolling
+  // Smooth auto-scroll tracking
   useEffect(() => {
     if (isChatOpen) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages, isTyping, isChatOpen]);
 
-  // Focus input automatically
+  // Focus input automatically upon opening
   useEffect(() => {
     if (isChatOpen) {
       setTimeout(() => inputRef.current?.focus(), 150);
     }
   }, [isChatOpen]);
 
+  // Read the HTTP stream chunk-by-chunk progressively
   const sendMessage = async () => {
     const text = inputText.trim();
     if (!text || isTyping) return;
 
     const userMsg = { role: 'user', content: text };
-    const updatedMessages = [...messages, userMsg];
-    setMessages(updatedMessages);
+    const placeholderMsg = { role: 'assistant', content: '' };
+
+    // Instantly append user message and placeholder for AI streaming tokens
+    setMessages(prev => [...prev, userMsg, placeholderMsg]);
     setInputText('');
     setIsTyping(true);
 
     try {
-      // Filter out greetings and send robust payload to backend
-      const apiMessages = updatedMessages
+      const apiMessages = messages
         .filter(m => !(m.role === 'assistant' && m.content.includes('👋')))
+        .concat(userMsg)
         .map(m => ({ role: m.role, content: m.content }));
 
-      const { data } = await API.post('/ai/chat', {
-        messages: apiMessages.length ? apiMessages : [userMsg]
+      const response = await fetch(`${BACKEND_URL}/api/ai/chat-stream`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+        },
+        body: JSON.stringify({ messages: apiMessages })
       });
 
-      setMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: data.reply || "I'm having trouble retrieving that from our catalog. Please contact support directly." 
-      }]);
+      if (!response.ok) throw new Error('Network streaming response was blocked.');
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulatedText = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        accumulatedText += chunk;
+
+        // Progressively inject the accumulated streamed token into the UI buffer
+        setMessages(prev => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { role: 'assistant', content: accumulatedText };
+          return updated;
+        });
+      }
     } catch (err) {
-      console.error("AI Live Chat API Error:", err);
-      setMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: "❌ System timeout. Our Google Gemini backend is currently busy processing academic summaries. Please try again in a moment." 
-      }]);
+      console.error("AI Live Streaming Error:", err);
+      setMessages(prev => {
+        const updated = [...prev];
+        updated[updated.length - 1] = { 
+          role: 'assistant', 
+          content: "❌ Connection timeout. Our AI backend is currently busy processing summaries. Please try again." 
+        };
+        return updated;
+      });
     } finally {
       setIsTyping(false);
     }
@@ -312,14 +349,14 @@ const LiveChatButton = () => {
         onHoverStart={() => setIsHovered(true)}
         onHoverEnd={() => setIsHovered(false)}
         onClick={() => setIsChatOpen(!isChatOpen)}
-        className="relative group"
+        className="relative group cursor-pointer"
       >
         <motion.div
           animate={{ scale: [1, 1.3, 1] }}
           transition={{ duration: 2, repeat: Infinity }}
           className="absolute inset-0 rounded-full bg-emerald-400/30"
         />
-        <div className="relative w-16 h-16 bg-gradient-to-br from-emerald-500 to-cyan-500 rounded-full flex items-center justify-center shadow-lg hover:shadow-emerald-500/50 transition-shadow cursor-pointer">
+        <div className="relative w-16 h-16 bg-gradient-to-br from-emerald-500 to-cyan-500 rounded-full flex items-center justify-center shadow-lg hover:shadow-emerald-500/50 transition-shadow">
           <FiMessageCircle className="text-white text-2xl" />
         </div>
       </motion.button>
@@ -357,7 +394,7 @@ const LiveChatButton = () => {
                   <p className="text-white/70 text-xs">Powered by Google Gemini AI</p>
                 </div>
               </div>
-              <button onClick={() => setIsChatOpen(false)} className="text-white hover:bg-white/20 p-1 rounded">
+              <button onClick={() => setIsChatOpen(false)} className="text-white hover:bg-white/20 p-1 rounded cursor-pointer">
                 <FiX />
               </button>
             </div>
@@ -403,7 +440,7 @@ const LiveChatButton = () => {
               <button
                 onClick={sendMessage}
                 disabled={!inputText.trim() || isTyping}
-                className="bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 disabled:opacity-40 text-white p-2 rounded-xl transition flex items-center justify-center"
+                className="bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 disabled:opacity-40 text-white p-2 rounded-xl transition flex items-center justify-center cursor-pointer"
               >
                 <FiSend size={16} />
               </button>
@@ -468,28 +505,23 @@ export default function Contact() {
   const faqs = [
     {
       question: 'How long does it take to get a response?',
-      answer:
-        'We typically respond within 24 hours. For urgent issues, our live chat is available 24/7 to help.',
+      answer: 'We typically respond within 24 hours. For urgent issues, our live support engine is available 24/7.',
     },
     {
       question: 'Can I get a refund on my purchase?',
-      answer:
-        'Yes, we offer refunds within 7 days of purchase if you\'re not satisfied with the quality of the notes.',
+      answer: 'Yes, we offer refunds within 7 days of purchase if you are not satisfied with the quality of the notes.',
     },
     {
       question: 'How do I report inappropriate content?',
-      answer:
-        'Use the report button on any note listing, or contact us directly via email or live chat with details.',
+      answer: 'Use the report button on any note listing, or contact us directly via email or live chat with details.',
     },
     {
       question: 'What payment methods do you accept?',
-      answer:
-        'We accept all major credit cards, debit cards, and UPI payments through Razorpay integration.',
+      answer: 'We accept all major credit cards, debit cards, and UPI payments securely through Razorpay.',
     },
     {
       question: 'How can I become a seller?',
-      answer:
-        'Click on "Upload" in the navbar to start uploading your notes. Verification typically takes 2-3 days.',
+      answer: 'Click on "Upload" in the navbar to start uploading your notes. Verification typically takes 2-3 days.',
     },
   ];
 
@@ -502,17 +534,11 @@ export default function Contact() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 pt-24 pb-12 relative overflow-hidden">
-      {/* Background Particles */}
       <FloatingParticles />
-
-      {/* Confetti Burst */}
       {showConfetti && <ConfettiBurst onComplete={() => setShowConfetti(false)} />}
-
-      {/* Live Chat Button */}
       <LiveChatButton />
 
       <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6">
-        {/* HERO SECTION */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -528,7 +554,6 @@ export default function Contact() {
             Got questions? We'd love to hear from you. Send us a message!
           </p>
 
-          {/* Glowing Search Bar */}
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -548,7 +573,7 @@ export default function Contact() {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-gradient-to-r from-violet-600 to-cyan-600 text-white px-4 py-2 rounded-full text-sm font-medium hover:shadow-lg hover:shadow-violet-500/50 transition-all"
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-gradient-to-r from-violet-600 to-cyan-600 text-white px-4 py-2 rounded-full text-sm font-medium hover:shadow-lg hover:shadow-violet-500/50 transition-all cursor-pointer"
               >
                 Search
               </motion.button>
@@ -556,9 +581,7 @@ export default function Contact() {
           </motion.div>
         </motion.section>
 
-        {/* CONTACT FORM & INFO SECTION */}
         <section className="grid md:grid-cols-2 gap-8 mb-20">
-          {/* Contact Form */}
           <TiltCard>
             <motion.form
               onSubmit={handleSubmit(onSubmit)}
@@ -621,7 +644,7 @@ export default function Contact() {
                 disabled={isSubmitting}
                 whileHover={{ scale: isSubmitting ? 1 : 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="w-full mt-6 relative group overflow-hidden px-6 py-3 bg-gradient-to-r from-violet-600 to-cyan-600 hover:from-violet-700 hover:to-cyan-700 disabled:opacity-50 text-white font-semibold rounded-lg transition-all"
+                className="w-full mt-6 relative group overflow-hidden px-6 py-3 bg-gradient-to-r from-violet-600 to-cyan-600 hover:from-violet-700 hover:to-cyan-700 disabled:opacity-50 text-white font-semibold rounded-lg transition-all cursor-pointer"
               >
                 <motion.div
                   className="absolute inset-0 bg-white/20 rounded-lg"
@@ -665,7 +688,6 @@ export default function Contact() {
             </motion.form>
           </TiltCard>
 
-          {/* ✅ FIX 3: Authentic Native Platform Info Aligned */}
           <div className="space-y-6">
             <motion.div
               initial={{ opacity: 0, x: 20 }}
@@ -723,7 +745,6 @@ export default function Contact() {
           </div>
         </section>
 
-        {/* SUPPORT CATEGORIES (FLIP CARDS) */}
         <motion.section
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
@@ -746,7 +767,6 @@ export default function Contact() {
           </div>
         </motion.section>
 
-        {/* FAQ SECTION */}
         <motion.section
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
@@ -763,7 +783,6 @@ export default function Contact() {
           </div>
         </motion.section>
 
-        {/* SOCIAL LINKS */}
         <motion.section
           initial={{ opacity: 0, x: 100 }}
           whileInView={{ opacity: 1, x: 0 }}

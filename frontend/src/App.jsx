@@ -18,7 +18,6 @@ import Profile from './pages/Profile';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';  // ⭐ NEW - Payment checkout
 import AdminDashboard from './pages/AdminDashboard'; // ⭐ Main Admin Dashboard
-import AdminEmailDashboard from './pages/AdminEmailDashboard';  // ⭐ NEW - Email System
 import Contact from './pages/Contact';  // ⭐ NEW - Contact & Support Page
 import Chat from './pages/Chat';  // ⭐ NEW - Real-time Chat
 
@@ -143,16 +142,7 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            <Route
-              path="/admin/email"
-              element={
-                <ProtectedRoute>
-                  <LayoutWithNavbar>
-                    <AdminEmailDashboard />
-                  </LayoutWithNavbar>
-                </ProtectedRoute>
-              }
-            />
+
 
             {/* Contact & Support Page */}
             <Route

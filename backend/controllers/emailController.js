@@ -7,6 +7,7 @@ const User = require('../models/User');
 const EmailLog = require('../models/EmailLog');
 const sendEmail = require('../utils/sendEmail');
 const templates = require('../utils/emailTemplates');
+const Contact = require('../models/Contact');
 
 // ═══════════════════════════════════════════════════════════════
 // POST /api/email/campaign   (Admin only)
@@ -249,6 +250,9 @@ exports.submitContactForm = async (req, res) => {
     if (!name || !email || !message) {
       return res.status(400).json({ success: false, message: 'Name, email, and message are required' });
     }
+
+    // Save to database
+    await Contact.create({ name, email, subject, message });
 
     const adminEmail = process.env.SMTP_USER || process.env.FROM_EMAIL;
     

@@ -284,7 +284,17 @@ exports.blockUser = async (req, res) => {
       $addToSet: { blockedUsers: chat.participants.find(p => String(p) !== String(req.user._id)) },
     });
 
-    res.json({ success: true, message: 'User blocked' });
+    // ── Broadcast block status to all participants so both UIs update instantly
+    const io = req.app.get('io');
+    chat.participants.forEach(participantId => {
+      io.to(String(participantId)).emit('chat_block_status', {
+        chatId,
+        blockedBy: String(req.user._id),
+        isBlocked: true,
+      });
+    });
+
+    res.json({ success: true, message: 'User blocked', blockedBy: req.user._id });
   } catch (e) {
     res.status(500).json({ success: false, message: 'Server error' });
   }
@@ -302,7 +312,17 @@ exports.unblockUser = async (req, res) => {
     await chat.save();
     await User.findByIdAndUpdate(req.user._id, { $pull: { blockedUsers: otherId } });
 
-    res.json({ success: true, message: 'User unblocked' });
+    // ── Broadcast unblock status so both clients re-enable messaging inputs
+    const io = req.app.get('io');
+    chat.participants.forEach(participantId => {
+      io.to(String(participantId)).emit('chat_block_status', {
+        chatId,
+        blockedBy: null,
+        isBlocked: false,
+      });
+    });
+
+    res.json({ success: true, message: 'User unblocked', blockedBy: null });
   } catch (e) {
     res.status(500).json({ success: false, message: 'Server error' });
   }

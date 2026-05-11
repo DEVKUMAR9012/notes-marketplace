@@ -54,9 +54,10 @@ const noteSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
-  isApproved: {
-    type: Boolean,
-    default: true
+  status: {
+    type: String,
+    enum: ['pending', 'approved', 'rejected'],
+    default: 'pending'
   },
   totalEarnings: {
     type: Number,

@@ -15,10 +15,13 @@ const reportSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  description: {
+    type: String
+  },
   status: {
     type: String,
-    enum: ['pending', 'reviewed', 'resolved'],
-    default: 'pending'
+    enum: ['open', 'resolved', 'dismissed', 'action_taken'],
+    default: 'open'
   }
 }, { timestamps: true });
 
