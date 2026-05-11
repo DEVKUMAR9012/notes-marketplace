@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import API, { warmupServer } from '../utils/api';
 import { FiMail, FiLock, FiEye, FiEyeOff, FiKey, FiArrowLeft } from 'react-icons/fi';
+import GuestPassResumeWidget from '../components/GuestPassResumeWidget';
 
 export default function Login() {
   const [authMethod, setAuthMethod] = useState('email'); // 'email' or 'phone'
@@ -280,6 +281,9 @@ export default function Login() {
                     Sign up
                   </Link>
                 </p>
+
+                {/* ── Guest Pass Resume ─────────────────────────────── */}
+                <GuestPassResumeWidget />
               </motion.div>
             ) : step === 'forgot' ? (
               <motion.div

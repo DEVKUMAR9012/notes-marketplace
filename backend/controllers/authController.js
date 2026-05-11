@@ -506,7 +506,59 @@ exports.guestInit = async (req, res) => {
   }
 };
 
-// ========== CONVERT GUEST ➡️ PERMANENT USER ==========
+// ========== RESUME GUEST SESSION BY PASS TOKEN ==========
+exports.resumeGuestSession = async (req, res) => {
+  try {
+    const { guestTokenNo } = req.body;
+
+    if (!guestTokenNo) {
+      return res.status(400).json({ success: false, message: 'Guest Pass token is required' });
+    }
+
+    // Normalize: uppercase, trim whitespace
+    const normalizedToken = guestTokenNo.trim().toUpperCase();
+
+    // Validate format: NM-XXXX-XXXX (NM followed by two 4-digit groups)
+    const tokenRegex = /^NM-\d{4}-\d{4}$/;
+    if (!tokenRegex.test(normalizedToken)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid Guest Pass format. It should look like: NM-1234-5678'
+      });
+    }
+
+    const guest = await User.findOne({ guestTokenNo: normalizedToken, isGuest: true });
+
+    if (!guest) {
+      return res.status(404).json({
+        success: false,
+        message: 'Guest Pass not found or already converted to a permanent account.'
+      });
+    }
+
+    const token = generateToken(guest._id);
+
+    console.log(`🔁 Guest session resumed: ${normalizedToken}`);
+
+    res.status(200).json({
+      success: true,
+      message: `Welcome back! Session restored for ${normalizedToken}`,
+      token,
+      user: {
+        _id: guest._id,
+        name: guest.name,
+        role: 'guest',
+        isGuest: true,
+        guestTokenNo: guest.guestTokenNo,
+        cart: guest.cart,
+        wishlist: guest.wishlist,
+      }
+    });
+  } catch (error) {
+    console.error('Resume guest error:', error);
+    res.status(500).json({ success: false, message: 'Could not resume guest session' });
+  }
+};
 exports.convertGuestToUser = async (req, res) => {
   try {
     const { guestId, name, email, password, college } = req.body;

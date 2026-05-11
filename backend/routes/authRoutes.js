@@ -14,6 +14,7 @@ const {
     phoneLogin,
     guestInit,
     convertGuestToUser,
+    resumeGuestSession,
 } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
 
@@ -27,8 +28,10 @@ router.post('/phone-register', phoneRegister);
 router.post('/phone-login', phoneLogin);
 
 // ── Guest Flow ──────────────────────────────────────────────────────────────
-router.post('/guest-init', guestInit);           // Silent background session
+router.post('/guest-init', guestInit);             // Silent background session
+router.post('/resume-guest', resumeGuestSession);  // Resume by Guest Pass token (cross-device)
 router.post('/convert-guest', convertGuestToUser); // Upgrade guest → permanent user
+
 
 router.post('/login', login);
 
