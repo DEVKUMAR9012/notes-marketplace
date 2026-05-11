@@ -168,6 +168,15 @@ const userSchema = new mongoose.Schema({
   blockedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   stars: { type: Number, default: 0, min: 0 },
   downloadedNotes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Note' }],
+
+  // ─── Session Audit (Admin Visibility) ───────────────────────────────────────
+  lastLogin: { type: Date },
+  lastLoginMetadata: {
+    ipAddress:  { type: String, default: 'Unknown' },
+    location:   { type: String, default: 'Unknown' }, // "Agra, India"
+    userAgent:  { type: String, default: 'Unknown' }, // raw UA string
+    browser:    { type: String, default: 'Unknown' }, // "Chrome (Windows)"
+  },
 }, {
   timestamps: true  // Automatically adds createdAt and updatedAt
 });

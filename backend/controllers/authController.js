@@ -1,6 +1,43 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const axios = require('axios');
+const { UAParser } = require('ua-parser-js');
+
+// ── Session Metadata Helper ─────────────────────────────────────────────────
+// Extracts IP, browser, OS, and geo-location for every login/init event.
+// Geo lookup is fire-and-forget with a 2-second timeout so it never blocks auth.
+async function getSessionMetadata(req) {
+  // Real IP behind Vercel / Cloudflare / Nginx proxies
+  const rawIp = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || req.ip || '';
+  const ipAddress = rawIp.split(',')[0].trim() || 'Unknown';
+
+  // Parse browser + OS from User-Agent
+  const userAgentString = req.headers['user-agent'] || 'Unknown';
+  const parser = new UAParser(userAgentString);
+  const { name: bName = 'Browser', version: bVer = '' } = parser.getBrowser();
+  const { name: osName = 'OS' } = parser.getOS();
+  const browser = `${bName} ${bVer} (${osName})`.trim();
+
+  // Geo lookup — skip for localhost, timeout in 2s
+  let location = 'Unknown';
+  const isLocal = ipAddress === '::1' || ipAddress === '127.0.0.1' || ipAddress === 'Unknown';
+  if (!isLocal) {
+    try {
+      const geo = await axios.get(
+        `http://ip-api.com/json/${ipAddress}?fields=city,regionName,country`,
+        { timeout: 2000 }
+      );
+      if (geo.data?.city) location = `${geo.data.city}, ${geo.data.country}`;
+    } catch {
+      location = 'Lookup unavailable';
+    }
+  } else {
+    location = 'Localhost';
+  }
+
+  return { ipAddress, location, userAgent: userAgentString, browser };
+}
 const sendEmail = require('../utils/sendEmail');
 const templates = require('../utils/emailTemplates');
 
@@ -94,6 +131,13 @@ exports.login = async (req, res) => {
     if (!isMatch) {
       return res.status(401).json({ success: false, message: 'Invalid email or password' });
     }
+
+    // Capture session metadata (non-blocking — fire alongside response)
+    const metadata = await getSessionMetadata(req);
+    User.findByIdAndUpdate(user._id, {
+      lastLogin: new Date(),
+      lastLoginMetadata: metadata,
+    }).catch(() => {}); // Never block login on this
 
     res.status(200).json({
       success: true,
@@ -474,7 +518,8 @@ exports.phoneLogin = async (req, res) => {
 // ========== SILENT GUEST INIT (Zero-Knowledge Background Session) ==========
 exports.guestInit = async (req, res) => {
   try {
-    // Create a minimal anonymous document — no visible identifier generated
+    const metadata = await getSessionMetadata(req);
+
     const guest = await User.create({
       name: 'Anonymous Student',
       role: 'guest',
@@ -482,22 +527,17 @@ exports.guestInit = async (req, res) => {
       isVerified: false,
       cart: [],
       wishlist: [],
+      lastLogin: new Date(),
+      lastLoginMetadata: metadata,
     });
 
     const token = generateToken(guest._id);
+    console.log(`👻 Silent guest session: ${guest._id} from ${metadata.location} (${metadata.browser})`);
 
-    console.log(`👻 Silent guest session created: ${guest._id}`);
-
-    // Return only what the client needs to manage state — no pass string
     res.status(201).json({
       success: true,
       token,
-      user: {
-        _id: guest._id,
-        name: guest.name,
-        role: 'guest',
-        isGuest: true,
-      }
+      user: { _id: guest._id, name: guest.name, role: 'guest', isGuest: true }
     });
   } catch (error) {
     console.error('Silent guest init error:', error);

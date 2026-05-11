@@ -587,8 +587,7 @@ const UserManagementTab = () => {
         confirmText={confirmDelete?.name}
       />
 
-      {/* User Detail Modal */}
-      <Modal open={userModal} onClose={() => setUserModal(false)} title="User Details">
+      <Modal open={userModal} onClose={() => setUserModal(false)} title="User Security & Session Details">
         {selectedUser && (
           <div className="space-y-5">
             <div className="flex items-center gap-4">
@@ -599,6 +598,8 @@ const UserManagementTab = () => {
               </div>
               <Badge label={selectedUser.role || 'user'} color="violet" />
             </div>
+
+            {/* ─── Standard Metrics Grid ─── */}
             <div className="grid grid-cols-2 gap-3">
               {[
                 { label: 'User ID', value: selectedUser._id },
@@ -616,6 +617,38 @@ const UserManagementTab = () => {
                 </div>
               ))}
             </div>
+
+            {/* ─── 🛡️ Session Tracking & Device Integrity ─── */}
+            <div className="bg-violet-950/10 border border-violet-500/20 rounded-2xl p-4 space-y-3">
+              <h4 className="text-xs font-bold text-violet-400 uppercase tracking-widest flex items-center gap-1.5">
+                <span>🛡️</span> Session Tracking &amp; Device Integrity
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="bg-black/40 rounded-xl p-2.5 border border-white/5">
+                  <span className="text-[10px] text-gray-500 block mb-0.5">IP Address</span>
+                  <span className="text-xs font-mono font-bold text-sky-400">
+                    {selectedUser.lastLoginMetadata?.ipAddress || 'Not captured yet'}
+                  </span>
+                </div>
+                <div className="bg-black/40 rounded-xl p-2.5 border border-white/5">
+                  <span className="text-[10px] text-gray-500 block mb-0.5">Approx. Location</span>
+                  <span className="text-xs font-medium text-emerald-400">
+                    {selectedUser.lastLoginMetadata?.location || 'Unknown'}
+                  </span>
+                </div>
+              </div>
+              <div className="bg-black/40 rounded-xl p-2.5 border border-white/5">
+                <span className="text-[10px] text-gray-500 block mb-0.5">Active Browser / Client Device</span>
+                <span
+                  className="text-xs font-medium text-gray-300 block truncate"
+                  title={selectedUser.lastLoginMetadata?.userAgent}
+                >
+                  {selectedUser.lastLoginMetadata?.browser || selectedUser.lastLoginMetadata?.userAgent || 'Unknown System'}
+                </span>
+              </div>
+            </div>
+
+            {/* ─── Action Buttons ─── */}
             <div className="flex gap-3">
               <Btn variant="danger" icon={FiLock} onClick={() => { blockUser(selectedUser._id, selectedUser.isBlocked); setUserModal(false); }}>
                 {selectedUser.isBlocked ? 'Unblock User' : 'Block User'}
@@ -626,6 +659,7 @@ const UserManagementTab = () => {
           </div>
         )}
       </Modal>
+
 
       {/* Force Reset Modal */}
       <Modal open={resetModal} onClose={() => setResetModal(false)} title="Force Password Reset" maxW="max-w-md">
