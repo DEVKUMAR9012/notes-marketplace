@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import API, { warmupServer } from '../utils/api';
@@ -29,6 +29,9 @@ export default function Register() {
 
   const { login, user, isGuest } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  // Return to the page the guest came from, or home
+  const redirectTo = location.state?.from || '/';
   const otpInputRef = useRef(null);
 
   useEffect(() => { warmupServer(); }, []);
@@ -117,7 +120,7 @@ export default function Register() {
     setLoading(true); setError(''); setRetryAttempt(0);
     try {
       const { data } = await retryWithBackoff(() => API.post('/auth/verify-email', { email: formData.email.trim(), otp }));
-      login(data); navigate('/');
+      login(data); navigate(redirectTo, { replace: true });
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Verification failed');
     } finally { setLoading(false); setRetrying(false); setRetryAttempt(0); }
@@ -138,18 +141,14 @@ export default function Register() {
     e.preventDefault();
     if (!phoneData.name.trim()) return setError('Please enter your name');
 
-    // ✅ Bulletproof Phone Validation
-    // Extract purely digits
     let cleanPhone = phoneData.phone.replace(/\D/g, '');
-
-    // Handle common user mistakes like typing '91' or '0' instead of '+91'
     if (cleanPhone.length === 11 && cleanPhone.startsWith('0')) {
       cleanPhone = cleanPhone.slice(1);
     } else if (cleanPhone.length === 12 && cleanPhone.startsWith('91')) {
       cleanPhone = cleanPhone.slice(2);
     }
 
-    const indianPhoneRegex = /^[6-9]\d{9}$/; // Strictly 10 digits starting with 6/7/8/9
+    const indianPhoneRegex = /^[6-9]\d{9}$/;
     if (!indianPhoneRegex.test(cleanPhone)) {
       return setError('Please enter a valid 10-digit Indian mobile number (starting with 6, 7, 8, or 9)');
     }
@@ -158,11 +157,11 @@ export default function Register() {
     try {
       const { data } = await retryWithBackoff(() => API.post('/auth/phone-register', {
         name: phoneData.name.trim(),
-        phone: cleanPhone, // ALWAYS sends the clean 10-digit format
+        phone: cleanPhone,
         college: phoneData.college.trim()
       }));
       login(data);
-      navigate('/');
+      navigate(redirectTo, { replace: true });
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Registration failed');
     } finally { setLoading(false); setRetrying(false); setRetryAttempt(0); }

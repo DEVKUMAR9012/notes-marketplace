@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { SocketProvider } from './context/SocketContext';
+import { GuestGuardProvider } from './context/GuestGuardContext';
 import { warmupServer } from './utils/api';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navbar from './components/Navbar';
@@ -40,6 +41,7 @@ function App() {
     <AuthProvider>
       <SocketProvider>
         <CartProvider>
+        <GuestGuardProvider>
         <BrowserRouter>
           <Routes>
             {/* ========== PUBLIC ROUTES (No Navbar) ========== */}
@@ -172,6 +174,7 @@ function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
+        </GuestGuardProvider>
         </CartProvider>
       </SocketProvider>
     </AuthProvider>

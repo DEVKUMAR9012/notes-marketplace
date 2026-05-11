@@ -208,7 +208,18 @@ app.get('/api/health', (req, res) =>
 
 // ========== MONGODB ==========
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('✅ MongoDB Connected'))
+  .then(async () => {
+    console.log('✅ MongoDB Connected');
+    // ── Sync Mongoose indexes to DB ─────────────────────────────────────────
+    // Critical: pushes sparse unique index on guestTokenNo without collection drop.
+    // Safe to call on every startup — no-op if indexes already match.
+    try {
+      await User.syncIndexes();
+      console.log('✅ Mongoose indexes synced');
+    } catch (err) {
+      console.error('⚠️  Index sync warning (non-fatal):', err.message);
+    }
+  })
   .catch(err => console.error('MongoDB error:', err));
 
 if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');

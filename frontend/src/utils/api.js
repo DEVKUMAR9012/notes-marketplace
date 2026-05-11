@@ -88,7 +88,9 @@ API.interceptors.response.use(
     }
 
     // Handle 401 - Token expired or invalid
-    if (response?.status === 401) {
+    // ⚡ Skip guest routes — they are supposed to be unauthenticated
+    const isGuestRoute = config?.url?.includes('/auth/guest-init') || config?.url?.includes('/auth/convert-guest');
+    if (response?.status === 401 && !isGuestRoute) {
       console.warn('Unauthorized - redirecting to login');
       localStorage.removeItem('token');
       localStorage.removeItem('user');
@@ -159,4 +161,19 @@ export const warmupServer = async () => {
   }
 };
 
-export default API;
+/**
+ * syncToken — Call this immediately after a login/conversion response
+ * to inject the new JWT into all future Axios requests without a reload.
+ *
+ * @param {string} token - The new JWT string
+ */
+export const syncToken = (token) => {
+  if (token) {
+    localStorage.setItem('token', token);
+    API.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  } else {
+    delete API.defaults.headers.common['Authorization'];
+  }
+};
+
+export default API;

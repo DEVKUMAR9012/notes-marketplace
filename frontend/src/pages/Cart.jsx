@@ -11,7 +11,7 @@ export default function Cart() {
   const [loading, setLoading] = useState(true);
   const [checkoutMode, setCheckoutMode] = useState(false);
   const { user } = useAuth();
-  const { guard, GuestModal } = useGuestGuard('checking out');
+  const { guard } = useGuestGuard('checking out');
 
   const fetchCart = async () => {
     try {
@@ -147,7 +147,6 @@ export default function Cart() {
           </div>
         )}
       </div>
-      <GuestModal />
     </div>
   );
 }

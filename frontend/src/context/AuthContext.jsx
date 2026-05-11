@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import API from '../utils/api';
+import API, { syncToken } from '../utils/api';
 
 const AuthContext = createContext();
 
@@ -10,11 +10,11 @@ export const AuthProvider = ({ children }) => {
 
   // ── Silent Guest Initialization ──────────────────────────────────────────
   const initializeGuest = useCallback(async () => {
-    if (localStorage.getItem('token')) return; // Already has a session
+    if (localStorage.getItem('token')) return;
     setGuestInitializing(true);
     try {
       const { data } = await API.post('/auth/guest-init');
-      localStorage.setItem('token', data.token);
+      syncToken(data.token);                                   // ⚡ Sync Axios immediately
       localStorage.setItem('user', JSON.stringify(data.user));
       setUser(data.user);
       console.log(`🎟️ Guest session ready: ${data.user.guestTokenNo}`);
@@ -64,16 +64,16 @@ export const AuthProvider = ({ children }) => {
       throw new Error('Invalid login data received');
     }
 
+    syncToken(token);                                          // ⚡ Sync Axios immediately
     localStorage.setItem('user', JSON.stringify(userData));
-    localStorage.setItem('token', token);
     setUser(userData);
   };
 
   const logout = () => {
+    syncToken(null);                                           // ⚡ Clear Axios header immediately
     localStorage.removeItem('user');
     localStorage.removeItem('token');
     setUser(null);
-    // Re-initialize as guest after logout so the app never feels empty
     setTimeout(() => initializeGuest(), 300);
   };
 
