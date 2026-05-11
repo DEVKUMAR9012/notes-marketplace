@@ -9,17 +9,13 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
-import API from '../utils/api';
-import { syncToken } from '../utils/api';
+import API, { syncToken } from '../utils/api'; // ✅ Clean single import
 import { FiChevronDown, FiLoader } from 'react-icons/fi';
 
 // Auto-formats typing: inserts dashes at the right spots
 // Raw input "NM94872341" → "NM-9487-2341"
 function formatGuestPassInput(raw) {
-  // Strip everything except alphanumeric
   const clean = raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
-
-  // Enforce NM prefix
   let result = '';
   if (clean.startsWith('NM')) {
     result = 'NM';
@@ -27,7 +23,6 @@ function formatGuestPassInput(raw) {
     if (digits.length > 0) result += '-' + digits.slice(0, 4);
     if (digits.length > 4) result += '-' + digits.slice(4, 8);
   } else {
-    // If they haven't typed NM yet, let them type freely up to 2 chars
     result = clean.slice(0, 2);
   }
   return result;
@@ -45,8 +40,7 @@ export default function GuestPassResumeWidget() {
 
   const handleChange = (e) => {
     setError('');
-    const formatted = formatGuestPassInput(e.target.value);
-    setPassInput(formatted);
+    setPassInput(formatGuestPassInput(e.target.value));
   };
 
   const isComplete = /^NM-\d{4}-\d{4}$/.test(passInput);
@@ -59,12 +53,10 @@ export default function GuestPassResumeWidget() {
     setError('');
     try {
       const { data } = await API.post('/auth/resume-guest', { guestTokenNo: passInput });
-      // Sync Axios headers + localStorage + React state
       syncToken(data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
       login(data);
       setRestored(true);
-      // Brief success flash, then navigate home
       setTimeout(() => navigate('/'), 1400);
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Could not find that Guest Pass');
@@ -88,7 +80,7 @@ export default function GuestPassResumeWidget() {
         onClick={() => { setExpanded(!expanded); setError(''); }}
         whileHover={{ scale: 1.01 }}
         whileTap={{ scale: 0.99 }}
-        className="w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-violet-600/10 border border-violet-500/20 hover:border-violet-500/40 hover:bg-violet-600/15 transition-all group"
+        className="w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-violet-600/10 border border-violet-500/20 hover:border-violet-500/40 hover:bg-violet-600/15 transition-all"
       >
         <div className="flex items-center gap-2.5">
           <span className="text-lg leading-none">🎟️</span>
@@ -109,6 +101,7 @@ export default function GuestPassResumeWidget() {
       <AnimatePresence>
         {expanded && (
           <motion.div
+            key="guest-resume-panel"         // ✅ MANDATORY — prevents Framer Motion crash
             initial={{ opacity: 0, height: 0, y: -8 }}
             animate={{ opacity: 1, height: 'auto', y: 0 }}
             exit={{ opacity: 0, height: 0, y: -8 }}
@@ -146,10 +139,9 @@ export default function GuestPassResumeWidget() {
                           : 'border-white/10 text-white focus:border-violet-500/40'
                       }`}
                     />
-                    {/* Live dots indicator */}
+                    {/* Live 8-dot progress indicator */}
                     <div className="absolute right-3 top-1/2 -translate-y-1/2 flex gap-1">
                       {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => {
-                        // Count only digit chars in passInput
                         const digits = passInput.replace(/[^0-9]/g, '');
                         return (
                           <div
