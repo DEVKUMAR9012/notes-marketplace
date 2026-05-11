@@ -471,24 +471,24 @@ exports.phoneLogin = async (req, res) => {
   }
 };
 
-// ========== GUEST INIT (Silent Background Session) ==========
+// ========== SILENT GUEST INIT (Zero-Knowledge Background Session) ==========
 exports.guestInit = async (req, res) => {
   try {
-    // Generate a unique, fun 4-digit+4-digit token: NM-XXXX-YYYY
-    const guestTokenNo = `NM-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`;
-
+    // Create a minimal anonymous document — no visible identifier generated
     const guest = await User.create({
-      name: `Guest ${guestTokenNo}`,
+      name: 'Anonymous Student',
       role: 'guest',
       isGuest: true,
       isVerified: false,
-      guestTokenNo,
+      cart: [],
+      wishlist: [],
     });
 
     const token = generateToken(guest._id);
 
-    console.log(`🎟️  New guest session created: ${guestTokenNo}`);
+    console.log(`👻 Silent guest session created: ${guest._id}`);
 
+    // Return only what the client needs to manage state — no pass string
     res.status(201).json({
       success: true,
       token,
@@ -497,14 +497,14 @@ exports.guestInit = async (req, res) => {
         name: guest.name,
         role: 'guest',
         isGuest: true,
-        guestTokenNo: guest.guestTokenNo,
       }
     });
   } catch (error) {
-    console.error('Guest init error:', error);
+    console.error('Silent guest init error:', error);
     res.status(500).json({ success: false, message: 'Could not create guest session' });
   }
 };
+
 
 // ========== RESUME GUEST SESSION BY PASS TOKEN ==========
 exports.resumeGuestSession = async (req, res) => {

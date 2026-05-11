@@ -4,52 +4,73 @@ import API, { syncToken } from '../utils/api';
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [guestInitializing, setGuestInitializing] = useState(false);
-
-  // ── Silent Guest Initialization ──────────────────────────────────────────
-  const initializeGuest = useCallback(async () => {
-    if (localStorage.getItem('token')) return;
-    setGuestInitializing(true);
+  // Hydrate from localStorage immediately to avoid flicker
+  const [user, setUser] = useState(() => {
     try {
-      const { data } = await API.post('/auth/guest-init');
-      syncToken(data.token);                                   // ⚡ Sync Axios immediately
-      localStorage.setItem('user', JSON.stringify(data.user));
-      setUser(data.user);
-      console.log(`🎟️ Guest session ready: ${data.user.guestTokenNo}`);
-    } catch (err) {
-      console.error('Guest init failed — app works without session', err);
-    } finally {
-      setGuestInitializing(false);
+      const cached = localStorage.getItem('user');
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
     }
+  });
+  const [loading, setLoading] = useState(true);
+
+  // ── Background Session Engine ─────────────────────────────────────────────
+  // Called on mount. Three outcomes:
+  //   A) No token → create silent invisible guest session
+  //   B) Token exists + /auth/me succeeds → refresh user from server
+  //   C) Token exists + /auth/me fails (expired) → clear & re-create silent guest
+  const initializeSession = useCallback(async () => {
+    const token = localStorage.getItem('token');
+
+    if (!token) {
+      // ── A: Fresh visitor — create invisible ghost session ──────────────
+      try {
+        const { data } = await API.post('/auth/guest-init');
+        if (data?.success) {
+          syncToken(data.token);
+          localStorage.setItem('user', JSON.stringify(data.user));
+          setUser(data.user);
+        }
+      } catch {
+        // Silent fail — app works fine without a session
+      }
+    } else {
+      // ── B/C: Returning visitor — validate & refresh ────────────────────
+      syncToken(token); // Attach existing token to Axios first
+      try {
+        const { data } = await API.get('/auth/me');
+        const freshUser = data.user || data;
+        localStorage.setItem('user', JSON.stringify(freshUser));
+        setUser(freshUser);
+      } catch {
+        // ── C: Token expired/invalid → nuke it and start fresh ghost session
+        syncToken(null);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        setUser(null);
+        try {
+          const { data } = await API.post('/auth/guest-init');
+          if (data?.success) {
+            syncToken(data.token);
+            localStorage.setItem('user', JSON.stringify(data.user));
+            setUser(data.user);
+          }
+        } catch {
+          // Silent fail
+        }
+      }
+    }
+
+    setLoading(false);
   }, []);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    const token = localStorage.getItem('token');
+    initializeSession();
+  }, [initializeSession]);
 
-    if (storedUser && token) {
-      try {
-        setUser(JSON.parse(storedUser));
-        setLoading(false);
-      } catch (error) {
-        console.error('Failed to parse stored user:', error);
-        localStorage.removeItem('user');
-        localStorage.removeItem('token');
-        setLoading(false);
-        initializeGuest(); // Try to create fresh guest session
-      }
-    } else {
-      setLoading(false);
-      initializeGuest(); // No session at all — create guest
-    }
-  }, [initializeGuest]);
-
-  // ✅ FIXED: Handle both old and new response formats
+  // ── Login: handles both { user, token } and flat { _id, token, ... } shapes
   const login = (responseData) => {
-    console.log('Login response:', responseData);
-
     let userData, token;
 
     if (responseData.user && responseData.token) {
@@ -60,24 +81,25 @@ export const AuthProvider = ({ children }) => {
       userData = userInfo;
       token = authToken;
     } else {
-      console.error('Invalid login data format:', responseData);
-      throw new Error('Invalid login data received');
+      throw new Error('Invalid auth response format');
     }
 
-    syncToken(token);                                          // ⚡ Sync Axios immediately
+    syncToken(token);
     localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);
   };
 
+  // ── Logout: clear everything and silently re-init a ghost session
   const logout = () => {
-    syncToken(null);                                           // ⚡ Clear Axios header immediately
+    syncToken(null);
     localStorage.removeItem('user');
     localStorage.removeItem('token');
     setUser(null);
-    setTimeout(() => initializeGuest(), 300);
+    // Small delay to let route changes settle before creating new ghost session
+    setTimeout(() => initializeSession(), 300);
   };
 
-  // Helper to update user state (used after guest conversion or profile update)
+  // ── updateUser: merge partial data (used after profile edits) ─────────────
   const updateUser = (updatedData) => {
     const merged = { ...user, ...updatedData };
     localStorage.setItem('user', JSON.stringify(merged));
@@ -87,7 +109,16 @@ export const AuthProvider = ({ children }) => {
   const isGuest = user?.role === 'guest' || user?.isGuest === true;
 
   return (
-    <AuthContext.Provider value={{ user, setUser, loading, guestInitializing, login, logout, updateUser, isGuest, initializeGuest }}>
+    <AuthContext.Provider value={{
+      user,
+      setUser,
+      loading,
+      login,
+      logout,
+      updateUser,
+      isGuest,
+      initializeSession,
+    }}>
       {children}
     </AuthContext.Provider>
   );
@@ -95,8 +126,6 @@ export const AuthProvider = ({ children }) => {
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within AuthProvider');
   return context;
-};
+};

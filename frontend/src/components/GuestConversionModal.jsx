@@ -5,8 +5,9 @@ import { useAuth } from '../context/AuthContext';
 import API from '../utils/api';
 import {
   FiX, FiUser, FiMail, FiLock, FiEye, FiEyeOff, FiKey,
-  FiArrowRight, FiShield, FiGift, FiZap,
+  FiArrowRight, FiShield, FiGift,
 } from 'react-icons/fi';
+
 
 // Lightweight confetti burst
 const ConfettiBurst = () => {
@@ -207,12 +208,12 @@ export default function GuestConversionModal({ isOpen, onClose, triggerReason = 
                     {/* Header */}
                     <div className="flex flex-col items-center gap-2 mb-6 text-center">
                       <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-violet-600 to-fuchsia-600 flex items-center justify-center shadow-lg shadow-violet-900/40">
-                        <FiZap size={24} className="text-white" />
+                        <FiLock size={24} className="text-white" />
                       </div>
-                      <h2 className="text-xl font-extrabold text-white">Save Your Progress!</h2>
+                      <h2 className="text-xl font-extrabold text-white">Secure Your Work!</h2>
                       <p className="text-gray-400 text-sm leading-relaxed">
-                        Create a quick account to continue <span className="text-violet-400 font-semibold">{triggerReason}</span>.
-                        <br />Your cart & history stay intact. 🔒
+                        Create a secure account to continue <span className="text-violet-400 font-semibold">{triggerReason}</span>.
+                        <br />Your cart &amp; activity will be linked permanently. 🔒
                       </p>
                     </div>
 
