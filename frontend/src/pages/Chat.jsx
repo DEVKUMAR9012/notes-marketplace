@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
@@ -6,7 +6,7 @@ import { useSocket } from '../context/SocketContext';
 import API, { API_BASE_URL } from '../utils/api';
 import {
   FiSearch, FiPhone, FiMoreVertical, FiArrowLeft, FiSettings,
-  FiX, FiCheck, FiBell, FiShield, FiSliders, FiMaximize2, FiPhoneCall
+  FiX, FiCheck, FiBell, FiShield, FiSliders, FiMaximize2, FiPhoneCall, FiSend
 } from 'react-icons/fi';
 import './Chat.css';
 
@@ -86,18 +86,23 @@ const getAttachmentUrl = (url) => {
   return `${API_BASE_URL}${cleanUrl.startsWith('/') ? '' : '/'}${cleanUrl}`;
 };
 
-// ─── Custom Click-Outside Hook
+// ─── Custom Click-Outside Hook (with Escape key support)
 function useOnClickOutside(ref, handler) {
   useEffect(() => {
     const listener = (event) => {
       if (!ref.current || ref.current.contains(event.target)) return;
       handler(event);
     };
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') handler(event);
+    };
     document.addEventListener('mousedown', listener);
     document.addEventListener('touchstart', listener);
+    document.addEventListener('keydown', onKeyDown);
     return () => {
       document.removeEventListener('mousedown', listener);
       document.removeEventListener('touchstart', listener);
+      document.removeEventListener('keydown', onKeyDown);
     };
   }, [ref, handler]);
 }
@@ -197,6 +202,7 @@ export default function Chat() {
   const [unreadCounts, setUnreadCounts] = useState({});
   const [uploading, setUploading] = useState(false);
   const [warningMsg, setWarningMsg] = useState(null);
+  const [pendingForceSend, setPendingForceSend] = useState(''); // #2: original text before warning
   const [toast, setToast] = useState(null);
 
   // Groups buffer
@@ -248,14 +254,19 @@ export default function Chat() {
     toastTimerRef.current = setTimeout(() => setToast(null), 3000);
   };
 
-  const triggerSoundFeedback = (asset) => {
+  // #18: Pooled Audio instance — avoids new Audio() on every notification (prevents memory leaks)
+  const notificationAudioRef = useRef(null);
+  const triggerSoundFeedback = useCallback((asset) => {
     if (chatSettings.muteAlerts) return;
     try {
-      const audio = new Audio(`/sounds/${asset}`);
-      audio.volume = 0.5;
-      audio.play().catch(() => { });
-    } catch (e) { }
-  };
+      if (!notificationAudioRef.current || notificationAudioRef.current.src !== `/sounds/${asset}`) {
+        notificationAudioRef.current = new Audio(`/sounds/${asset}`);
+        notificationAudioRef.current.volume = 0.5;
+      }
+      notificationAudioRef.current.currentTime = 0;
+      notificationAudioRef.current.play().catch(() => {});
+    } catch { }
+  }, [chatSettings.muteAlerts]);
 
   // ─── Fetch catalogs
   useEffect(() => {
@@ -365,10 +376,22 @@ export default function Chat() {
       setConversations(prev => {
         const exists = prev.some(c => c._id === chatId);
         if (!exists) {
-          loadConversations();
+          // #4: fetch only the new conversation instead of full refetch
+          API.get(`/chat/${chatId}`)
+            .then(r => setConversations(p => [r.data.chat, ...p]))
+            .catch(() => loadConversations()); // fallback
           return prev;
         }
-        const updated = prev.map(c => c._id === chatId ? { ...c, lastMessage } : c);
+        // #1: guard lastMessage.text against nested object shape
+        const safeLastMsg = lastMessage
+          ? {
+              ...lastMessage,
+              text: typeof lastMessage.text === 'string'
+                ? lastMessage.text
+                : lastMessage.text?.text ?? '',
+            }
+          : lastMessage;
+        const updated = prev.map(c => c._id === chatId ? { ...c, lastMessage: safeLastMsg } : c);
         const chatIndex = updated.findIndex(c => c._id === chatId);
         if (chatIndex > 0) {
           const [moved] = updated.splice(chatIndex, 1);
@@ -407,7 +430,11 @@ export default function Chat() {
       }
     };
 
-    const onWarning = ({ text }) => { setWarningMsg(text); };
+    const onWarning = ({ text, originalText }) => {
+      // #2: store the original text separately so force_send sends the real content
+      setWarningMsg(text);
+      setPendingForceSend(originalText || inputText);
+    };
 
     const onMessagesDelivered = ({ chatId, deliveredTo }) => {
       const current = activeChatRef.current;
@@ -545,9 +572,11 @@ export default function Chat() {
   };
 
   const handleForceSend = () => {
-    if (!warningMsg || !activeChat || !socket) return;
-    socket.emit('force_send_message', { chatId: activeChat._id, text: warningMsg });
+    // #2: send pendingForceSend (original input), not the warning string
+    if (!pendingForceSend || !activeChat || !socket) return;
+    socket.emit('force_send_message', { chatId: activeChat._id, text: pendingForceSend });
     setWarningMsg(null);
+    setPendingForceSend('');
     setInputText('');
   };
 
@@ -565,7 +594,7 @@ export default function Chat() {
     typingTimeoutRef.current = setTimeout(() => {
       isTypingEmittedRef.current = false;
       socket.emit('typing_stop', { chatId: activeChat._id });
-    }, 1500);
+    }, 2500); // #19: 2500ms — avoids flicker on mobile autocorrect pauses
   };
 
   const sendQuickReply = (text) => {
@@ -666,13 +695,17 @@ export default function Chat() {
     return true;
   });
 
-  const displayedConversations = filteredConversations.filter(c => {
-    if (!sidebarSearchQuery) return true;
-    const isGrp = c.isGroupChat;
-    const other = !isGrp ? c.participants?.find(p => String(p._id) !== String(user?._id)) : null;
-    const title = isGrp ? c.chatName : other?.name;
-    return title?.toLowerCase().includes(sidebarSearchQuery.toLowerCase());
-  });
+  // #7: memoized — avoids recreating filter chain on every render
+  const displayedConversations = useMemo(() =>
+    filteredConversations.filter(c => {
+      if (!sidebarSearchQuery) return true;
+      const isGrp = c.isGroupChat;
+      const other = !isGrp ? c.participants?.find(p => String(p._id) !== String(user?._id)) : null;
+      const title = isGrp ? c.chatName : other?.name;
+      return title?.toLowerCase().includes(sidebarSearchQuery.toLowerCase());
+    }),
+    [filteredConversations, sidebarSearchQuery, user?._id]
+  );
 
   const isGroup = activeChat?.isGroupChat;
   const otherParticipant = !isGroup ? activeChat?.participants?.find(p => String(p._id) !== String(user?._id)) : null;
@@ -698,7 +731,7 @@ export default function Chat() {
             initial={{ opacity: 0, scale: 0.9, y: -50 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: -50 }}
-            className="absolute top-6 left-1/2 transform -translate-x-1/2 bg-[#1b1730] border-2 border-emerald-500/50 rounded-2xl p-5 shadow-2xl z-50 w-11/12 max-w-md flex flex-col items-center gap-3"
+            className="fixed top-6 left-1/2 transform -translate-x-1/2 bg-[#1b1730] border-2 border-emerald-500/50 rounded-2xl p-5 shadow-2xl z-[200] w-11/12 max-w-md flex flex-col items-center gap-3"
           >
             <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center animate-pulse">
               <FiPhoneCall className="text-emerald-400 text-xl" />
@@ -845,7 +878,12 @@ export default function Chat() {
                     <span className="contact-timestamp-label">{chat.lastMessage?.sentAt && formatTime(chat.lastMessage.sentAt)}</span>
                   </div>
                   <div className="contact-preview-label">
-                    {chat.lastMessage?.type === 'file' ? '📎 File attached' : chat.lastMessage?.text || 'No messages yet'}
+                    {/* #1: guard against object-shaped lastMessage.text */}
+                    {chat.lastMessage?.type === 'file'
+                      ? '📎 File attached'
+                      : (typeof chat.lastMessage?.text === 'string'
+                          ? chat.lastMessage.text
+                          : chat.lastMessage?.text?.text ?? 'No messages yet')}
                   </div>
                 </div>
                 {unread > 0 && (
@@ -961,7 +999,8 @@ export default function Chat() {
             </div>
 
             {/* ──────── MESSAGES BUFFER ──────── */}
-            <div className="chat-messages-scroll-area">
+            {/* #12: aria-live so screen readers announce incoming messages */}
+            <div className="chat-messages-scroll-area" aria-live="polite" aria-atomic="false">
               {msgLoading && <div className="loading-banner-pill">Loading conversation...</div>}
 
               {messages.map((msg, idx) => {
@@ -1088,8 +1127,8 @@ export default function Chat() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* PILL-SHAPED QUICK REPLIES */}
-            {messages.length < 5 && !isCurrentlyBlocked && (
+            {/* PILL-SHAPED QUICK REPLIES — show for first 3 messages or after 2+ days idle */}
+            {(messages.length < 3 || (messages.length > 0 && (Date.now() - new Date(messages[messages.length - 1]?.createdAt)) > 172800000)) && !isCurrentlyBlocked && (
               <div className="quick-replies-tray">
                 <button type="button" className="quick-reply-pill" onClick={() => sendQuickReply("Is this note still available?")}>
                   👋 Is this available?
@@ -1143,11 +1182,13 @@ export default function Chat() {
                       className="embedded-tool-btn"
                       onClick={() => fileInputRef.current?.click()}
                       aria-label="Attach document or image"
-                      title="Attach file"
+                      title="Attach image or PDF only"
                       disabled={uploading}
                     >
                       {uploading ? '⏳' : '📎'}
                     </button>
+                    {/* #14: format hint so users know .docx etc. are rejected */}
+                    <span className="text-[10px] text-gray-600 hidden sm:inline leading-none">img/PDF</span>
                     {/* Emoji picker — hidden until emoji-picker-react is installed */}
                   </div>
 
@@ -1170,7 +1211,7 @@ export default function Chat() {
                   <div className="embedded-tools-right" />
                 </div>
 
-                {/* CIRCULAR SEND BUTTON WITH ICON */}
+                {/* #17: FiSend SVG — crisp at all DPIs, replaces Unicode ➤ */}
                 <button
                   type="button"
                   className="circular-send-btn"
@@ -1178,7 +1219,7 @@ export default function Chat() {
                   aria-label="Submit typed message block"
                   title="Send Message"
                 >
-                  ➤
+                  <FiSend size={18} />
                 </button>
               </div>
             )}
@@ -1266,7 +1307,7 @@ export default function Chat() {
                 onClick={() => setShowSettingsModal(false)}
                 className="w-full bg-violet-600 hover:bg-violet-500 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition"
               >
-                <FiCheck /> Persist & Dismiss
+                <FiCheck /> Save Preferences
               </button>
             </motion.div>
           </motion.div>
