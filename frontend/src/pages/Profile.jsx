@@ -352,7 +352,7 @@ export default function Profile() {
           {/* Header Cover Image/Gradient */}
           <div className="h-40 sm:h-56 w-full relative overflow-hidden bg-[#1a103c]">
             {profile.headerImage ? (
-               <img src={profile.headerImage} alt="Cover" className="w-full h-full object-cover relative z-10" />
+               <img src={profile.headerImage} alt="Cover" className="w-full h-full object-cover relative z-0 border-b-2 border-teal-500/30" />
             ) : (
                <>
                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,_#4c1d95_0%,_transparent_50%)]" />
@@ -372,13 +372,13 @@ export default function Profile() {
             )}
           </div>
 
-          <div className="px-6 sm:px-8 pb-8 relative">
+          <div className="px-6 sm:px-8 pb-8 relative z-20">
             <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-6 -mt-16 sm:-mt-20 mb-4">
               
               {/* Avatar & Badges */}
               <div className="flex flex-col gap-3">
                 <div className="relative">
-                  <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full overflow-hidden border-4 border-[#07070f] bg-gradient-to-br from-violet-600 to-fuchsia-600 flex items-center justify-center shadow-xl">
+                  <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full overflow-hidden border-4 border-[#07070f] ring-2 ring-teal-500/50 bg-gradient-to-br from-violet-600 to-fuchsia-600 flex items-center justify-center shadow-2xl">
                     {avatarSrc && !avatarError ? (
                       <img src={avatarSrc} alt="Profile" className="w-full h-full object-cover" onError={() => setAvatarError(true)} />
                     ) : (

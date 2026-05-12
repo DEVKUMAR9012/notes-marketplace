@@ -1035,8 +1035,8 @@ const LiveChatsTab = () => {
           <div className="flex-1 overflow-y-auto">
             {loading ? [...Array(5)].map((_, i) => <div key={i} className="p-4"><Shimmer className="h-10" /></div>) :
               filtered.map(conv => (
-                <button key={conv._id} onClick={() => loadMessages(conv)}
-                  className={`w-full flex items-center gap-3 p-4 border-b border-white/[0.04] hover:bg-white/[0.04] transition text-left group ${selected?._id === conv._id ? 'bg-violet-500/10' : ''}`}>
+                <div key={conv._id} onClick={() => loadMessages(conv)}
+                  className={`w-full flex items-center gap-3 p-4 border-b border-white/[0.04] hover:bg-white/[0.04] transition text-left cursor-pointer group ${selected?._id === conv._id ? 'bg-violet-500/10' : ''}`}>
                   <div className="flex -space-x-2">
                     {conv.participants?.slice(0, 2).map((p) => <Avatar key={p._id || p.name} name={p.name} src={p.avatar} size={8} />)}
                   </div>
@@ -1046,11 +1046,11 @@ const LiveChatsTab = () => {
                     </p>
                     <p className="text-gray-500 text-xs truncate">{msgText(conv.lastMessage) || 'No messages'}</p>
                   </div>
-                  <button onClick={(e) => { e.stopPropagation(); setConfirmDelete({ id: conv._id, name: conv.participants?.map(p => p.name).join(' & ') }); }}
+                  <button type="button" onClick={(e) => { e.stopPropagation(); setConfirmDelete({ id: conv._id, name: conv.participants?.map(p => p.name).join(' & ') }); }}
                     className="p-1.5 rounded-lg hover:bg-red-500/20 text-transparent group-hover:text-gray-500 hover:!text-red-400 transition">
                     <FiTrash2 size={12} />
                   </button>
-                </button>
+                </div>
               ))
             }
           </div>

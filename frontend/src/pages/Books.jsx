@@ -1,5 +1,5 @@
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, forwardRef } from 'react';
 import {
   FiDownload, FiEye, FiStar, FiUser, FiMapPin,
   FiSearch, FiFilter, FiX, FiBook, FiTrendingUp,
@@ -263,7 +263,7 @@ const TiltCard = ({ children, className }) => {
 };
 
 // ─── NOTE CARD ────────────────────────────────────────────────────────────────
-const NoteCard = ({ note, onPreview, onBuy, onAddToCart, gradient, isWishlisted, onToggleWishlist }) => {
+const NoteCard = forwardRef(({ note, onPreview, onBuy, onAddToCart, gradient, isWishlisted, onToggleWishlist }, ref) => {
   const [hovered, setHovered] = useState(false);
   const [wishAnim, setWishAnim] = useState(false);
   const stars = Math.round(note.rating || 4);
@@ -278,7 +278,8 @@ const NoteCard = ({ note, onPreview, onBuy, onAddToCart, gradient, isWishlisted,
   };
 
   return (
-    <TiltCard className="group relative h-full">
+    <div ref={ref} className="h-full">
+      <TiltCard className="group relative h-full">
       <div className="absolute -inset-0.5 bg-gradient-to-r from-violet-600 via-fuchsia-500 to-pink-500 rounded-2xl blur opacity-0 group-hover:opacity-60 transition-all duration-500 pointer-events-none" />
       <motion.div
         className="relative bg-gray-900/90 backdrop-blur-xl rounded-2xl overflow-hidden border border-white/10 group-hover:border-white/20 transition-all duration-300 flex flex-col h-full"
@@ -377,9 +378,10 @@ const NoteCard = ({ note, onPreview, onBuy, onAddToCart, gradient, isWishlisted,
         </div>
         <div className="h-px bg-gradient-to-r from-violet-500 via-fuchsia-500 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
       </motion.div>
-    </TiltCard>
+      </TiltCard>
+    </div>
   );
-};
+});
 
 // ─── GRID SECTION ─────────────────────────────────────────────────────────────
 const Section = ({ notes, onPreview, onBuy, onAddToCart, wishlist, onToggleWishlist, gradients }) => (

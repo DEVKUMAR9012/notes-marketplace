@@ -25,6 +25,7 @@ const {
   getSettings,
   updateSettings
 } = require('../controllers/adminController');
+const { getEmailStats, getEmailLogs, sendMarketingCampaign } = require('../controllers/adminEmailController');
 
 // All routes require protection and admin role
 router.use(protect);
@@ -65,5 +66,10 @@ router.post('/contacts/:id/reply', replyToContact);
 // Platform Settings
 router.get('/settings', getSettings);
 router.put('/settings', updateSettings);
+
+// Email Dashboard
+router.get('/email/stats', getEmailStats);
+router.get('/email/logs', getEmailLogs);
+router.post('/email/campaign', sendMarketingCampaign);
 
 module.exports = router;

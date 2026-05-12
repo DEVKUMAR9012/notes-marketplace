@@ -232,7 +232,7 @@ export default function Register() {
             {authMethod === 'phone' && (
               <motion.div key="phone" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
                 <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 mb-5 text-center">
-                  <FiSmartphone className="inline mr-2 text-emerald-400" />
+                  <FiPhone className="inline mr-2 text-emerald-400" />
                   <span className="text-emerald-400 text-xs font-medium">No OTP needed — enter your name & phone and get in! ✅</span>
                 </div>
 

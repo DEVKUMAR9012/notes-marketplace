@@ -1,5 +1,5 @@
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, forwardRef } from 'react';
 import {
   FiDownload, FiEye, FiStar, FiUser, FiMapPin,
   FiSearch, FiFilter, FiX, FiBook, FiTrendingUp,
@@ -274,7 +274,7 @@ const TiltCard = ({ children, className }) => {
 };
 
 // ─── NOTE CARD ────────────────────────────────────────────────────────────────
-const NoteCard = ({ note, onPreview, onBuy, onAddToCart, gradient, isWishlisted, onToggleWishlist }) => {
+const NoteCard = forwardRef(({ note, onPreview, onBuy, onAddToCart, gradient, isWishlisted, onToggleWishlist }, ref) => {
   const [hovered, setHovered] = useState(false);
   const [wishAnim, setWishAnim] = useState(false);
   const [showAI, setShowAI] = useState(false);
@@ -291,202 +291,204 @@ const NoteCard = ({ note, onPreview, onBuy, onAddToCart, gradient, isWishlisted,
   };
 
   return (
-    <TiltCard className="group relative h-full">
-      <div className="absolute -inset-0.5 bg-gradient-to-r from-violet-600 via-fuchsia-500 to-pink-500 rounded-2xl blur opacity-0 group-hover:opacity-60 transition-all duration-500 pointer-events-none" />
-      <motion.div
-        className="relative bg-gray-900/90 backdrop-blur-xl rounded-2xl overflow-hidden border border-white/10 group-hover:border-white/20 transition-all duration-300 flex flex-col h-full"
-        onHoverStart={() => setHovered(true)}
-        onHoverEnd={() => setHovered(false)}
-      >
-        {/* Thumbnail */}
-        <div className="relative h-36 sm:h-52 flex-shrink-0 overflow-hidden">
-          <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`} />
-          <div className="absolute inset-0"><PDFThumbnail pdfUrl={note.pdfUrl} title={note.title} note={note} /></div>
+    <div ref={ref} className="h-full">
+      <TiltCard className="group relative h-full">
+        <div className="absolute -inset-0.5 bg-gradient-to-r from-violet-600 via-fuchsia-500 to-pink-500 rounded-2xl blur opacity-0 group-hover:opacity-60 transition-all duration-500 pointer-events-none" />
+        <motion.div
+          className="relative bg-gray-900/90 backdrop-blur-xl rounded-2xl overflow-hidden border border-white/10 group-hover:border-white/20 transition-all duration-300 flex flex-col h-full"
+          onHoverStart={() => setHovered(true)}
+          onHoverEnd={() => setHovered(false)}
+        >
+          {/* Thumbnail */}
+          <div className="relative h-36 sm:h-52 flex-shrink-0 overflow-hidden">
+            <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`} />
+            <div className="absolute inset-0"><PDFThumbnail pdfUrl={note.pdfUrl} title={note.title} note={note} /></div>
 
-          {/* Quick Action Overlay */}
-          <AnimatePresence>
-            {hovered && (
-              <motion.div
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                transition={{ duration: 0.18 }}
-                className="absolute inset-0 bg-black/70 backdrop-blur-sm z-10 flex items-center justify-center gap-3"
-              >
-                {[
-                  { icon: FiEye, label: 'Preview', cls: 'bg-white/15 hover:bg-white/25 border-white/20', fn: (e) => { e.stopPropagation(); onPreview(note); } },
-                  { icon: FiShoppingCart, label: 'Cart', cls: 'bg-indigo-600/80 hover:bg-indigo-700 border-indigo-500/50', fn: (e) => { e.stopPropagation(); onAddToCart(note); } },
-                  { icon: FiZap, label: note.price === 0 ? 'Get Free' : `₹${note.price}`, cls: 'bg-violet-600/80 hover:bg-violet-600 border-violet-500/50', fn: (e) => { e.stopPropagation(); onBuy(note); } },
-                  { icon: FiHeart, label: isWishlisted ? 'Saved' : 'Save', cls: isWishlisted ? 'bg-pink-600/80 hover:bg-pink-700 border-pink-500/50' : 'bg-white/10 hover:bg-pink-600/60 border-white/15', fn: handleWish },
-                ].map(({ icon: Icon, label, cls, fn }, i) => (
-                  <motion.button
-                    key={label}
-                    initial={{ opacity: 0, y: 18, scale: 0.8 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 10, scale: 0.85 }}
-                    transition={{ delay: i * 0.06, type: 'spring', stiffness: 380, damping: 22 }}
-                    whileHover={{ scale: 1.12, y: -3 }}
-                    whileTap={{ scale: 0.92 }}
-                    onClick={fn}
-                    className={`flex flex-col items-center justify-center gap-1.5 px-3 sm:px-4 py-3 sm:py-2.5 min-h-[44px] sm:min-h-auto rounded-xl border backdrop-blur text-white text-[10px] sm:text-[11px] font-bold transition-all ${cls}`}
-                  >
-                    <Icon className="text-base" />{label}
-                  </motion.button>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
+            {/* Quick Action Overlay */}
+            <AnimatePresence>
+              {hovered && (
+                <motion.div
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  transition={{ duration: 0.18 }}
+                  className="absolute inset-0 bg-black/70 backdrop-blur-sm z-10 flex items-center justify-center gap-3"
+                >
+                  {[
+                    { icon: FiEye, label: 'Preview', cls: 'bg-white/15 hover:bg-white/25 border-white/20', fn: (e) => { e.stopPropagation(); onPreview(note); } },
+                    { icon: FiShoppingCart, label: 'Cart', cls: 'bg-indigo-600/80 hover:bg-indigo-700 border-indigo-500/50', fn: (e) => { e.stopPropagation(); onAddToCart(note); } },
+                    { icon: FiZap, label: note.price === 0 ? 'Get Free' : `₹${note.price}`, cls: 'bg-violet-600/80 hover:bg-violet-600 border-violet-500/50', fn: (e) => { e.stopPropagation(); onBuy(note); } },
+                    { icon: FiHeart, label: isWishlisted ? 'Saved' : 'Save', cls: isWishlisted ? 'bg-pink-600/80 hover:bg-pink-700 border-pink-500/50' : 'bg-white/10 hover:bg-pink-600/60 border-white/15', fn: handleWish },
+                  ].map(({ icon: Icon, label, cls, fn }, i) => (
+                    <motion.button
+                      key={label}
+                      initial={{ opacity: 0, y: 18, scale: 0.8 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.85 }}
+                      transition={{ delay: i * 0.06, type: 'spring', stiffness: 380, damping: 22 }}
+                      whileHover={{ scale: 1.12, y: -3 }}
+                      whileTap={{ scale: 0.92 }}
+                      onClick={fn}
+                      className={`flex flex-col items-center justify-center gap-1.5 px-3 sm:px-4 py-3 sm:py-2.5 min-h-[44px] sm:min-h-auto rounded-xl border backdrop-blur text-white text-[10px] sm:text-[11px] font-bold transition-all ${cls}`}
+                    >
+                      <Icon className="text-base" />{label}
+                    </motion.button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-          {/* Price badge */}
-          <div className={`absolute top-3 right-3 z-20 px-2.5 py-1 rounded-lg text-xs font-bold backdrop-blur shadow-lg ${note.price === 0 ? 'bg-emerald-500/90' : 'bg-amber-500/90'} text-white`}>
-            {note.price === 0 ? '🎓 FREE' : `₹${note.price}`}
-          </div>
-
-          {/* Wishlist heart */}
-          <motion.button
-            animate={wishAnim ? { scale: [1, 1.6, 1] } : { scale: 1 }}
-            transition={{ duration: 0.4 }}
-            onClick={handleWish}
-            className="absolute top-3 left-3 z-20 p-1.5 rounded-lg bg-black/40 backdrop-blur hover:bg-black/60 transition"
-          >
-            <FiHeart className={`text-sm transition-colors duration-200 ${isWishlisted ? 'text-pink-500 fill-pink-500' : 'text-white/60'}`} />
-          </motion.button>
-
-          {/* Trend/TopRated badges */}
-          <div className="absolute bottom-3 left-3 z-20 flex gap-1.5 flex-wrap">
-            {isTrending && <span className="px-2 py-0.5 rounded-md bg-orange-500/85 text-white text-[10px] font-bold">🔥 Trending</span>}
-            {isTopRated && <span className="px-2 py-0.5 rounded-md bg-yellow-500/85 text-white text-[10px] font-bold">🏆 Top Rated</span>}
-          </div>
-          {(note.downloads || 0) > 0 && (
-            <div className="absolute bottom-3 right-3 z-20 flex items-center gap-1 px-2 py-0.5 rounded-md bg-black/55 text-white text-[10px]">
-              <FiDownload className="text-[9px]" />{note.downloads}
+            {/* Price badge */}
+            <div className={`absolute top-3 right-3 z-20 px-2.5 py-1 rounded-lg text-xs font-bold backdrop-blur shadow-lg ${note.price === 0 ? 'bg-emerald-500/90' : 'bg-amber-500/90'} text-white`}>
+              {note.price === 0 ? '🎓 FREE' : `₹${note.price}`}
             </div>
-          )}
-        </div>
 
-        {/* Content */}
-        <div className="p-4 flex flex-col flex-1">
-          <h3 className="font-bold text-sm text-white mb-2 line-clamp-2 leading-snug group-hover:text-fuchsia-300 transition-colors duration-300">
-            {note.title}
-          </h3>
-          <div className="flex flex-wrap gap-1.5 mb-3">
-            <span className={`text-[11px] px-2 py-0.5 rounded-full border ${
-              note.itemType === 'book' 
-                ? 'bg-pink-500/15 text-pink-300 border-pink-500/25'
-                : 'bg-violet-500/15 text-violet-300 border-violet-500/25'
-            }`}>
-              {note.itemType === 'book' ? '📚 Book' : '📝 Note'}
-            </span>
-            <span className="text-[11px] bg-white/5 text-gray-300 border border-white/10 px-2 py-0.5 rounded-full">
-              {note.subject || 'General'}
-            </span>
-            {note.itemType !== 'book' && note.semester && (
-              <span className="text-[11px] bg-blue-500/15 text-blue-300 border border-blue-500/25 px-2 py-0.5 rounded-full">
-                Sem {note.semester}
+            {/* Wishlist heart */}
+            <motion.button
+              animate={wishAnim ? { scale: [1, 1.6, 1] } : { scale: 1 }}
+              transition={{ duration: 0.4 }}
+              onClick={handleWish}
+              className="absolute top-3 left-3 z-20 p-1.5 rounded-lg bg-black/40 backdrop-blur hover:bg-black/60 transition"
+            >
+              <FiHeart className={`text-sm transition-colors duration-200 ${isWishlisted ? 'text-pink-500 fill-pink-500' : 'text-white/60'}`} />
+            </motion.button>
+
+            {/* Trend/TopRated badges */}
+            <div className="absolute bottom-3 left-3 z-20 flex gap-1.5 flex-wrap">
+              {isTrending && <span className="px-2 py-0.5 rounded-md bg-orange-500/85 text-white text-[10px] font-bold">🔥 Trending</span>}
+              {isTopRated && <span className="px-2 py-0.5 rounded-md bg-yellow-500/85 text-white text-[10px] font-bold">🏆 Top Rated</span>}
+            </div>
+            {(note.downloads || 0) > 0 && (
+              <div className="absolute bottom-3 right-3 z-20 flex items-center gap-1 px-2 py-0.5 rounded-md bg-black/55 text-white text-[10px]">
+                <FiDownload className="text-[9px]" />{note.downloads}
+              </div>
+            )}
+          </div>
+
+          {/* Content */}
+          <div className="p-4 flex flex-col flex-1">
+            <h3 className="font-bold text-sm text-white mb-2 line-clamp-2 leading-snug group-hover:text-fuchsia-300 transition-colors duration-300">
+              {note.title}
+            </h3>
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              <span className={`text-[11px] px-2 py-0.5 rounded-full border ${
+                note.itemType === 'book' 
+                  ? 'bg-pink-500/15 text-pink-300 border-pink-500/25'
+                  : 'bg-violet-500/15 text-violet-300 border-violet-500/25'
+              }`}>
+                {note.itemType === 'book' ? '📚 Book' : '📝 Note'}
               </span>
-            )}
-          </div>
-          <div className="space-y-1 mb-3 flex-1">
-            <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-              <FiUser className="text-[10px] flex-shrink-0" />
-              <span className="truncate">{note.sellerName || 'Anonymous'}</span>
-              {note.verified && <span className="ml-auto text-[10px] bg-blue-500/20 text-blue-400 px-1 rounded border border-blue-500/30 flex-shrink-0">✓</span>}
+              <span className="text-[11px] bg-white/5 text-gray-300 border border-white/10 px-2 py-0.5 rounded-full">
+                {note.subject || 'General'}
+              </span>
+              {note.itemType !== 'book' && note.semester && (
+                <span className="text-[11px] bg-blue-500/15 text-blue-300 border border-blue-500/25 px-2 py-0.5 rounded-full">
+                  Sem {note.semester}
+                </span>
+              )}
             </div>
-            <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
-              <FiMapPin className="text-[10px] flex-shrink-0" />
-              <span className="truncate">{note.college || 'Various Colleges'}</span>
+            <div className="space-y-1 mb-3 flex-1">
+              <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                <FiUser className="text-[10px] flex-shrink-0" />
+                <span className="truncate">{note.sellerName || 'Anonymous'}</span>
+                {note.verified && <span className="ml-auto text-[10px] bg-blue-500/20 text-blue-400 px-1 rounded border border-blue-500/30 flex-shrink-0">✓</span>}
+              </div>
+              <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
+                <FiMapPin className="text-[10px] flex-shrink-0" />
+                <span className="truncate">{note.college || 'Various Colleges'}</span>
+              </div>
             </div>
-          </div>
-          {/* AI Summary Button + Reveal */}
-          {note.aiSummary && (
-            <div className="mb-3">
-              <motion.button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowAI(!showAI);
-                  if (!showAI) {
-                    setAiSparkle(true);
-                    setTimeout(() => setAiSparkle(false), 600);
-                  }
-                }}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className={`relative w-full py-1.5 px-3 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1.5 transition-all overflow-hidden ${
-                  showAI 
-                    ? 'bg-violet-500/20 border border-violet-400/30 text-violet-300' 
-                    : 'bg-white/5 border border-white/10 text-gray-400 hover:text-violet-300 hover:border-violet-500/30 hover:bg-violet-500/10'
-                }`}
-              >
-                {/* Sparkle particles on click */}
+            {/* AI Summary Button + Reveal */}
+            {note.aiSummary && (
+              <div className="mb-3">
+                <motion.button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowAI(!showAI);
+                    if (!showAI) {
+                      setAiSparkle(true);
+                      setTimeout(() => setAiSparkle(false), 600);
+                    }
+                  }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className={`relative w-full py-1.5 px-3 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1.5 transition-all overflow-hidden ${
+                    showAI 
+                      ? 'bg-violet-500/20 border border-violet-400/30 text-violet-300' 
+                      : 'bg-white/5 border border-white/10 text-gray-400 hover:text-violet-300 hover:border-violet-500/30 hover:bg-violet-500/10'
+                  }`}
+                >
+                  {/* Sparkle particles on click */}
+                  <AnimatePresence>
+                    {aiSparkle && (
+                      <>
+                        {[...Array(6)].map((_, i) => (
+                          <motion.span
+                            key={i}
+                            initial={{ opacity: 1, scale: 0, x: 0, y: 0 }}
+                            animate={{ 
+                              opacity: 0, 
+                              scale: 1.5,
+                              x: (Math.random() - 0.5) * 80,
+                              y: (Math.random() - 0.5) * 40
+                            }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.6, ease: 'easeOut' }}
+                            className="absolute text-[8px] pointer-events-none"
+                            style={{ left: '50%', top: '50%' }}
+                          >
+                            ✨
+                          </motion.span>
+                        ))}
+                      </>
+                    )}
+                  </AnimatePresence>
+                  <span className={`transition-transform duration-300 ${showAI ? 'rotate-180' : ''}`}>
+                    {showAI ? '🤖' : '✨'}
+                  </span>
+                  {showAI ? 'Hide AI Summary' : 'AI Summary'}
+                  <span className="ml-auto text-[8px] text-violet-400/50">powered by Gemini</span>
+                </motion.button>
                 <AnimatePresence>
-                  {aiSparkle && (
-                    <>
-                      {[...Array(6)].map((_, i) => (
-                        <motion.span
-                          key={i}
-                          initial={{ opacity: 1, scale: 0, x: 0, y: 0 }}
-                          animate={{ 
-                            opacity: 0, 
-                            scale: 1.5,
-                            x: (Math.random() - 0.5) * 80,
-                            y: (Math.random() - 0.5) * 40
-                          }}
-                          exit={{ opacity: 0 }}
-                          transition={{ duration: 0.6, ease: 'easeOut' }}
-                          className="absolute text-[8px] pointer-events-none"
-                          style={{ left: '50%', top: '50%' }}
-                        >
-                          ✨
-                        </motion.span>
-                      ))}
-                    </>
+                  {showAI && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.3, ease: 'easeInOut' }}
+                      className="overflow-hidden"
+                    >
+                      <div className="mt-2 p-2.5 bg-gradient-to-br from-violet-500/10 via-fuchsia-500/5 to-transparent border border-violet-500/15 rounded-xl">
+                        <p className="text-[10px] text-violet-200/90 leading-relaxed">
+                          🤖 {note.aiSummary}
+                        </p>
+                      </div>
+                    </motion.div>
                   )}
                 </AnimatePresence>
-                <span className={`transition-transform duration-300 ${showAI ? 'rotate-180' : ''}`}>
-                  {showAI ? '🤖' : '✨'}
-                </span>
-                {showAI ? 'Hide AI Summary' : 'AI Summary'}
-                <span className="ml-auto text-[8px] text-violet-400/50">powered by Gemini</span>
-              </motion.button>
-              <AnimatePresence>
-                {showAI && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.3, ease: 'easeInOut' }}
-                    className="overflow-hidden"
-                  >
-                    <div className="mt-2 p-2.5 bg-gradient-to-br from-violet-500/10 via-fuchsia-500/5 to-transparent border border-violet-500/15 rounded-xl">
-                      <p className="text-[10px] text-violet-200/90 leading-relaxed">
-                        🤖 {note.aiSummary}
-                      </p>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              </div>
+            )}
+            <div className="flex items-center gap-0.5 mb-4">
+              {[1,2,3,4,5].map(s => <FiStar key={s} className={`text-[10px] ${s <= stars ? 'text-yellow-400 fill-yellow-400' : 'text-gray-700'}`} />)}
+              <span className="text-[10px] text-gray-600 ml-1">({note.reviews || 0})</span>
             </div>
-          )}
-          <div className="flex items-center gap-0.5 mb-4">
-            {[1,2,3,4,5].map(s => <FiStar key={s} className={`text-[10px] ${s <= stars ? 'text-yellow-400 fill-yellow-400' : 'text-gray-700'}`} />)}
-            <span className="text-[10px] text-gray-600 ml-1">({note.reviews || 0})</span>
+            <div className="flex gap-2 sm:gap-3">
+              <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                onClick={() => onPreview(note)}
+                className="flex-1 bg-white/8 hover:bg-white/15 border border-white/10 text-white py-2.5 sm:py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all min-h-[44px] sm:min-h-auto">
+                <FiEye /> Preview
+              </motion.button>
+              <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                onClick={() => onBuy(note)}
+                className={`flex-1 py-2.5 sm:py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-lg text-white min-h-[44px] sm:min-h-auto ${note.price === 0 ? 'bg-gradient-to-r from-emerald-500 to-green-500' : 'bg-gradient-to-r from-violet-600 to-fuchsia-600'}`}>
+                <FiDownload /> {note.price === 0 ? 'Free' : 'Buy'}
+              </motion.button>
+            </div>
           </div>
-          <div className="flex gap-2 sm:gap-3">
-            <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-              onClick={() => onPreview(note)}
-              className="flex-1 bg-white/8 hover:bg-white/15 border border-white/10 text-white py-2.5 sm:py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all min-h-[44px] sm:min-h-auto">
-              <FiEye /> Preview
-            </motion.button>
-            <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-              onClick={() => onBuy(note)}
-              className={`flex-1 py-2.5 sm:py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-lg text-white min-h-[44px] sm:min-h-auto ${note.price === 0 ? 'bg-gradient-to-r from-emerald-500 to-green-500' : 'bg-gradient-to-r from-violet-600 to-fuchsia-600'}`}>
-              <FiDownload /> {note.price === 0 ? 'Free' : 'Buy'}
-            </motion.button>
-          </div>
-        </div>
-        <div className="h-px bg-gradient-to-r from-violet-500 via-fuchsia-500 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-      </motion.div>
-    </TiltCard>
+          <div className="h-px bg-gradient-to-r from-violet-500 via-fuchsia-500 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        </motion.div>
+      </TiltCard>
+    </div>
   );
-};
+});
 
 // ─── GRID SECTION ─────────────────────────────────────────────────────────────
 const Section = ({ notes, onPreview, onBuy, onAddToCart, wishlist, onToggleWishlist, gradients }) => (
