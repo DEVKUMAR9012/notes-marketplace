@@ -671,8 +671,13 @@ exports.convertGuestToUser = async (req, res) => {
 };
 
 // ========== GOOGLE ONE-TAP SIGN-IN / SIGN-UP ==========
+// Edge cases handled:
+//  1. Guest cart absorption — orphan guest cart merged into real account, guest doc deleted
+//  2. Account linking collision — standard email → Google link is silent, no duplicate
+//  3. (Rate limiting handled on the route layer via express-rate-limit)
+//  4. Unverified/private email guard — rejected at entry
 exports.googleOneTapLogin = async (req, res) => {
-  const { credential } = req.body;
+  const { credential, guestId } = req.body;
 
   if (!credential) {
     return res.status(400).json({ success: false, message: 'Google credential missing.' });
@@ -682,20 +687,27 @@ exports.googleOneTapLogin = async (req, res) => {
   }
 
   try {
-    // 1. Verify token server-side — never trust the client payload directly
+    // ── Step 1: Verify token server-side (never trust client payload) ───────────
     const ticket = await googleClient.verifyIdToken({
       idToken: credential,
       audience: process.env.GOOGLE_CLIENT_ID,
     });
-    const { email, name, picture, email_verified, sub: googleId } = ticket.getPayload();
+    const { email, name, picture, email_verified } = ticket.getPayload();
 
-    // 2. Find existing user or create silently (upsert)
+    // ── Fix #4: Reject masked / unverified social emails immediately ─────────────
+    if (!email || email_verified === false) {
+      return res.status(400).json({
+        success: false,
+        message: 'Google account email is unverified or private. Please use standard registration.',
+      });
+    }
+
+    // ── Step 2: Resolve the permanent account (upsert logic) ────────────────────
     let user = await User.findOne({ email });
     let isNewUser = false;
 
     if (!user) {
-      // Convert an active guest session if the caller sends their guestId
-      const { guestId } = req.body;
+      // ── Path A: No existing account → try to upgrade the active guest session ──
       if (guestId) {
         user = await User.findByIdAndUpdate(
           guestId,
@@ -705,41 +717,75 @@ exports.googleOneTapLogin = async (req, res) => {
               email,
               avatar: picture,
               authProvider: 'google',
-              isEmailVerified: !!email_verified,
-              isVerified: true,          // bypass OTP gate for social logins
+              isEmailVerified: true,
+              isVerified: true,
               role: 'user',
               isGuest: false,
             },
           },
           { new: true }
         );
+        // Guest document itself IS the permanent account now — no merge needed
       }
 
-      // Fallback: create a brand-new user
+      // ── Path B: No guest session → create a fresh account ───────────────────
       if (!user) {
         user = await User.create({
           name,
           email,
           avatar: picture,
           authProvider: 'google',
-          isEmailVerified: !!email_verified,
+          isEmailVerified: true,
           isVerified: true,
           role: 'user',
           cart: [],
           wishlist: [],
         });
         isNewUser = true;
+
+        // ── Fix #1 (new user branch): merge orphan guest cart if guestId provided ─
+        if (guestId) {
+          const ghost = await User.findById(guestId);
+          if (ghost?.cart?.length) {
+            await User.findByIdAndUpdate(user._id, {
+              $addToSet: { cart: { $each: ghost.cart } },
+            });
+          }
+          // Clean up orphan guest document regardless of cart state
+          await User.findByIdAndDelete(guestId).catch(() => {});
+        }
       }
-    } else if (user.authProvider === 'standard') {
-      // Existing standard account — link Google to it silently
-      user.authProvider = 'google';
-      user.isEmailVerified = !!email_verified;
-      user.isVerified = true;
-      if (!user.avatar && picture) user.avatar = picture;
-      await user.save();
+    } else {
+      // ── Path C: Account already exists (same email) ──────────────────────────
+      // Fix #2: silent link — no collision error, just upgrade the provider fields
+      const needsSave =
+        user.authProvider === 'standard' ||
+        !user.isEmailVerified ||
+        !user.isVerified ||
+        (!user.avatar && picture);
+
+      if (needsSave) {
+        user.authProvider = 'google';
+        user.isEmailVerified = true;
+        user.isVerified = true;
+        if (!user.avatar && picture) user.avatar = picture;
+        await user.save();
+      }
+
+      // ── Fix #1 (returning user branch): still merge guest cart if present ────
+      if (guestId && String(guestId) !== String(user._id)) {
+        const ghost = await User.findById(guestId);
+        if (ghost?.cart?.length) {
+          await User.findByIdAndUpdate(user._id, {
+            $addToSet: { cart: { $each: ghost.cart } },
+          });
+        }
+        // Remove the orphan ghost document
+        await User.findByIdAndDelete(guestId).catch(() => {});
+      }
     }
 
-    // 3. Capture session metadata (non-blocking)
+    // ── Step 3: Capture session metadata (non-blocking) ─────────────────────────
     const metadata = await getSessionMetadata(req);
     User.findByIdAndUpdate(user._id, {
       lastLogin: new Date(),
@@ -747,7 +793,7 @@ exports.googleOneTapLogin = async (req, res) => {
     }).catch(() => {});
 
     const token = generateToken(user._id);
-    console.log(`🔑 Google One-Tap ${isNewUser ? 'SIGNUP' : 'LOGIN'}: ${email}`);
+    console.log(`🔑 Google One-Tap ${isNewUser ? 'SIGNUP' : 'LOGIN'}: ${email} | cart merged from guest: ${guestId || 'none'}`);
 
     res.status(200).json({
       success: true,
@@ -767,4 +813,5 @@ exports.googleOneTapLogin = async (req, res) => {
     console.error('Google One-Tap error:', err.message);
     res.status(400).json({ success: false, message: 'Google verification failed. Please try again.' });
   }
-};
+};
+
