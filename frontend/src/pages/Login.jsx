@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
@@ -21,7 +21,11 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [retryAttempt, setRetryAttempt] = useState(0);
-  
+
+  // Bug 2 fix: guard setState calls after component unmount
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
+
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -64,12 +68,13 @@ export default function Login() {
         login(data);
         navigate('/');
       } else {
-        // Phone login - simplified since onChange already ensures digits
-        if (phone.length < 10) {
+        // Bug 3 fix: strip non-digits and country prefix before length check
+        const cleanPhone = phone.replace(/\D/g, '').replace(/^91/, '').replace(/^0/, '');
+        if (cleanPhone.length !== 10) {
           throw new Error('Please enter a valid 10-digit mobile number');
         }
         const { data } = await retryWithBackoff(async () => {
-          return await API.post('/auth/phone-login', { phone: phone });
+          return await API.post('/auth/phone-login', { phone: cleanPhone });
         }, 3);
         login(data);
         navigate('/');
@@ -131,9 +136,13 @@ export default function Login() {
         await API.post('/auth/reset-password', { email, otp, newPassword });
       }, 3);
       setSuccess('Password reset successfully! You can now login.');
+      setOtp('');
+      setNewPassword('');
       setPassword('');
       setStep('login');
-      setTimeout(() => setSuccess(''), 3000);
+      // Bug 2 fix: guard against setState-after-unmount
+      const t = setTimeout(() => { if (mountedRef.current) setSuccess(''); }, 3000);
+      return () => clearTimeout(t);
     } catch (err) {
       const errorMsg = err.response?.data?.message || err.message || 'Reset failed';
       setError(errorMsg);
@@ -372,7 +381,7 @@ export default function Login() {
                   
                   <button
                     type="button"
-                    onClick={() => { setError(''); setStep('login'); }}
+                    onClick={() => { setError(''); setOtp(''); setNewPassword(''); setStep('login'); }}
                     className="w-full py-3 text-sm font-medium text-gray-400 hover:text-white transition-colors flex items-center justify-center gap-2"
                   >
                     <FiArrowLeft /> Back to login
@@ -421,7 +430,7 @@ export default function Login() {
                       maxLength="6"
                       value={otp}
                       onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                      className="w-full text-center tracking-[1em] font-mono text-xl py-3.5 bg-gray-950/50 border border-emerald-500/30 rounded-xl text-emerald-400 placeholder-gray-600 focus:outline-none focus:border-emerald-500 transition-colors"
+                      className="w-full text-center tracking-widest font-mono text-xl py-3.5 bg-gray-950/50 border border-emerald-500/30 rounded-xl text-emerald-400 placeholder-gray-600 focus:outline-none focus:border-emerald-500 transition-colors"
                       placeholder="------"
                       aria-label="6-digit reset code"
                       required
@@ -458,7 +467,7 @@ export default function Login() {
                   
                   <button
                     type="button"
-                    onClick={() => { setError(''); setStep('login'); }}
+                    onClick={() => { setError(''); setOtp(''); setNewPassword(''); setStep('login'); }}
                     className="w-full py-3 text-sm font-medium text-gray-400 hover:text-white transition-colors flex items-center justify-center gap-2"
                   >
                     <FiArrowLeft /> Cancel

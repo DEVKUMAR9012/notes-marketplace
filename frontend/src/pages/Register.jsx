@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import API, { warmupServer } from '../utils/api';
 import {
   FiUser, FiMail, FiLock, FiEye, FiEyeOff, FiUserPlus,
-  FiHome, FiKey, FiArrowLeft, FiPhone, FiSmartphone, FiGift
+  FiHome, FiKey, FiArrowLeft, FiPhone, FiGift
 } from 'react-icons/fi';
 
 export default function Register() {
@@ -19,7 +19,9 @@ export default function Register() {
   // Phone form (simple - no OTP)
   const [phoneData, setPhoneData] = useState({ name: '', phone: '', college: '' });
 
-  const [showPassword, setShowPassword] = useState(false);
+  // Bug 5: separate toggles so password reveal doesn't expose confirmPassword
+  const [showPass, setShowPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
@@ -262,7 +264,7 @@ export default function Register() {
 
                   <button type="submit" disabled={loading}
                     className="w-full bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white py-4 rounded-xl font-bold shadow-[0_0_15px_rgba(139,92,246,0.3)] hover:shadow-[0_0_25px_rgba(139,92,246,0.5)] transition-all disabled:opacity-50 mt-2 flex items-center justify-center gap-2">
-                    {loading ? 'Please wait...' : <><FiPhone size={16} /> Enter Website</>}
+                    {loading ? 'Please wait...' : <><FiPhone size={16} /> Register</>}
                   </button>
                 </form>
 
@@ -290,25 +292,29 @@ export default function Register() {
                   </div>
                   <div className="relative">
                     <FiLock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
-                    <input type={showPassword ? 'text' : 'password'} name="password" value={formData.password} onChange={handleChange} disabled={loading}
+                    <input type={showPass ? 'text' : 'password'} name="password" value={formData.password} onChange={handleChange} disabled={loading}
                       className="w-full pl-10 pr-12 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-violet-500 transition-colors disabled:opacity-50"
                       placeholder="Password" required />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white">
-                      {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                    <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white">
+                      {showPass ? <FiEyeOff size={18} /> : <FiEye size={18} />}
                     </button>
                   </div>
                   {formData.password.length > 0 && (
                     <div className="flex gap-1">
-                      <div className={`h-1 flex-1 rounded-full transition-colors ${passwordStrength >= 1 ? 'bg-green-500' : 'bg-gray-700'}`} />
-                      <div className={`h-1 flex-1 rounded-full transition-colors ${passwordStrength >= 2 ? 'bg-green-500' : 'bg-gray-700'}`} />
+                      {/* Strength bar: 1=red, 2=amber, 3=green */}
+                      <div className={`h-1 flex-1 rounded-full transition-colors ${passwordStrength >= 1 ? (passwordStrength === 1 ? 'bg-red-500' : passwordStrength === 2 ? 'bg-amber-400' : 'bg-green-500') : 'bg-gray-700'}`} />
+                      <div className={`h-1 flex-1 rounded-full transition-colors ${passwordStrength >= 2 ? (passwordStrength === 2 ? 'bg-amber-400' : 'bg-green-500') : 'bg-gray-700'}`} />
                       <div className={`h-1 flex-1 rounded-full transition-colors ${passwordStrength >= 3 ? 'bg-green-500' : 'bg-gray-700'}`} />
                     </div>
                   )}
                   <div className="relative">
                     <FiLock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
-                    <input type={showPassword ? 'text' : 'password'} name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} disabled={loading}
+                    <input type={showConfirmPass ? 'text' : 'password'} name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} disabled={loading}
                       className="w-full pl-10 pr-12 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-violet-500 transition-colors disabled:opacity-50"
                       placeholder="Confirm Password" required />
+                    <button type="button" onClick={() => setShowConfirmPass(!showConfirmPass)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white">
+                      {showConfirmPass ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                    </button>
                   </div>
                   <div className="relative">
                     <FiHome className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />

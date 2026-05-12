@@ -1,14 +1,14 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useReducer } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FiUsers, FiFileText, FiPackage, FiDollarSign, FiActivity,
   FiMail, FiShield, FiAlertTriangle, FiMenu, FiRefreshCw,
   FiArrowUpRight, FiArrowDownRight, FiChevronRight, FiZap,
-  FiSearch, FiEye, FiEyeOff, FiLock, FiUnlock, FiTrash2,
-  FiCheck, FiX, FiMessageSquare, FiSend, FiDownload,
+  FiSearch, FiEye, FiLock, FiUnlock, FiTrash2,
+  FiCheck, FiX, FiMessageSquare, FiSend,
   FiSettings, FiFilter, FiMoreVertical, FiFlag, FiCheckCircle,
-  FiXCircle, FiAlertCircle, FiClock, FiCreditCard, FiBarChart2,
-  FiBell, FiKey, FiUser, FiLogOut, FiEdit2, FiExternalLink, FiPieChart
+  FiXCircle, FiAlertCircle, FiClock, FiCreditCard,
+  FiKey, FiUser, FiExternalLink, FiPieChart
 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import API from '../utils/api';
@@ -21,7 +21,8 @@ function useCountUp(target, duration = 1200, enabled = true) {
   const [value, setValue] = useState(0);
   const frameRef = useRef(null);
   useEffect(() => {
-    if (!enabled || !target) return;
+    // Bug 9: target===undefined|null guard — allows 0 to still animate
+    if (!enabled || target === undefined || target === null) return;
     const start = performance.now();
     const animate = (now) => {
       const progress = Math.min((now - start) / duration, 1);
@@ -253,6 +254,13 @@ const Overview = ({ onTabChange }) => {
   };
 
   useEffect(() => { fetchData(); }, []);
+
+  // Bug 8: tick 'Updated Xs ago' every 10 s without a stale closure
+  const [, forceUpdate] = useReducer(x => x + 1, 0);
+  useEffect(() => {
+    const id = setInterval(forceUpdate, 10000);
+    return () => clearInterval(id);
+  }, []);
 
   if (loading) return (
     <div className="space-y-6 pt-4">
