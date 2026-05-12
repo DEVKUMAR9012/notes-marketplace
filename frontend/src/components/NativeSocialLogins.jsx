@@ -18,6 +18,11 @@ import API, { syncToken } from '../utils/api';
 
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 
+// Only treat it as valid if it's a real Google credential format
+const isValidClientId =
+  typeof GOOGLE_CLIENT_ID === 'string' &&
+  GOOGLE_CLIENT_ID.endsWith('.apps.googleusercontent.com');
+
 export default function NativeSocialLogins() {
   const { login, user, isGuest } = useAuth();
   const navigate = useNavigate();
@@ -25,8 +30,8 @@ export default function NativeSocialLogins() {
   useEffect(() => {
     // Don't prompt if user is already fully logged in
     if (user && !isGuest) return;
-    if (!GOOGLE_CLIENT_ID) {
-      console.warn('NativeSocialLogins: REACT_APP_GOOGLE_CLIENT_ID not set. One-Tap disabled.');
+    if (!isValidClientId) {
+      // Placeholder not yet replaced — skip silently, no console error spam
       return;
     }
 
