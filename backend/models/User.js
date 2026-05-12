@@ -144,7 +144,16 @@ const userSchema = new mongoose.Schema({
     default: 'user'
   },
   isGuest: { type: Boolean, default: false },
-  guestTokenNo: { type: String, unique: true, sparse: true }, // e.g. "NM-7482-9102"
+  guestTokenNo: { type: String, unique: true, sparse: true },
+
+  // ─── Auth Provider ───────────────────────────────────────────────────────────
+  authProvider: {
+    type: String,
+    enum: ['standard', 'google', 'instagram', 'guest'],
+    default: 'standard',
+  },
+  isEmailVerified: { type: Boolean, default: false }, // social logins: true on creation
+
   isVerified: {
     type: Boolean,
     default: false

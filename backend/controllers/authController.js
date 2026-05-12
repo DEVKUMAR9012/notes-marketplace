@@ -3,6 +3,9 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const axios = require('axios');
 const { UAParser } = require('ua-parser-js');
+const { OAuth2Client } = require('google-auth-library');
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // ── Session Metadata Helper ─────────────────────────────────────────────────
 // Extracts IP, browser, OS, and geo-location for every login/init event.
@@ -666,3 +669,102 @@ exports.convertGuestToUser = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// ========== GOOGLE ONE-TAP SIGN-IN / SIGN-UP ==========
+exports.googleOneTapLogin = async (req, res) => {
+  const { credential } = req.body;
+
+  if (!credential) {
+    return res.status(400).json({ success: false, message: 'Google credential missing.' });
+  }
+  if (!process.env.GOOGLE_CLIENT_ID) {
+    return res.status(500).json({ success: false, message: 'GOOGLE_CLIENT_ID not configured on server.' });
+  }
+
+  try {
+    // 1. Verify token server-side — never trust the client payload directly
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    const { email, name, picture, email_verified, sub: googleId } = ticket.getPayload();
+
+    // 2. Find existing user or create silently (upsert)
+    let user = await User.findOne({ email });
+    let isNewUser = false;
+
+    if (!user) {
+      // Convert an active guest session if the caller sends their guestId
+      const { guestId } = req.body;
+      if (guestId) {
+        user = await User.findByIdAndUpdate(
+          guestId,
+          {
+            $set: {
+              name,
+              email,
+              avatar: picture,
+              authProvider: 'google',
+              isEmailVerified: !!email_verified,
+              isVerified: true,          // bypass OTP gate for social logins
+              role: 'user',
+              isGuest: false,
+            },
+          },
+          { new: true }
+        );
+      }
+
+      // Fallback: create a brand-new user
+      if (!user) {
+        user = await User.create({
+          name,
+          email,
+          avatar: picture,
+          authProvider: 'google',
+          isEmailVerified: !!email_verified,
+          isVerified: true,
+          role: 'user',
+          cart: [],
+          wishlist: [],
+        });
+        isNewUser = true;
+      }
+    } else if (user.authProvider === 'standard') {
+      // Existing standard account — link Google to it silently
+      user.authProvider = 'google';
+      user.isEmailVerified = !!email_verified;
+      user.isVerified = true;
+      if (!user.avatar && picture) user.avatar = picture;
+      await user.save();
+    }
+
+    // 3. Capture session metadata (non-blocking)
+    const metadata = await getSessionMetadata(req);
+    User.findByIdAndUpdate(user._id, {
+      lastLogin: new Date(),
+      lastLoginMetadata: metadata,
+    }).catch(() => {});
+
+    const token = generateToken(user._id);
+    console.log(`🔑 Google One-Tap ${isNewUser ? 'SIGNUP' : 'LOGIN'}: ${email}`);
+
+    res.status(200).json({
+      success: true,
+      isNewUser,
+      token,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        avatar: user.avatar,
+        role: user.role,
+        authProvider: user.authProvider,
+        isEmailVerified: user.isEmailVerified,
+      },
+    });
+  } catch (err) {
+    console.error('Google One-Tap error:', err.message);
+    res.status(400).json({ success: false, message: 'Google verification failed. Please try again.' });
+  }
+};
