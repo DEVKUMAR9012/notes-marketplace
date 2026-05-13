@@ -1,0 +1,118 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f0a1e"/>
+      <stop offset="50%" style="stop-color:#1a0e35"/>
+      <stop offset="100%" style="stop-color:#0d1a2e"/>
+    </linearGradient>
+    <radialGradient id="glow1" cx="30%" cy="40%" r="50%">
+      <stop offset="0%" style="stop-color:#7c3aed;stop-opacity:0.35"/>
+      <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="80%" cy="70%" r="45%">
+      <stop offset="0%" style="stop-color:#2563eb;stop-opacity:0.25"/>
+      <stop offset="100%" style="stop-color:#2563eb;stop-opacity:0"/>
+    </radialGradient>
+    <linearGradient id="badge" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#7c3aed"/>
+      <stop offset="100%" style="stop-color:#4f46e5"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.07"/>
+      <stop offset="100%" style="stop-color:#ffffff;stop-opacity:0.02"/>
+    </linearGradient>
+    <linearGradient id="pill" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#a78bfa"/>
+      <stop offset="100%" style="stop-color:#818cf8"/>
+    </linearGradient>
+    <filter id="blur1"><feGaussianBlur stdDeviation="60"/></filter>
+    <filter id="blur2"><feGaussianBlur stdDeviation="40"/></filter>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <ellipse cx="360" cy="252" rx="400" ry="350" fill="url(#glow1)" filter="url(#blur1)"/>
+  <ellipse cx="960" cy="441" rx="350" ry="300" fill="url(#glow2)" filter="url(#blur2)"/>
+
+  <g opacity="0.06" stroke="#ffffff" stroke-width="1">
+    <line x1="0" y1="105" x2="1200" y2="105"/><line x1="0" y1="210" x2="1200" y2="210"/>
+    <line x1="0" y1="315" x2="1200" y2="315"/><line x1="0" y1="420" x2="1200" y2="420"/>
+    <line x1="0" y1="525" x2="1200" y2="525"/>
+    <line x1="200" y1="0" x2="200" y2="630"/><line x1="400" y1="0" x2="400" y2="630"/>
+    <line x1="600" y1="0" x2="600" y2="630"/><line x1="800" y1="0" x2="800" y2="630"/>
+    <line x1="1000" y1="0" x2="1000" y2="630"/>
+  </g>
+
+  <g transform="translate(780, 140) rotate(-8)">
+    <rect width="340" height="200" rx="16" fill="url(#card)" stroke="#ffffff" stroke-opacity="0.08" stroke-width="1"/>
+    <rect x="20" y="20" width="120" height="10" rx="5" fill="#7c3aed" opacity="0.5"/>
+    <rect x="20" y="44" width="300" height="6" rx="3" fill="#ffffff" opacity="0.12"/>
+    <rect x="20" y="58" width="260" height="6" rx="3" fill="#ffffff" opacity="0.12"/>
+    <rect x="20" y="72" width="280" height="6" rx="3" fill="#ffffff" opacity="0.12"/>
+    <rect x="20" y="100" width="90" height="6" rx="3" fill="#a78bfa" opacity="0.3"/>
+    <rect x="20" y="114" width="300" height="6" rx="3" fill="#ffffff" opacity="0.08"/>
+    <rect x="20" y="128" width="240" height="6" rx="3" fill="#ffffff" opacity="0.08"/>
+  </g>
+
+  <g transform="translate(820, 200) rotate(3)">
+    <rect width="340" height="200" rx="16" fill="url(#card)" stroke="#ffffff" stroke-opacity="0.1" stroke-width="1"/>
+    <rect x="20" y="20" width="90" height="10" rx="5" fill="#4f46e5" opacity="0.6"/>
+    <rect x="20" y="44" width="300" height="6" rx="3" fill="#ffffff" opacity="0.15"/>
+    <rect x="20" y="58" width="200" height="6" rx="3" fill="#ffffff" opacity="0.15"/>
+    <rect x="20" y="72" width="280" height="6" rx="3" fill="#ffffff" opacity="0.15"/>
+    <rect x="20" y="100" width="100" height="6" rx="3" fill="#818cf8" opacity="0.4"/>
+    <rect x="20" y="114" width="300" height="6" rx="3" fill="#ffffff" opacity="0.1"/>
+    <rect x="20" y="128" width="180" height="6" rx="3" fill="#ffffff" opacity="0.1"/>
+  </g>
+
+  <g transform="translate(760, 260) rotate(-2)">
+    <rect width="360" height="220" rx="16" fill="#1e1245" stroke="#7c3aed" stroke-opacity="0.4" stroke-width="1.5"/>
+    <rect x="0" y="0" width="360" height="220" rx="16" fill="url(#card)"/>
+    <rect x="20" y="20" width="110" height="24" rx="12" fill="url(#badge)" opacity="0.9"/>
+    <text x="75" y="36" font-family="'Segoe UI', sans-serif" font-size="11" fill="white" text-anchor="middle" font-weight="600">Mathematics</text>
+    <rect x="20" y="58" width="320" height="7" rx="3.5" fill="#ffffff" opacity="0.2"/>
+    <rect x="20" y="73" width="270" height="7" rx="3.5" fill="#ffffff" opacity="0.2"/>
+    <rect x="20" y="88" width="300" height="7" rx="3.5" fill="#ffffff" opacity="0.2"/>
+    <rect x="20" y="118" width="80" height="7" rx="3.5" fill="#a78bfa" opacity="0.6"/>
+    <rect x="20" y="133" width="320" height="7" rx="3.5" fill="#ffffff" opacity="0.14"/>
+    <rect x="20" y="148" width="240" height="7" rx="3.5" fill="#ffffff" opacity="0.14"/>
+    <rect x="20" y="163" width="290" height="7" rx="3.5" fill="#ffffff" opacity="0.14"/>
+    <rect x="270" y="170" width="70" height="32" rx="8" fill="#7c3aed" opacity="0.7"/>
+    <text x="305" y="191" font-family="'Segoe UI', sans-serif" font-size="12" fill="white" text-anchor="middle" font-weight="700">PDF &#8595;</text>
+  </g>
+
+  <rect x="80" y="90" width="200" height="32" rx="16" fill="url(#pill)" opacity="0.15"/>
+  <rect x="80" y="90" width="200" height="32" rx="16" fill="none" stroke="url(#pill)" stroke-width="1.5" opacity="0.6"/>
+  <circle cx="102" cy="106" r="5" fill="#a78bfa"/>
+  <text x="118" y="111" font-family="'Segoe UI', sans-serif" font-size="13" fill="#c4b5fd" font-weight="600">Free for DEI Students</text>
+
+  <text x="80" y="210" font-family="Georgia, 'Times New Roman', serif" font-size="88" fill="white" font-weight="700" letter-spacing="-3">Notes</text>
+  <text x="82" y="300" font-family="Georgia, 'Times New Roman', serif" font-size="88" font-weight="700" letter-spacing="-2">
+    <tspan fill="url(#pill)">Here</tspan>
+    <tspan fill="white" font-size="48" dy="10" dx="8">.</tspan>
+  </text>
+
+  <text x="82" y="370" font-family="'Segoe UI', Tahoma, sans-serif" font-size="22" fill="#a78bfa" font-weight="400" letter-spacing="0.5">Dayalbagh Educational Institute</text>
+  <text x="82" y="408" font-family="'Segoe UI', Tahoma, sans-serif" font-size="17" fill="#94a3b8">Free notes, PDFs &amp; semester-wise study materials</text>
+  <text x="82" y="430" font-family="'Segoe UI', Tahoma, sans-serif" font-size="17" fill="#94a3b8">organized and ready to download.</text>
+
+  <g transform="translate(82, 470)">
+    <rect width="130" height="56" rx="12" fill="#ffffff" fill-opacity="0.05" stroke="#ffffff" stroke-opacity="0.1" stroke-width="1"/>
+    <text x="65" y="22" font-family="'Segoe UI', sans-serif" font-size="20" fill="white" font-weight="700" text-anchor="middle">100+</text>
+    <text x="65" y="40" font-family="'Segoe UI', sans-serif" font-size="12" fill="#94a3b8" text-anchor="middle">Notes</text>
+    <rect x="148" width="130" height="56" rx="12" fill="#ffffff" fill-opacity="0.05" stroke="#ffffff" stroke-opacity="0.1" stroke-width="1"/>
+    <text x="213" y="22" font-family="'Segoe UI', sans-serif" font-size="20" fill="white" font-weight="700" text-anchor="middle">Free</text>
+    <text x="213" y="40" font-family="'Segoe UI', sans-serif" font-size="12" fill="#94a3b8" text-anchor="middle">Always</text>
+    <rect x="296" width="130" height="56" rx="12" fill="#ffffff" fill-opacity="0.05" stroke="#ffffff" stroke-opacity="0.1" stroke-width="1"/>
+    <text x="361" y="22" font-family="'Segoe UI', sans-serif" font-size="20" fill="white" font-weight="700" text-anchor="middle">DEI</text>
+    <text x="361" y="40" font-family="'Segoe UI', sans-serif" font-size="12" fill="#94a3b8" text-anchor="middle">Exclusive</text>
+  </g>
+
+  <rect x="0" y="590" width="1200" height="40" fill="#ffffff" fill-opacity="0.04"/>
+  <text x="600" y="615" font-family="'Segoe UI', Tahoma, sans-serif" font-size="14" fill="#64748b" text-anchor="middle" letter-spacing="2">WWW.NOTESHERE.SITE</text>
+
+  <circle cx="1150" cy="80" r="3" fill="#7c3aed" opacity="0.6"/>
+  <circle cx="1170" cy="60" r="2" fill="#818cf8" opacity="0.4"/>
+  <circle cx="1130" cy="55" r="4" fill="#4f46e5" opacity="0.3"/>
+  <circle cx="80" cy="560" r="2" fill="#7c3aed" opacity="0.5"/>
+  <circle cx="60" cy="545" r="3" fill="#a78bfa" opacity="0.3"/>
+</svg>
