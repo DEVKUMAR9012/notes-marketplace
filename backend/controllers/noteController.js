@@ -103,7 +103,7 @@ exports.getNote = async (req, res) => {
 // @access  Private
 exports.createNote = async (req, res) => {
   try {
-    const { title, description, subject, college, semester, price, itemType } = req.body;
+    const { title, description, subject, college, semester, price, itemType, fileHash } = req.body;
 
     // ✅ Validation
     if (!title || !subject) {
@@ -111,6 +111,17 @@ exports.createNote = async (req, res) => {
         success: false,
         message: 'Please provide title and subject'
       });
+    }
+
+    // ✅ Duplicate check using fileHash
+    if (fileHash) {
+      const existing = await Note.findOne({ fileHash });
+      if (existing) {
+        return res.status(409).json({
+          success: false,
+          message: 'Duplicate file detected. This file has already been uploaded to the marketplace.'
+        });
+      }
     }
 
     // ✅ req.user set by protect middleware
@@ -133,6 +144,7 @@ exports.createNote = async (req, res) => {
       semester:     semester ? Number(semester) : null,
       price:        Number(price) || 0,
       pdfUrl,
+      fileHash,
       uploadedBy:   req.user._id,   // ✅ Fixed: was using wrong field name
       isApproved:   true
     });

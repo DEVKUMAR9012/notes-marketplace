@@ -1,21 +1,34 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import API from '../utils/api';
-import { FiUpload, FiFile } from 'react-icons/fi';
+import { FiUpload } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
+
+// Extracted Components
+import UploadToggle from '../components/upload/UploadToggle';
+import FormFields from '../components/upload/FormFields';
+import FileDropzone from '../components/upload/FileDropzone';
+import UploadProgressBar from '../components/upload/UploadProgressBar';
+import { validateFile, calculateFileHash } from '../components/upload/ValidationHelpers';
+import { Toast } from './tabs/SharedAdminUI';
 
 export default function Upload() {
   const navigate = useNavigate();
   const location = useLocation();
   const { isGuest } = useAuth();
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [toast, setToast] = useState(null);
+
+  const abortControllerRef = useRef(null);
+
   // ── Redirect guest users to register — preserve current path for return ──
   useEffect(() => {
     if (isGuest) navigate('/register', { state: { from: location.pathname }, replace: true });
   }, [isGuest, navigate, location.pathname]);
-
 
   const [formData, setFormData] = useState({
     title: '',
@@ -28,52 +41,108 @@ export default function Upload() {
   });
   const [file, setFile] = useState(null);
 
+  // ── Draft AutoSave ──
+  useEffect(() => {
+    const draft = localStorage.getItem('uploadDraft');
+    if (draft) {
+      try {
+        setFormData(JSON.parse(draft));
+      } catch (e) {}
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('uploadDraft', JSON.stringify(formData));
+  }, [formData]);
+
+  const showToast = (msg, type = 'success') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3500);
+  };
+
+  const cancelUpload = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      setLoading(false);
+      setUploadProgress(0);
+      showToast('Upload cancelled', 'error');
+    }
+  };
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleItemTypeChange = (type) => {
+    setFormData({ ...formData, itemType: type });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
-    // ✅ Validate file before submitting
-    if (!file) {
-      setError('Please select a file to upload');
+    // ✅ Client-side Heavy Validation before upload
+    const validationError = validateFile(file);
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
     setLoading(true);
+    setUploadProgress(0);
+
+    const fileHash = await calculateFileHash(file);
 
     const uploadData = new FormData();
     uploadData.append('title', formData.title);
     uploadData.append('description', formData.description);
     uploadData.append('subject', formData.subject);
-    uploadData.append('college', formData.college);
-    uploadData.append('semester', formData.semester);
+    if (formData.itemType === 'note') {
+      uploadData.append('college', formData.college);
+      uploadData.append('semester', formData.semester);
+    }
     uploadData.append('price', formData.price);
     uploadData.append('itemType', formData.itemType);
-    uploadData.append('pdf', file); // ✅ file is guaranteed to exist here
+    uploadData.append('fileHash', fileHash);
+    uploadData.append('pdf', file);
+
+    abortControllerRef.current = new AbortController();
 
     try {
       await API.post('/notes', uploadData, {
         headers: {
-          'Content-Type': 'multipart/form-data', // ✅ Required for file uploads
+          'Content-Type': 'multipart/form-data',
         },
+        signal: abortControllerRef.current.signal,
+        // ✅ Real-Time Upload Progress Bar Tracking
+        onUploadProgress: (progressEvent) => {
+          const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setUploadProgress(percent);
+        }
       });
-      navigate('/');
+      localStorage.removeItem('uploadDraft');
+      showToast('Upload completed successfully!', 'success');
+      setTimeout(() => navigate('/'), 1500);
     } catch (err) {
+      if (err.name === 'CanceledError' || err.message === 'canceled') {
+        return; // Handled by cancelUpload
+      }
       console.error(err);
-      // ✅ Show actual backend error message instead of generic alert
       const message = err.response?.data?.message || 'Upload failed. Please try again.';
       setError(message);
+      showToast('Upload failed', 'error');
+      setUploadProgress(0);
     } finally {
-      setLoading(false);
+      if (abortControllerRef.current && !abortControllerRef.current.signal.aborted) {
+        setLoading(false);
+      }
     }
   };
 
   return (
     <div className="min-h-screen bg-[#07070f] text-white py-12 relative overflow-hidden">
-      {/* Ambient */}
+      <Toast toast={toast} />
+      {/* Ambient Effects */}
       <div className="absolute top-0 right-1/4 w-[600px] h-[600px] bg-violet-800/15 rounded-full blur-[140px] pointer-events-none" />
       <div className="absolute bottom-0 left-1/4 w-[500px] h-[500px] bg-fuchsia-800/12 rounded-full blur-[120px] pointer-events-none" />
 
@@ -81,157 +150,46 @@ export default function Upload() {
         <motion.div
           initial={{ opacity: 0, y: 50 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-gray-900/80 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl p-8"
+          className="bg-[#0c0c16]/80 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl p-8"
         >
-          <h1 className="text-3xl font-bold text-white mb-6 flex items-center gap-2">
-            <FiUpload className={formData.itemType === 'book' ? 'text-pink-500' : 'text-violet-500'} /> 
-            {formData.itemType === 'book' ? 'Upload Book' : 'Upload Note'}
+          <h1 className="text-3xl font-bold text-white mb-6 flex items-center gap-3">
+            <div className={`p-3 rounded-2xl ${formData.itemType === 'book' ? 'bg-pink-500/20 text-pink-500' : 'bg-violet-500/20 text-violet-500'}`}>
+              <FiUpload size={24} />
+            </div>
+            {formData.itemType === 'book' ? 'Publish a Book' : 'Upload a Note'}
           </h1>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-sm">
-              {error}
+            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-2xl text-sm font-medium flex items-start gap-3">
+              <span className="text-xl">⚠️</span>
+              <p className="mt-0.5">{error}</p>
             </div>
           )}
 
-          <div className="flex bg-gray-950/50 p-1 border border-white/5 rounded-2xl mb-6">
-            <button
-              type="button"
-              onClick={() => setFormData({ ...formData, itemType: 'note' })}
-              className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${
-                formData.itemType === 'note' 
-                  ? 'bg-violet-600 text-white shadow-lg' 
-                  : 'text-gray-400 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              📝 Upload Note
-            </button>
-            <button
-              type="button"
-              onClick={() => setFormData({ ...formData, itemType: 'book' })}
-              className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${
-                formData.itemType === 'book' 
-                  ? 'bg-pink-600 text-white shadow-lg' 
-                  : 'text-gray-400 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              📚 Upload Book
-            </button>
-          </div>
+          {/* Extracted Toggle Component */}
+          <UploadToggle itemType={formData.itemType} setItemType={handleItemTypeChange} />
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <input
-              type="text"
-              name="title"
-              placeholder="Title"
-              onChange={handleChange}
-              className="w-full px-4 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl focus:outline-none focus:border-violet-500 text-white placeholder-gray-500 transition-colors"
-              required
-            />
+            
+            {/* Extracted Form Fields */}
+            <FormFields formData={formData} handleChange={handleChange} />
 
-            <textarea
-              name="description"
-              placeholder="Description (Optional)"
-              rows="4"
-              onChange={handleChange}
-              className="w-full px-4 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl focus:outline-none focus:border-violet-500 text-white placeholder-gray-500 transition-colors"
-            />
+            {/* Extracted Modern Drag & Drop Zone */}
+            <FileDropzone file={file} setFile={setFile} setError={setError} />
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <input
-                type="text"
-                name="subject"
-                placeholder={formData.itemType === 'book' ? "Genre / Subject" : "Subject"}
-                onChange={handleChange}
-                className="w-full px-4 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl focus:outline-none focus:border-violet-500 text-white placeholder-gray-500 transition-colors"
-                required
-              />
-              <input
-                type="number"
-                name="price"
-                placeholder="Price (₹) - Leave 0 for Free"
-                min="0"
-                onChange={handleChange}
-                className="w-full px-4 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl focus:outline-none focus:border-violet-500 text-white placeholder-gray-500 transition-colors"
-              />
-            </div>
-
-            {formData.itemType === 'note' && (
-              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <input
-                  type="text"
-                  name="college"
-                  placeholder="College"
-                  onChange={handleChange}
-                  className="w-full px-4 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl focus:outline-none focus:border-violet-500 text-white placeholder-gray-500 transition-colors"
-                  required
-                />
-                <select
-                  name="semester"
-                  onChange={handleChange}
-                  className="w-full px-4 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl focus:outline-none focus:border-violet-500 text-white placeholder-gray-500 transition-colors cursor-pointer"
-                  required
-                >
-                  <option value="" className="bg-gray-900">Select Semester</option>
-                  {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
-                    <option key={s} value={s} className="bg-gray-900">Semester {s}</option>
-                  ))}
-                </select>
-              </motion.div>
-            )}
-
-            {/* File Upload */}
-            <div className={`mt-2 border-2 border-dashed rounded-2xl p-8 text-center transition-all ${
-              file ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-white/10 bg-white/5 hover:border-white/20'
-            }`}>
-              <FiFile className={`text-5xl mx-auto mb-3 transition-colors ${file ? 'text-emerald-400' : 'text-gray-500'}`} />
-              <input
-                type="file"
-                accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp,.txt"
-                onChange={(e) => setFile(e.target.files[0])}
-                className="hidden"
-                id="file-upload"
-              />
-              <label
-                htmlFor="file-upload"
-                className={`cursor-pointer inline-block px-4 py-1.5 rounded-lg font-semibold transition-colors ${
-                  file ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/10 text-white hover:bg-white/20'
-                }`}
-              >
-                {file ? '📎 Change File' : '📎 Click to Select File'}
-              </label>
-              {file && (
-                <p className="text-sm text-emerald-400/80 mt-3 font-medium">
-                  ✓ {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
-                </p>
-              )}
-              {!file && (
-                <p className="text-xs text-gray-500 mt-3 hidden sm:block">
-                  PDF · DOC · DOCX · PPT · PPTX · XLS · XLSX · JPG · PNG · TXT &nbsp;(Max 25 MB)
-                </p>
-              )}
-            </div>
+            {/* Real-time Upload Progress Bar */}
+            <UploadProgressBar progress={uploadProgress} isUploading={loading} onCancel={cancelUpload} />
 
             <button
               type="submit"
-              disabled={loading}
-              className={`w-full py-4 mt-2 rounded-xl font-bold text-white shadow-lg transition-all ${
+              disabled={loading || !file}
+              className={`w-full py-4 mt-6 rounded-2xl font-bold text-white shadow-xl transition-all ${
                 formData.itemType === 'book' 
-                  ? 'bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 shadow-pink-500/25'
-                  : 'bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 shadow-violet-500/25'
+                  ? 'bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 shadow-pink-500/20'
+                  : 'bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 shadow-violet-500/20'
               } disabled:opacity-50 disabled:cursor-not-allowed`}
             >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-                  </svg>
-                  Uploading...
-                </span>
-              ) : (
-                formData.itemType === 'book' ? 'Publish Book' : 'Publish Note'
-              )}
+              {loading ? 'Uploading safely to cloud...' : formData.itemType === 'book' ? 'Publish Book' : 'Publish Note'}
             </button>
           </form>
         </motion.div>

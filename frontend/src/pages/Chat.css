@@ -9,7 +9,8 @@
 /* ─── Persistent Backdrop Accents Mapping ─── */
 .chat-page-messenger {
   display: flex;
-  height: calc(100vh - 72px);
+  /* 100dvh = Dynamic Viewport Height: accounts for iOS Safari address/nav bars */
+  height: calc(100dvh - 72px);
   background: #07070f;
   font-family: 'Inter', sans-serif;
   color: #fff;
@@ -98,7 +99,8 @@
 
 /* ─── Sidebar Containers ─── */
 .messenger-sidebar {
-  width: 280px;
+  /* clamp() = fluid sidebar: min 280px, ideal 24vw, max 380px for ultra-wide */
+  width: clamp(280px, 24vw, 380px);
   background: #110f24;
   border-right: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
@@ -470,7 +472,8 @@
 
 /* Bubbles */
 .message-bubble {
-  max-width: 68%;
+  /* min() caps bubble at 540px on large screens, 68% on small */
+  max-width: min(68%, 540px);
   padding: 10px 14px;
   border-radius: 16px;
   position: relative;
@@ -608,8 +611,16 @@
   transition: opacity 0.2s;
 }
 
-.msg-image-wrapper:hover .download-overlay {
+.msg-image-wrapper:hover .download-overlay,
+.msg-image-wrapper:focus-within .download-overlay {
   opacity: 1;
+}
+
+/* Touch devices: always show download overlay (no hover) */
+@media (hover: none) {
+  .download-overlay {
+    opacity: 0.85;
+  }
 }
 
 .msg-pdf {
@@ -671,6 +682,11 @@
 }
 
 .message-row:hover .msg-actions {
+  opacity: 1;
+}
+
+/* Touch: long-press reveals actions via JS .touch-active class */
+.message-row.touch-active .msg-actions {
   opacity: 1;
 }
 
@@ -883,7 +899,7 @@
   padding: 10px 20px 16px;
   background: #110f24;
   border-top: 1px solid rgba(255, 255, 255, 0.05);
-  position: relative;
+  /* Removed position:relative — send btn now in flex row, no absolute needed */
 }
 
 .reply-preview {
@@ -920,6 +936,13 @@
   opacity: 0.6;
 }
 
+/* Send button + input row wrapper — flex avoids absolute positioning overlap */
+.embedded-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .embedded-input-container {
   display: flex;
   align-items: center;
@@ -929,6 +952,7 @@
   padding: 6px 14px;
   gap: 8px;
   flex: 1;
+  min-width: 0;
 }
 
 .embedded-tools-left,
@@ -969,21 +993,20 @@
   border: none;
   outline: none;
   color: #fff;
-  font-size: 16px;
-  padding: 4px 48px 4px 2px; /* right padding keeps text clear of the absolute send button */
+  font-size: 16px; /* 16px prevents iOS Safari auto-zoom on focus */
+  padding: 4px 2px;
+  min-width: 0;
 }
 
 .embedded-text-field::placeholder {
   color: rgba(255, 255, 255, 0.3);
 }
 
-/* Circular Send Button */
+/* Circular Send Button — in flex row, no absolute positioning */
 .circular-send-btn {
-  position: absolute;
-  right: 26px;
-  top: 14px;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
   background: #8b5cf6;
   border-radius: 50%;
   border: none;
@@ -994,8 +1017,10 @@
   color: #fff;
   cursor: pointer;
   transition: transform 0.15s ease, background 0.15s ease;
-  flex-shrink: 0;
   outline: none;
+  /* Ensure minimum tap target for mobile (WCAG 2.5.5) */
+  min-width: 40px;
+  min-height: 40px;
 }
 
 .circular-send-btn:hover {
@@ -1004,15 +1029,21 @@
 }
 
 .circular-send-btn:focus-visible {
-  box-shadow: 0 0 0 2px #fff;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.5);
 }
 
-/* ─── Production-Ready Absolute Overlays for Mobile Viewports ─── */
+.circular-send-btn:active {
+  transform: scale(0.95);
+}
+
+/* ─── Mobile Viewport: GPU-composited layers for 60fps swipe ─── */
 @media (max-width: 768px) {
   .chat-page-messenger {
+    /* 100dvh adapts to iOS Safari chrome shrink/grow */
     height: calc(100dvh - 60px);
     display: block;
     position: relative;
+    overscroll-behavior: contain;
   }
 
   .messenger-sidebar {
@@ -1022,6 +1053,9 @@
     top: 0;
     left: 0;
     z-index: 15;
+    /* GPU layer: eliminates z-index paint flicker on orientation change */
+    will-change: transform;
+    overscroll-behavior: contain;
   }
 
   .messenger-main-flow {
@@ -1032,6 +1066,8 @@
     left: 0;
     z-index: 25;
     background: #07070f;
+    will-change: transform;
+    overscroll-behavior: contain;
   }
 
   .hidden-mobile {
@@ -1051,7 +1087,9 @@
   }
 
   .chat-input-wrapper-embedded {
-    padding: 8px 12px 12px;
+    padding: 8px 12px;
+    /* Safe area inset for iPhone notch/home-indicator */
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
   }
 
   .embedded-input-container {
@@ -1059,15 +1097,22 @@
   }
 
   .circular-send-btn {
-    right: 18px;
-    top: 11px;
-    width: 34px;
-    height: 34px;
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    min-height: 38px;
   }
 
   .message-bubble {
-    max-width: 82%;
+    max-width: min(82%, 380px);
     padding: 8px 12px;
+  }
+
+  /* Touch: larger tap targets for action buttons */
+  .embedded-tool-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
   }
 }
 
@@ -1159,4 +1204,64 @@
 
 .search-result:hover {
   background: rgba(255, 255, 255, 0.05);
+}
+
+/* ─── Deleted message style ─── */
+.deleted-text {
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 12px;
+  font-style: italic;
+}
+
+/* ─── Sender name in group bubbles ─── */
+.sender-name {
+  font-size: 10px;
+  font-weight: 700;
+  color: #a78bfa;
+  margin-bottom: 4px;
+}
+
+/* ─── Pending / Failed message states ─── */
+.receipt.pending {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 11px;
+}
+
+.receipt.failed {
+  color: #f87171;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* ─── Accessibility: Reduced Motion Safety Net ─── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ─── Keyboard Focus States (WCAG AA) ─── */
+.action-circle-btn:focus-visible,
+.filter-tab-pill:focus-visible,
+.quick-reply-pill:focus-visible,
+.embedded-tool-btn:focus-visible,
+.contact-entry-row:focus-visible {
+  outline: 2px solid #8b5cf6;
+  outline-offset: 2px;
+}
+
+/* ─── Tablet breakpoint: fluid two-column ─── */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .messenger-sidebar {
+    width: clamp(240px, 32vw, 320px);
+  }
+
+  .message-bubble {
+    max-width: min(74%, 480px);
+  }
 }

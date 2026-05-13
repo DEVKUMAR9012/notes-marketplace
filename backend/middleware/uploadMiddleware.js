@@ -2,6 +2,7 @@ const multer = require('multer');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const cloudinary = require('cloudinary').v2;
 const path = require('path');
+const crypto = require('crypto');
 require('dotenv').config();
 
 // Configure Cloudinary
@@ -41,7 +42,7 @@ const storage = new CloudinaryStorage({
     return {
       folder: 'notes-marketplace',
       resource_type: resourceType,
-      public_id: `${Date.now()}-${Math.round(Math.random() * 1e9)}.${ext}`,
+      public_id: `up_${crypto.randomBytes(12).toString('hex')}_${Date.now()}.${ext}`,
     };
   },
 });

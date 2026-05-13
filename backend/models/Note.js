@@ -36,6 +36,10 @@ const noteSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  fileHash: {
+    type: String,
+    index: true // indexed for fast duplicate lookups
+  },
   uploadedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

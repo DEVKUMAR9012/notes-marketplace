@@ -1,13 +1,17 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import API, { API_BASE_URL } from '../utils/api';
-import {
-  FiSearch, FiPhone, FiMoreVertical, FiArrowLeft, FiSettings,
-  FiX, FiCheck, FiBell, FiShield, FiSliders, FiMaximize2, FiPhoneCall, FiSend
-} from 'react-icons/fi';
+import { FiMaximize2 } from 'react-icons/fi';
+import MessageInput from './chat/components/MessageInput';
+import MessageBubble from './chat/components/MessageBubble';
+import ChatSidebar from './chat/components/ChatSidebar';
+import ChatHeader from './chat/components/ChatHeader';
+import CallOverlay from './chat/components/CallOverlay';
+import SettingsModal from './chat/components/SettingsModal';
+import { Virtuoso } from 'react-virtuoso';
 import './Chat.css';
 
 // ─── Highly strict dynamic time formatter
@@ -227,6 +231,8 @@ export default function Chat() {
   useEffect(() => {
     activeChatRef.current = activeChat;
     isInitialScrollRef.current = true;
+    // Reset viewport scroll on chat switch — prevents orientation glitch on mobile
+    window.scrollTo(0, 0);
   }, [activeChat]);
 
   // Dynamic scroll mapping
@@ -240,11 +246,36 @@ export default function Chat() {
     }
   }, [messages]);
 
+  // iOS visualViewport keyboard fix — prevents input area jumping out of view
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const handleResize = () => {
+      // When keyboard opens, scroll the page back to top of viewport
+      // so the input area stays anchored
+      if (document.activeElement?.classList.contains('embedded-text-field')) {
+        document.activeElement.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    };
+    vv.addEventListener('resize', handleResize);
+    return () => vv.removeEventListener('resize', handleResize);
+  }, []);
+
   useEffect(() => {
     return () => {
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-      if (ringtoneRef.current) { ringtoneRef.current.pause(); ringtoneRef.current = null; }
+      // Bulletproof audio cleanup — clears src to release media handles
+      if (ringtoneRef.current) {
+        ringtoneRef.current.pause();
+        ringtoneRef.current.src = '';
+        ringtoneRef.current = null;
+      }
+      if (notificationAudioRef.current) {
+        notificationAudioRef.current.pause();
+        notificationAudioRef.current.src = '';
+        notificationAudioRef.current = null;
+      }
     };
   }, []);
 
@@ -362,6 +393,10 @@ export default function Chat() {
       const currentChat = activeChatRef.current;
       if (currentChat && msg.chat === currentChat._id) {
         setMessages(prev => {
+          // Replace optimistic message if it exists
+          if (msg.tempId) {
+            return prev.map(m => m.tempId === msg.tempId ? msg : m);
+          }
           if (prev.some(m => m._id === msg._id)) return prev;
           return [...prev, msg];
         });
@@ -563,12 +598,38 @@ export default function Chat() {
   const handleSend = () => {
     const text = inputText.trim();
     if (!text || !activeChat || !socket) return;
-    socket.emit('send_message', { chatId: activeChat._id, text, replyTo: replyingTo?._id });
+
+    // Optimistic UI update
+    const tempId = `temp_${Date.now()}`;
+    const optimisticMessage = {
+      _id: tempId,
+      tempId,
+      chat: activeChat._id,
+      sender: user,
+      text,
+      createdAt: new Date().toISOString(),
+      pending: true,
+      replyTo: replyingTo
+    };
+    
+    setMessages(prev => [...prev, optimisticMessage]);
+
+    socket.emit('send_message', { chatId: activeChat._id, text, replyTo: replyingTo?._id, tempId });
     setInputText('');
     setReplyingTo(null);
     isTypingEmittedRef.current = false;
     clearTimeout(typingTimeoutRef.current);
     socket.emit('typing_stop', { chatId: activeChat._id });
+
+    // Handle failure simulation (if no response after 5s)
+    setTimeout(() => {
+      setMessages(prev => prev.map(m => {
+        if (m.tempId === tempId && m.pending) {
+          return { ...m, pending: false, failed: true };
+        }
+        return m;
+      }));
+    }, 5000);
   };
 
   const handleForceSend = () => {
@@ -725,177 +786,28 @@ export default function Chat() {
       )}
 
       {/* ─── LIVE CALLS DYNAMIC OVERLAY ─── */}
-      <AnimatePresence>
-        {activeCallPayload && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: -50 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: -50 }}
-            className="fixed top-6 left-1/2 transform -translate-x-1/2 bg-[#1b1730] border-2 border-emerald-500/50 rounded-2xl p-5 shadow-2xl z-[200] w-11/12 max-w-md flex flex-col items-center gap-3"
-          >
-            <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center animate-pulse">
-              <FiPhoneCall className="text-emerald-400 text-xl" />
-            </div>
-            <div className="text-center">
-              <h4 className="text-white font-bold text-base">
-                {activeCallPayload.incoming ? `Incoming Call from ${activeCallPayload.callerName}` : `Connecting with Peer...`}
-              </h4>
-              <p className="text-xs text-gray-400 mt-1">Establishing secure third-party integration line</p>
-            </div>
-
-            <div className="flex w-full gap-3 mt-2">
-              <a
-                href={activeCallPayload.roomUrl}
-                target="_blank"
-                rel="noreferrer"
-                onClick={() => {
-                  if (ringtoneRef.current) { ringtoneRef.current.pause(); ringtoneRef.current = null; }
-                  setActiveCallPayload(null);
-                }}
-                className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl text-xs text-center block transition"
-              >
-                Accept Room Line
-              </a>
-              <button
-                type="button"
-                onClick={() => {
-                  if (ringtoneRef.current) { ringtoneRef.current.pause(); ringtoneRef.current = null; }
-                  setActiveCallPayload(null);
-                }}
-                className="flex-1 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 font-bold py-2.5 rounded-xl text-xs transition"
-              >
-                Decline
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <CallOverlay 
+        activeCallPayload={activeCallPayload} 
+        setActiveCallPayload={setActiveCallPayload} 
+        ringtoneRef={ringtoneRef} 
+      />
 
       {/* ──────── SIDEBAR UPGRADES ──────── */}
-      <aside className={`messenger-sidebar ${activeChat ? 'hidden-mobile' : ''}`}>
-        <div className="sidebar-inbox-header">
-          <span className="sidebar-inbox-title">
-            Messages {Object.values(unreadCounts).reduce((a, b) => a + b, 0) > 0 && <span className="unread-counter-pill">{Object.values(unreadCounts).reduce((a, b) => a + b, 0)}</span>}
-          </span>
-          <div className="sidebar-top-tools">
-            <button type="button" className="action-circle-btn" onClick={() => setShowSettingsModal(true)} title="Chat settings panel">
-              <FiSettings size={14} />
-            </button>
-            <button type="button" className="action-circle-btn" onClick={() => setShowSearch(!showSearch)} title="New chat connection">
-              ✏️
-            </button>
-          </div>
-        </div>
-
-        {/* MOCKUP SEARCH BAR */}
-        <div className="sidebar-search-capsule">
-          <FiSearch className="search-glass-icon" />
-          <input
-            type="text"
-            placeholder="Search conversations..."
-            value={sidebarSearchQuery}
-            onChange={e => setSidebarSearchQuery(e.target.value)}
-          />
-        </div>
-
-        {/* MOCKUP FILTER TABS */}
-        <div className="sidebar-filter-tabs">
-          <button
-            type="button"
-            className={`filter-tab-pill ${activeFilterTab === 'all' ? 'active' : ''}`}
-            onClick={() => setActiveFilterTab('all')}
-          >
-            All
-          </button>
-          <button
-            type="button"
-            className={`filter-tab-pill ${activeFilterTab === 'unread' ? 'active' : ''}`}
-            onClick={() => setActiveFilterTab('unread')}
-          >
-            Unread
-          </button>
-          <button
-            type="button"
-            className={`filter-tab-pill ${activeFilterTab === 'buyers' ? 'active' : ''}`}
-            onClick={() => setActiveFilterTab('buyers')}
-          >
-            Buyers
-          </button>
-        </div>
-
-        {/* Creation panels */}
-        {showSearch && (
-          <div className="inbox-search-creations">
-            <div className="search-header-group">
-              <input type="text" placeholder="Lookup members..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} autoFocus />
-              <button type="button" className="create-group-btn" onClick={() => setIsCreatingGroup(!isCreatingGroup)}>
-                {isCreatingGroup ? 'Cancel' : 'Group'}
-              </button>
-            </div>
-
-            {isCreatingGroup && (
-              <div className="group-creation-panel">
-                <input type="text" placeholder="Group Name" value={groupName} onChange={e => setGroupName(e.target.value)} />
-                <div className="selected-users-chips">
-                  {selectedUsers.map(u => (
-                    <span key={u._id} className="user-chip" onClick={() => toggleUserSelection(u)}>
-                      {u.name} ✕
-                    </span>
-                  ))}
-                </div>
-                {selectedUsers.length > 0 && <button type="button" className="submit-group-btn" onClick={handleCreateGroup}>Create</button>}
-              </div>
-            )}
-
-            <div className="search-results-area">
-              {(searchQuery.length < 2 ? suggestedUsers : searchResults).map(u => (
-                <div key={u._id} className="search-result" onClick={() => isCreatingGroup ? toggleUserSelection(u) : startChat(u)}>
-                  <Avatar user={u} size={32} isOnline={u.isOnline} />
-                  <span>{u.name}</span>
-                  {isCreatingGroup && <input type="checkbox" readOnly checked={!!selectedUsers.find(su => su._id === u._id)} />}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="inbox-contacts-flow">
-          {displayedConversations.map(chat => {
-            const isGrp = chat.isGroupChat;
-            const other = !isGrp ? chat.participants?.find(p => String(p._id) !== String(user?._id)) : null;
-            const unread = unreadCounts[chat._id] || 0;
-            const title = isGrp ? chat.chatName : other?.name;
-            const isOnline = isGrp ? false : other?.isOnline;
-            const isBlockedLocal = chat.blockedBy ? true : false;
-
-            return (
-              <div key={chat._id} className={`contact-entry-row ${activeChat?._id === chat._id ? 'active' : ''} ${isBlockedLocal ? 'muted-local-row' : ''}`} onClick={() => setActiveChat(chat)}>
-                <Avatar user={other || { name: title }} size={38} isOnline={isOnline} />
-
-                <div className="contact-metadata-left">
-                  <div className="contact-title-top">
-                    <span className="contact-name-label">{title || 'Member'} {isBlockedLocal && <span className="local-blocked-tag">BLOCKED</span>}</span>
-                    <span className="contact-timestamp-label">{chat.lastMessage?.sentAt && formatTime(chat.lastMessage.sentAt)}</span>
-                  </div>
-                  <div className="contact-preview-label">
-                    {/* #1: guard against object-shaped lastMessage.text */}
-                    {chat.lastMessage?.type === 'file'
-                      ? '📎 File attached'
-                      : (typeof chat.lastMessage?.text === 'string'
-                          ? chat.lastMessage.text
-                          : chat.lastMessage?.text?.text ?? 'No messages yet')}
-                  </div>
-                </div>
-                {unread > 0 && (
-                  <div className="contact-metadata-right">
-                    <span className="unread-dot-badge">{unread}</span>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </aside>
+      <ChatSidebar
+        activeChat={activeChat}
+        setActiveChat={setActiveChat}
+        unreadCounts={unreadCounts}
+        setShowSettingsModal={setShowSettingsModal}
+        showSearch={showSearch}
+        setShowSearch={setShowSearch}
+        sidebarSearchQuery={sidebarSearchQuery}
+        setSidebarSearchQuery={setSidebarSearchQuery}
+        activeFilterTab={activeFilterTab}
+        setActiveFilterTab={setActiveFilterTab}
+        conversations={conversations}
+        user={user}
+        Avatar={Avatar}
+      />
 
       {/* ──────── MAIN PANEL: Chat Header & Messages ──────── */}
       <main className={`messenger-main-flow ${!activeChat ? 'hidden-mobile' : ''}`}>
@@ -906,222 +818,89 @@ export default function Chat() {
           </div>
         ) : (
           <>
-            {/* MOCKUP CHAT HEADER */}
-            <div className="chat-window-header">
-              <button type="button" className="back-arrow-btn" onClick={() => setActiveChat(null)}>
-                <FiArrowLeft size={18} />
-              </button>
-
-              <div className="header-avatar-frame">
-                <Avatar user={otherParticipant || { name: chatTitle }} size={36} isOnline={false} />
-              </div>
-
-              <div className="header-member-details">
-                <div className="header-title-box">
-                  <span className="header-name-text">{chatTitle}</span>
-                  {!isGroup && otherParticipant?.totalSales > 0 && <span className="verified-tick" title="Verified Seller">✓</span>}
-                </div>
-                <div className="header-status-text">
-                  {typingUser ? (
-                    <span className="typing-active-text">● {typingUser.name} is typing…</span>
-                  ) : (
-                    <span className={otherParticipant?.isOnline ? 'online-now-text' : ''}>
-                      {otherParticipant?.isOnline ? '● Online now' : chatStatus}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* QUICK-ACTION TOOLS W/ DYNAMIC MENUS */}
-              <div className="header-action-tools relative">
-                <button
-                  type="button"
-                  className="action-circle-btn"
-                  onClick={initializeAudioCall}
-                  title="Initialize third-party audio stream room"
-                >
-                  <FiPhone size={14} />
-                </button>
-                <button
-                  type="button"
-                  className="action-circle-btn"
-                  onClick={() => showToast("Search panel active", "success")}
-                  title="Search inside messages"
-                >
-                  <FiSearch size={14} />
-                </button>
-
-                <div className="relative inline-block" ref={headerMenuRef}>
-                  <button
-                    type="button"
-                    className="action-circle-btn"
-                    onClick={() => setHeaderMenuOpen(prev => !prev)}
-                    title="Open actions overlay"
-                  >
-                    <FiMoreVertical size={14} />
-                  </button>
-
-                  {/* Dynamic Dropdown Positioning */}
-                  <AnimatePresence>
-                    {headerMenuOpen && (
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                        className="absolute right-0 top-10 w-44 bg-[#1b1730] border border-white/10 rounded-xl py-2 shadow-2xl z-50 flex flex-col items-start"
-                      >
-                        <button
-                          type="button"
-                          onClick={handleBlockToggle}
-                          className="w-full text-left px-4 py-2 text-xs font-semibold hover:bg-white/5 transition flex items-center gap-2 text-red-400"
-                        >
-                          <FiShield /> {isCurrentlyBlocked ? 'Unblock Member' : 'Block Member'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => { setHeaderMenuOpen(false); showToast("Conversation muted locally", "success"); }}
-                          className="w-full text-left px-4 py-2 text-xs font-medium hover:bg-white/5 transition flex items-center gap-2 text-gray-300"
-                        >
-                          <FiBell /> Mute Notifications
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => { setHeaderMenuOpen(false); setShowSettingsModal(true); }}
-                          className="w-full text-left px-4 py-2 text-xs font-medium hover:bg-white/5 transition flex items-center gap-2 text-gray-300 border-t border-white/5 mt-1 pt-2"
-                        >
-                          <FiSliders /> Environment Theme
-                        </button>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </div>
-            </div>
+            {/* Extracted Chat Header Component */}
+            <ChatHeader
+              activeChat={activeChat}
+              user={user}
+              typingUser={typingUser}
+              Avatar={Avatar}
+              setActiveChat={setActiveChat}
+              initializeAudioCall={initializeAudioCall}
+              showToast={showToast}
+              headerMenuOpen={headerMenuOpen}
+              setHeaderMenuOpen={setHeaderMenuOpen}
+              headerMenuRef={headerMenuRef}
+              handleBlockToggle={handleBlockToggle}
+              setShowSettingsModal={setShowSettingsModal}
+            />
 
             {/* ──────── MESSAGES BUFFER ──────── */}
             {/* #12: aria-live so screen readers announce incoming messages */}
             <div className="chat-messages-scroll-area" aria-live="polite" aria-atomic="false">
               {msgLoading && <div className="loading-banner-pill">Loading conversation...</div>}
 
-              {messages.map((msg, idx) => {
-                const isMine = String(msg.sender?._id || msg.sender) === String(user?._id);
-                const prevMsg = messages[idx - 1];
-                const nextMsg = messages[idx + 1];
-                const isFirstInGroup = !prevMsg || String(prevMsg.sender?._id || prevMsg.sender) !== String(msg.sender?._id || msg.sender);
-                const isLastInGroup = !nextMsg || String(nextMsg.sender?._id || nextMsg.sender) !== String(msg.sender?._id || msg.sender);
+              <Virtuoso
+                style={{ height: '100%', width: '100%' }}
+                data={messages}
+                initialTopMostItemIndex={messages.length - 1}
+                followOutput="smooth"
+                alignToBottom
+                itemContent={(idx, msg) => {
+                  const isMine = String(msg.sender?._id || msg.sender) === String(user?._id);
+                  const prevMsg = messages[idx - 1];
+                  const nextMsg = messages[idx + 1];
+                  const isFirstInGroup = !prevMsg || String(prevMsg.sender?._id || prevMsg.sender) !== String(msg.sender?._id || msg.sender);
+                  const isLastInGroup = !nextMsg || String(nextMsg.sender?._id || nextMsg.sender) !== String(msg.sender?._id || msg.sender);
 
-                // CENTERED DATE SEPARATOR PILLS
-                const showDateSeparator = idx === 0 || isDifferentDay(prevMsg?.createdAt, msg.createdAt);
-                const isImg = msg.fileType === 'image' || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(msg.fileUrl || '');
-                const isRichNote = msg.noteMetadata || (msg.text && msg.text.includes('pages · ₹'));
+                  const showDateSeparator = idx === 0 || isDifferentDay(prevMsg?.createdAt, msg.createdAt);
 
-                return (
-                  <div key={msg._id} className="message-container-block">
-                    {showDateSeparator && (
-                      <div className="chat-date-separator-pill">
-                        <span>{formatDateSeparator(msg.createdAt)}</span>
-                      </div>
-                    )}
-
-                    <div
-                      id={`msg-${msg._id}`}
-                      className={`message-row ${isMine ? 'sent' : 'recv'} ${isFirstInGroup ? 'first' : ''} ${isLastInGroup ? 'last' : ''}`}
-                      onMouseEnter={() => setHoveredMsg(msg._id)}
-                      onMouseLeave={() => setHoveredMsg(null)}
-                    >
-                      {/* SUBTLE SENDER AVATAR INLINE FOR RECEIVED MESSAGES */}
-                      {!isMine && isLastInGroup && (
-                        <div className="inline-message-avatar">
-                          <Avatar user={msg.sender || otherParticipant} size={28} isOnline={false} />
+                  return (
+                    <div key={msg.tempId || msg._id} className="message-container-block">
+                      {showDateSeparator && (
+                        <div className="chat-date-separator-pill">
+                          <span>{formatDateSeparator(msg.createdAt)}</span>
                         </div>
                       )}
-                      {!isMine && !isLastInGroup && (
-                        <div className="inline-message-avatar-placeholder" style={{ width: 28 }} />
-                      )}
 
-                      {hoveredMsg === msg._id && !msg.isDeleted && (
-                        <div className={`msg-actions ${isMine ? 'mine-actions' : 'theirs-actions'}`}>
-                          <div className="emoji-reaction-bar">
-                            {['❤️', '👍', '😂', '🔥', '👏'].map(emoji => (
-                              <button type="button" key={emoji} onClick={() => handleReact(msg._id, emoji)} title={`React ${emoji}`}>
-                                {emoji}
-                              </button>
-                            ))}
+                      <div
+                        id={`msg-${msg._id}`}
+                        className={`message-row ${isMine ? 'sent' : 'recv'} ${isFirstInGroup ? 'first' : ''} ${isLastInGroup ? 'last' : ''}`}
+                        onMouseEnter={() => setHoveredMsg(msg._id)}
+                        onMouseLeave={() => setHoveredMsg(null)}
+                      >
+                        {!isMine && isLastInGroup && (
+                          <div className="inline-message-avatar">
+                            <Avatar user={msg.sender || otherParticipant} size={28} isOnline={false} />
                           </div>
-                          <button type="button" onClick={() => { setReplyingTo(msg); textInputRef.current?.focus(); }} title="Reply">↩️</button>
-                          {isMine && <button type="button" onClick={() => handleUnsend(msg._id)} title="Unsend" className="delete-btn">🗑️</button>}
-                        </div>
-                      )}
-
-                      <div className="message-bubble" onDoubleClick={() => !msg.isDeleted && handleReact(msg._id, '❤️')}>
-                        {msg.isDeleted ? (
-                          <p className="deleted-text"><i>This message was unsent</i></p>
-                        ) : (
-                          <>
-                            {isGroup && !isMine && msg.sender && isFirstInGroup && <div className="sender-name">{msg.sender.name}</div>}
-
-                            {/* Clickable Quoted Preview Box */}
-                            {msg.replyTo && !msg.replyTo.isDeleted && (
-                              <div
-                                className="quoted-msg clickable"
-                                onClick={() => {
-                                  const targetEl = document.getElementById(`msg-${msg.replyTo._id}`);
-                                  if (targetEl) {
-                                    targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                    targetEl.classList.add('highlight-flash');
-                                    setTimeout(() => targetEl.classList.remove('highlight-flash'), 1500);
-                                  }
-                                }}
-                              >
-                                <span className="quote-sender">{msg.replyTo.sender?.name || 'Member'}</span>
-                                <p>{msg.replyTo.text || (msg.replyTo.fileUrl ? '📎 Attachment' : 'Message')}</p>
-                              </div>
-                            )}
-
-                            {/* RICH NOTE CARDS RENDERED INLINE */}
-                            {isRichNote ? (
-                              <div className="rich-note-preview-card">
-                                <div className="rich-note-icon">📄</div>
-                                <div className="rich-note-details">
-                                  <div className="rich-nt">{msg.noteMetadata?.title || msg.text?.split('\n')[0] || 'Shared Material'}</div>
-                                  <div className="rich-ns">
-                                    {msg.noteMetadata?.pages || '48'} pages · ₹{msg.noteMetadata?.price || '120'}
-                                  </div>
-                                </div>
-                              </div>
-                            ) : (
-                              msg.fileUrl ? (
-                                isImg ? (
-                                  <div className="msg-image-wrapper">
-                                    <img src={getAttachmentUrl(msg.fileUrl)} alt="attachment" className="msg-image" />
-                                    <a href={getAttachmentUrl(msg.fileUrl)} target="_blank" rel="noopener noreferrer" className="download-overlay" title="Open full size"><FiMaximize2 /></a>
-                                  </div>
-                                ) : (
-                                  <a href={getAttachmentUrl(msg.fileUrl)} target="_blank" rel="noopener noreferrer" className="msg-pdf">📎 View Document</a>
-                                )
-                              ) : null
-                            )}
-
-                            {!isRichNote && msg.text && <p>{msg.text}</p>}
-
-                            {msg.reactions && Object.keys(msg.reactions).length > 0 && (
-                              <div className="reactions-display">
-                                {Object.values(msg.reactions).slice(0, 3).map((r, i) => <span key={i} className="react-icon">{r}</span>)}
-                                {Object.keys(msg.reactions).length > 1 && <span className="react-count">{Object.keys(msg.reactions).length}</span>}
-                              </div>
-                            )}
-
-                            <div className="msg-meta">
-                              <span>{formatTime(msg.createdAt)}</span>
-                              {isMine && getReceiptIcon(msg, user?._id, chatSettings.readReceiptPrivacy)}
-                            </div>
-                          </>
                         )}
+                        {!isMine && !isLastInGroup && (
+                          <div className="inline-message-avatar-placeholder" style={{ width: 28 }} />
+                        )}
+
+                        {hoveredMsg === msg._id && !msg.isDeleted && !msg.pending && (
+                          <div className={`msg-actions ${isMine ? 'mine-actions' : 'theirs-actions'}`}>
+                            <div className="emoji-reaction-bar">
+                              {['❤️', '👍', '😂', '🔥', '👏'].map(emoji => (
+                                <button type="button" key={emoji} onClick={() => handleReact(msg._id, emoji)} title={`React ${emoji}`}>
+                                  {emoji}
+                                </button>
+                              ))}
+                            </div>
+                            <button type="button" onClick={() => { setReplyingTo(msg); textInputRef.current?.focus(); }} title="Reply">↩️</button>
+                            {isMine && <button type="button" onClick={() => handleUnsend(msg._id)} title="Unsend" className="delete-btn">🗑️</button>}
+                          </div>
+                        )}
+
+                        <MessageBubble 
+                          msg={msg} isMine={isMine} isFirstInGroup={isFirstInGroup} isLastInGroup={isLastInGroup}
+                          user={user} otherParticipant={otherParticipant} chatSettings={chatSettings} API_BASE_URL={API_BASE_URL}
+                          handleReact={handleReact} handleUnsend={handleUnsend} setReplyingTo={setReplyingTo} textInputRef={textInputRef}
+                        />
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                }}
+              />
 
               {typingUser && <TypingBubble name={typingUser.name} />}
               <div ref={messagesEndRef} />
@@ -1153,166 +932,25 @@ export default function Chat() {
             {/* ──────── CONDITIONAL CLIENT BLOCKING MUTE OVERLAY ──────── */}
             {isCurrentlyBlocked ? (
               <div className="p-4 bg-[#0d0b1a] border-t border-white/5 text-center flex items-center justify-center gap-2 text-red-400 font-semibold text-xs">
-                <FiShield /> You have blocked this member. Intercom communications are currently suppressed.
+                🛡️ You have blocked this member. Intercom communications are currently suppressed.
               </div>
             ) : (
-              <div className="chat-input-wrapper-embedded">
-                {replyingTo && (
-                  <div className="reply-preview">
-                    <div className="reply-content">
-                      <span className="reply-name">Replying to {replyingTo.sender?.name || 'Member'}</span>
-                      <p>{replyingTo.text || 'Attachment'}</p>
-                    </div>
-                    <button type="button" className="cancel-reply" onClick={() => setReplyingTo(null)}>✕</button>
-                  </div>
-                )}
-
-                {/* GROUP ATTACHMENTS, EMOJI, AND MIC TOOLS INSIDE THE INPUT FIELD */}
-                <div className="embedded-input-container">
-                  <div className="embedded-tools-left">
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      onChange={handleFileUpload}
-                      accept="image/*,.pdf"
-                      style={{ display: 'none' }}
-                    />
-                    <button
-                      type="button"
-                      className="embedded-tool-btn"
-                      onClick={() => fileInputRef.current?.click()}
-                      aria-label="Attach document or image"
-                      title="Attach image or PDF only"
-                      disabled={uploading}
-                    >
-                      {uploading ? '⏳' : '📎'}
-                    </button>
-                    {/* #14: format hint so users know .docx etc. are rejected */}
-                    <span className="text-[10px] text-gray-600 hidden sm:inline leading-none">img/PDF</span>
-                    {/* Emoji picker — hidden until emoji-picker-react is installed */}
-                  </div>
-
-                  <input
-                    type="text"
-                    ref={textInputRef}
-                    value={inputText}
-                    onChange={handleTyping}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleSend();
-                      }
-                    }}
-                    placeholder="Type a secure message..."
-                    className="embedded-text-field"
-                  />
-
-                  {/* Voice recording — hidden until MediaRecorder API is implemented */}
-                  <div className="embedded-tools-right" />
-                </div>
-
-                {/* #17: FiSend SVG — crisp at all DPIs, replaces Unicode ➤ */}
-                <button
-                  type="button"
-                  className="circular-send-btn"
-                  onClick={handleSend}
-                  aria-label="Submit typed message block"
-                  title="Send Message"
-                >
-                  <FiSend size={18} />
-                </button>
-              </div>
+              <MessageInput 
+                inputText={inputText} setInputText={setInputText} handleTyping={handleTyping} handleSend={handleSend}
+                replyingTo={replyingTo} setReplyingTo={setReplyingTo} activeChat={activeChat} uploading={uploading} setUploading={setUploading} showToast={showToast}
+              />
             )}
           </>
         )}
       </main>
 
-      {/* ─── PERSISTENT LOCAL CHAT SETTINGS PANEL ─── */}
-      <AnimatePresence>
-        {showSettingsModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
-            onClick={(e) => e.target === e.currentTarget && setShowSettingsModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, y: 10 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.95, y: 10 }}
-              className="bg-[#1b1730] border border-white/10 rounded-3xl p-6 w-full max-w-md shadow-2xl flex flex-col gap-5"
-            >
-              <div className="flex items-center justify-between border-b border-white/10 pb-3">
-                <h3 className="text-white font-bold text-base flex items-center gap-2">
-                  <FiSettings className="text-violet-400" /> Messenger Environment Prefs
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setShowSettingsModal(false)}
-                  className="text-gray-400 hover:text-white p-1"
-                >
-                  <FiX size={16} />
-                </button>
-              </div>
-
-              <div className="flex flex-col gap-4">
-                {/* Toggle 1: Mute Audio Loops */}
-                <div className="flex items-center justify-between bg-black/20 p-3 rounded-xl border border-white/5">
-                  <div>
-                    <label className="text-white text-xs font-semibold block">Mute Notifications</label>
-                    <span className="text-[10px] text-gray-400 block mt-0.5">Suppress real-time incoming signaling loops</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => updateChatSetting('muteAlerts', !chatSettings.muteAlerts)}
-                    className={`relative w-10 h-5 rounded-full transition-colors ${chatSettings.muteAlerts ? 'bg-violet-600' : 'bg-white/10'}`}
-                  >
-                    <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${chatSettings.muteAlerts ? 'translate-x-5' : 'translate-x-0'}`} />
-                  </button>
-                </div>
-
-                {/* Toggle 2: Read Receipts Protection */}
-                <div className="flex items-center justify-between bg-black/20 p-3 rounded-xl border border-white/5">
-                  <div>
-                    <label className="text-white text-xs font-semibold block">Read Receipt Privacy</label>
-                    <span className="text-[10px] text-gray-400 block mt-0.5">Prevent broadcasting delivered/read socket frames</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => updateChatSetting('readReceiptPrivacy', !chatSettings.readReceiptPrivacy)}
-                    className={`relative w-10 h-5 rounded-full transition-colors ${chatSettings.readReceiptPrivacy ? 'bg-emerald-600' : 'bg-white/10'}`}
-                  >
-                    <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${chatSettings.readReceiptPrivacy ? 'translate-x-5' : 'translate-x-0'}`} />
-                  </button>
-                </div>
-
-                {/* Select 3: Messenger Backdrop Contrast */}
-                <div className="flex flex-col bg-black/20 p-3 rounded-xl border border-white/5 gap-2">
-                  <label className="text-white text-xs font-semibold block">Backdrop Theme Contrast</label>
-                  <select
-                    value={chatSettings.backdropAccent}
-                    onChange={e => updateChatSetting('backdropAccent', e.target.value)}
-                    className="w-full bg-[#0b0914] border border-white/10 rounded-lg p-2 text-xs text-white outline-none focus:border-violet-500"
-                  >
-                    <option value="dark">Charcoal Ambient Dark</option>
-                    <option value="violet">Deep Violet Spectrum</option>
-                    <option value="graphite">Soft Contrast Graphite</option>
-                  </select>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setShowSettingsModal(false)}
-                className="w-full bg-violet-600 hover:bg-violet-500 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition"
-              >
-                <FiCheck /> Save Preferences
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Extracted Settings Modal Component */}
+      <SettingsModal
+        show={showSettingsModal}
+        onClose={() => setShowSettingsModal(false)}
+        chatSettings={chatSettings}
+        updateChatSetting={updateChatSetting}
+      />
     </div>
   );
 }
