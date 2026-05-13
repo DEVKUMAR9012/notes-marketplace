@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+
+# Block admin routes from indexing
+Disallow: /admin
+Disallow: /chat
+Disallow: /upload
+Disallow: /profile
+
+# Allow important public pages
+Allow: /
+Allow: /notes
+Allow: /login
+
+Sitemap: https://www.noteshere.site/sitemap.xml
