@@ -21,7 +21,7 @@ const adminBulkUpload = multer({
   storage: adminStorage,
   limits: {
     fileSize: 100 * 1024 * 1024, // 100MB per file (Admin Superpower)
-    files: 200                   // Up to 200 files in one batch
+    files: 500                   // Up to 500 files in one batch
   },
   fileFilter: (req, file, cb) => {
     if (file.mimetype !== 'application/pdf') {
