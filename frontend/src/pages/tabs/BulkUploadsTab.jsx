@@ -90,13 +90,6 @@ const BulkUploadsTab = () => {
       const { data: dupData } = await API.post('/api/admin/check-duplicates', { hashes: fileHashes });
       const existingHashes = new Set(dupData.existingHashes);
 
-      // Filter out duplicates from the upload queue
-      const uploadQueue = files.filter(f => {
-          // We need the hash again or store it. Let's re-hash or store in a WeakMap? 
-          // Better: just check the map we built
-          return true; // placeholder logic below
-      });
-
       // Actually, let's rebuild the queue based on the check
       const cleanQueue = [];
       fileMap.forEach((file, hash) => {
@@ -173,9 +166,9 @@ const BulkUploadsTab = () => {
         }));
       }
 
-      setReport(finalStats);
-      setShowReport(true);
       if (!abortControllerRef.current.signal.aborted) {
+          setReport(finalStats);
+          setShowReport(true);
           setFiles([]);
           showToast("Process complete", "success");
       }
@@ -194,6 +187,20 @@ const BulkUploadsTab = () => {
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <SectionHeader icon={FiLayers} iconColor="bg-amber-500/20 text-amber-400" title="Elite Bulk Uploader" subtitle="Advanced SHA-256 duplicate prevention & batch delivery." />
         <div className="flex items-center gap-2">
+          {presets.length > 0 && (
+              <select onChange={e => {
+                  const p = presets.find(pr => pr.id === Number(e.target.value));
+                  if(p) { setSubject(p.subject); setSemester(p.semester); setCollege(p.college); setItemType(p.itemType); }
+              }} className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none">
+                  <option value="">Apply Preset...</option>
+                  {presets.map(p => <option key={p.id} value={p.id}>{p.subject}</option>)}
+              </select>
+          )}
+          <Btn variant="secondary" icon={FiSave} onClick={() => {
+              if(!subject) return showToast("Subject required to save preset", "error");
+              const p = [{id: Date.now(), subject, semester, college, itemType}, ...presets].slice(0,5);
+              setPresets(p); localStorage.setItem('admin_bulk_presets', JSON.stringify(p)); showToast("Preset Saved!", "success");
+          }}>Save Preset</Btn>
           {report && <Btn variant="ghost" onClick={() => setShowReport(true)} icon={FiList}>Last Report</Btn>}
           <Btn variant="danger" icon={FiTrash2} onClick={() => setFiles([])} disabled={uploading}>Clear</Btn>
         </div>
@@ -207,6 +214,7 @@ const BulkUploadsTab = () => {
             
             <div className="space-y-4">
               <input type="text" value={subject} onChange={e => setSubject(e.target.value)} placeholder="Subject" className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm text-white outline-none focus:border-amber-500/50" />
+              <input type="text" value={college} onChange={e => setCollege(e.target.value)} placeholder="College (Optional)" className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm text-white outline-none focus:border-amber-500/50" />
               <div className="grid grid-cols-2 gap-4">
                   <select value={semester} onChange={e => setSemester(e.target.value)} className="bg-[#0d0b1a] border border-white/10 rounded-2xl px-4 py-4 text-xs text-white">
                       <option value="">Sem</option>

@@ -1,4 +1,3 @@
-// frontend/src/components/PDFThumbnail.jsx
 import { useState, useEffect, useRef } from 'react';
 
 const PDFThumbnail = ({ pdfUrl, title, note }) => {
@@ -6,7 +5,7 @@ const PDFThumbnail = ({ pdfUrl, title, note }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const canvasRef = useRef(null);
-  const renderTaskRef = useRef(null);  // ✅ Track active render task to cancel on cleanup
+  const renderTaskRef = useRef(null);
 
   const ext = pdfUrl?.split('.').pop()?.toLowerCase() || '';
   const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext);
@@ -116,7 +115,6 @@ const PDFThumbnail = ({ pdfUrl, title, note }) => {
     };
   }, [pdfUrl, isImage, isPdf, fullUrl]);
 
-  // ✅ FIX: Unnecessary DOM Bloat — only keep canvas while generating
   const canvasEl = !thumbnail ? <canvas ref={canvasRef} style={{ display: 'none' }} /> : null;
 
   if (loading) {
@@ -134,7 +132,6 @@ const PDFThumbnail = ({ pdfUrl, title, note }) => {
   if (error || !thumbnail) {
     const isOfficeDoc = ['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'].includes(ext);
     const isPublicUrl = fullUrl.startsWith('http') && !fullUrl.includes('localhost');
-    // ✅ FIX: Only use Microsoft viewer for FREE/PUBLIC files to avoid 403 Forbidden on secured files
     const isFreeNote = note?.price === 0;
 
     if (isOfficeDoc && isPublicUrl && isFreeNote) {
@@ -187,4 +184,4 @@ const PDFThumbnail = ({ pdfUrl, title, note }) => {
   );
 };
 
-export default PDFThumbnail;
+export default PDFThumbnail;

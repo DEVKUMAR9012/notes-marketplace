@@ -8,17 +8,21 @@ const { generateAISummary } = require('../utils/aiSummary');
 const sendEmail = require('../utils/sendEmail');
 const templates = require('../utils/emailTemplates');
 
-// @desc    Get all notes with filters
-// @route   GET /api/notes
+// @desc    Get notes with filters + server-side pagination
+// @route   GET /api/notes?page=1&limit=12&search=&semester=&subject=&priceType=&itemType=
 // @access  Public
 exports.getNotes = async (req, res) => {
   try {
     const { search, semester, subject, college, priceType, itemType } = req.query;
+    
+    // ── Pagination ──────────────────────────────────────────────────────────
+    const page  = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit = Math.min(50, parseInt(req.query.limit) || 12); // max 50 per request
+    const skip  = (page - 1) * limit;
 
     let query = { status: 'approved' };
     
     if (itemType === 'note') {
-      // Legacy notes may not have itemType field, so we fetch anything that is NOT a book
       query.itemType = { $ne: 'book' };
     } else if (itemType) {
       query.itemType = itemType;
@@ -39,12 +43,17 @@ exports.getNotes = async (req, res) => {
     if (priceType === 'free')  query.price = 0;
     if (priceType === 'paid')  query.price = { $gt: 0 };
 
-    const notes = await Note.find(query)
-      .populate('uploadedBy', 'name email college isVerified')
-      .sort('-createdAt')
-      .lean();
+    // Run query + count in parallel
+    const [notes, totalCount] = await Promise.all([
+      Note.find(query)
+        .populate('uploadedBy', 'name email college isVerified')
+        .sort('-createdAt')
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Note.countDocuments(query)
+    ]);
 
-    // ✅ Format for frontend
     const formattedNotes = notes.map(note => ({
       ...note,
       sellerName: note.uploadedBy?.name || 'Anonymous',
@@ -52,17 +61,24 @@ exports.getNotes = async (req, res) => {
       verified:   note.uploadedBy?.isVerified || false
     }));
 
-    res.status(200).json(formattedNotes);
+    res.status(200).json({
+      notes: formattedNotes,
+      pagination: {
+        total:      totalCount,
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit),
+        hasMore:    page * limit < totalCount
+      }
+    });
 
   } catch (error) {
     console.error('Get Notes Error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while fetching notes',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Server error while fetching notes', error: error.message });
   }
 };
+
+
 
 // @desc    Get single note by ID
 // @route   GET /api/notes/:id

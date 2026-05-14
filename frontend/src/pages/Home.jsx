@@ -517,6 +517,8 @@ const GRADIENTS = [
 export default function Home() {
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [pagination, setPagination] = useState({ page: 1, hasMore: true, total: 0 });
   const [searchInput, setSearchInput] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [showSug, setShowSug] = useState(false);
@@ -525,29 +527,72 @@ export default function Home() {
   const [filters, setFilters] = useState({ subject: '', semester: '', priceType: '', minRating: '' });
   const [activeTab, setActiveTab] = useState('all');
   const [previewNote, setPreviewNote] = useState(null);
-  const [buyNote, setBuyNote] = useState(null); // ✅ For payment modal
+  const [buyNote, setBuyNote] = useState(null);
   const { wishlist, toggle: toggleWishlist } = useWishlist();
-  const { user } = useAuth(); // ✅ Get current user for PaymentButton
-  const debouncedSearch = useDebounce(searchInput, 300);
+  const { user } = useAuth();
+  const debouncedSearch = useDebounce(searchInput, 400);
   const searchRef = useRef(null);
+  const sentinelRef = useRef(null); // for IntersectionObserver
+  const isFetchingRef = useRef(false);
 
-  useEffect(() => { fetchNotes(); }, []);
+  // Build query params object from current UI state
+  const buildParams = useCallback((page = 1) => {
+    const params = { page, limit: 12 };
+    if (debouncedSearch) params.search = debouncedSearch;
+    if (filters.semester) params.semester = filters.semester;
+    if (filters.subject) params.subject = filters.subject;
+    if (filters.priceType) params.priceType = filters.priceType;
+    if (activeCategory !== 'All') params.search = params.search ? `${params.search} ${activeCategory}` : activeCategory;
+    return params;
+  }, [debouncedSearch, filters, activeCategory]);
 
+  // Initial / filter-changed fetch — resets list
+  const fetchNotes = useCallback(async () => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+    setLoading(true);
+    try {
+      const { data } = await API.get('/notes', { params: buildParams(1) });
+      setNotes(data.notes || []);
+      setPagination({ page: 1, hasMore: data.pagination.hasMore, total: data.pagination.total });
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); isFetchingRef.current = false; }
+  }, [buildParams]);
+
+  // Load next page (infinite scroll)
+  const loadMore = useCallback(async () => {
+    if (isFetchingRef.current || !pagination.hasMore) return;
+    isFetchingRef.current = true;
+    setLoadingMore(true);
+    try {
+      const nextPage = pagination.page + 1;
+      const { data } = await API.get('/notes', { params: buildParams(nextPage) });
+      setNotes(prev => [...prev, ...(data.notes || [])]);
+      setPagination({ page: nextPage, hasMore: data.pagination.hasMore, total: data.pagination.total });
+    } catch (e) { console.error(e); }
+    finally { setLoadingMore(false); isFetchingRef.current = false; }
+  }, [pagination, buildParams]);
+
+  // Re-fetch when filters/search/category change
+  useEffect(() => { fetchNotes(); }, [fetchNotes]);
+
+  // IntersectionObserver — auto load next page when sentinel is visible
+  useEffect(() => {
+    if (!sentinelRef.current) return;
+    const obs = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) loadMore(); }, { threshold: 0.1 });
+    obs.observe(sentinelRef.current);
+    return () => obs.disconnect();
+  }, [loadMore]);
+
+  // Suggestion from already-fetched notes (fast, no extra API call)
   useEffect(() => {
     if (debouncedSearch.length > 1) {
       const s = notes.filter(n => n.title?.toLowerCase().includes(debouncedSearch.toLowerCase())).slice(0, 5).map(n => n.title);
       setSuggestions(s);
       setShowSug(s.length > 0);
-    } else {
-      setSuggestions([]); setShowSug(false);
-    }
+    } else { setSuggestions([]); setShowSug(false); }
   }, [debouncedSearch, notes]);
 
-  const fetchNotes = async () => {
-    try { const r = await API.get('/notes'); setNotes(r.data); }
-    catch (e) { console.error(e); }
-    finally { setLoading(false); }
-  };
 
   const handlePreview = (note) => { if (note.pdfUrl) setPreviewNote(note); else alert('Preview not available'); };
   const handleBuy = (note) => {
@@ -574,22 +619,20 @@ export default function Home() {
   const clearFilters = () => setFilters({ subject: '', semester: '', priceType: '', minRating: '' });
   const getGradient = (id) => GRADIENTS[(id?.length ? id.charCodeAt(0) : 0) % GRADIENTS.length];
 
+  // Client-side sort/tab on already-fetched notes
   const baseFiltered = useMemo(() => {
     const q = debouncedSearch.toLowerCase();
     return notes.filter(n => {
       const mQ = !q || [n.title, n.subject, n.sellerName].some(v => v?.toLowerCase().includes(q));
       const mC = activeCategory === 'All' || n.subject?.toLowerCase().includes(activeCategory.toLowerCase());
-      const mS = !filters.subject || n.subject === filters.subject;
-      const mSem = !filters.semester || String(n.semester) === String(filters.semester);
-      const mP = !filters.priceType || (filters.priceType === 'free' ? n.price === 0 : n.price > 0);
       const mR = !filters.minRating || (n.rating || 0) >= Number(filters.minRating);
-      return mQ && mC && mS && mSem && mP && mR;
+      return mQ && mC && mR;
     });
-  }, [notes, debouncedSearch, activeCategory, filters]);
+  }, [notes, debouncedSearch, activeCategory, filters.minRating]);
 
   const trending = useMemo(() => [...baseFiltered].sort((a, b) => (b.downloads || 0) - (a.downloads || 0)).slice(0, 8), [baseFiltered]);
   const topRated = useMemo(() => [...baseFiltered].sort((a, b) => (b.rating || 0) - (a.rating || 0)).slice(0, 8), [baseFiltered]);
-  const newest = useMemo(() => [...baseFiltered].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)).slice(0, 8), [baseFiltered]);
+  const newest   = useMemo(() => [...baseFiltered].slice(0, 8), [baseFiltered]); // already sorted by -createdAt from server
   const wishlisted = useMemo(() => notes.filter(n => wishlist.includes(n._id)), [notes, wishlist]);
 
   const tabs = [
@@ -704,7 +747,7 @@ export default function Home() {
 
           {!loading && (
             <p className="text-xs text-gray-600">
-              {baseFiltered.length === notes.length ? `${notes.length} notes` : `${baseFiltered.length} / ${notes.length} notes`}
+              Showing {notes.length} of {pagination.total} notes
               {debouncedSearch && <span className="text-violet-400"> for "{debouncedSearch}"</span>}
             </p>
           )}
@@ -751,6 +794,21 @@ export default function Home() {
               )}
             </motion.div>
           </AnimatePresence>
+        )}
+
+        {/* Infinite Scroll Sentinel */}
+        {!loading && activeTab === 'all' && (
+          <div ref={sentinelRef} className="h-8 flex items-center justify-center">
+            {loadingMore && (
+              <div className="flex items-center gap-2 text-gray-500 text-xs">
+                <div className="w-4 h-4 border-2 border-violet-500/40 border-t-violet-500 rounded-full animate-spin" />
+                Loading more...
+              </div>
+            )}
+            {!pagination.hasMore && notes.length > 0 && (
+              <p className="text-gray-700 text-xs">All {pagination.total} notes loaded</p>
+            )}
+          </div>
         )}
       </div>
 

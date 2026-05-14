@@ -28,6 +28,14 @@ const {
 const { getEmailStats, getEmailLogs, sendMarketingCampaign } = require('../controllers/adminEmailController');
 const { bulkUploadNotes, checkDuplicates } = require('../controllers/adminUploadController');
 const adminBulkUpload = require('../middleware/adminBulkUpload');
+const rateLimit = require('express-rate-limit');
+
+// Rate limiter for duplicate checking to prevent DB probing
+const dupCheckLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 20,             // limit each IP to 20 requests per windowMs
+  message: { success: false, message: 'Too many duplicate checks from this IP, please try again after a minute' }
+});
 
 // All routes require protection and admin role
 router.use(protect);
@@ -35,7 +43,7 @@ router.use(admin);
 
 // Bulk Upload (Admin God Mode)
 router.post('/bulk-upload', adminBulkUpload.array('pdfs', 500), bulkUploadNotes);
-router.post('/check-duplicates', checkDuplicates);
+router.post('/check-duplicates', dupCheckLimiter, checkDuplicates);
 
 // Overview
 router.get('/dashboard', getDashboardStats);

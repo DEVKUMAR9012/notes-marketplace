@@ -37,13 +37,15 @@ exports.bulkUploadNotes = async (req, res) => {
         const hash = fileMeta.hash || null;
 
         // 1. DUPLICATE CHECK (By Hash)
-        if (hash) {
-          const existing = await Note.findOne({ fileHash: hash });
-          if (existing) {
-            results.duplicates++;
-            results.duplicateFiles.push({ name: file.originalname, hash });
-            continue; // Skip this file
-          }
+        if (!hash) {
+          throw new Error("Missing fileHash from frontend (Duplicate check bypassed)");
+        }
+        
+        const existing = await Note.findOne({ fileHash: hash });
+        if (existing) {
+          results.duplicates++;
+          results.duplicateFiles.push({ name: file.originalname, hash });
+          continue; // Skip this file
         }
 
         // 2. DATA PREP
@@ -52,11 +54,11 @@ exports.bulkUploadNotes = async (req, res) => {
         const noteData = {
           title,
           subject: fileMeta.subject || subject || 'Uncategorized',
-          semester: fileMeta.semester || (semester ? Number(semester) : null),
+          semester: (fileMeta.semester ? Number(fileMeta.semester) : null) || (semester ? Number(semester) : null),
           college: fileMeta.college || college || '',
           itemType: fileMeta.itemType || itemType,
           price: 0,
-          pdfUrl: file.path, 
+          pdfUrl: file.secure_url || file.path, 
           uploadedBy: req.user._id,
           status: 'approved',
           fileHash: hash
