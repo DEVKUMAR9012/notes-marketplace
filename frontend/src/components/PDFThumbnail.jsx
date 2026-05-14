@@ -4,8 +4,13 @@ const PDFThumbnail = ({ pdfUrl, title, note }) => {
   const [thumbnail, setThumbnail] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+  const [networkType, setNetworkType] = useState('4g'); // Default to fast
+  const [userTriggered, setUserTriggered] = useState(false); // For 3G users to manually load
+
   const canvasRef = useRef(null);
   const renderTaskRef = useRef(null);
+  const containerRef = useRef(null);
 
   const ext = pdfUrl?.split('.').pop()?.toLowerCase() || '';
   const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext);
@@ -15,46 +20,43 @@ const PDFThumbnail = ({ pdfUrl, title, note }) => {
     ? pdfUrl
     : `${process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL.replace('/api', '') : 'http://localhost:5000'}${pdfUrl}`;
 
-  const [isVisible, setIsVisible] = useState(false);
-  const containerRef = useRef(null);
+  // 1. Detect Network Speed
+  useEffect(() => {
+    if (navigator.connection && navigator.connection.effectiveType) {
+      setNetworkType(navigator.connection.effectiveType); // '4g', '3g', '2g', 'slow-2g'
+    }
+  }, []);
 
-  // 1. Observer to detect when thumbnail is actually in viewport
+  // 2. Intersection Observer (Only render when visible on screen)
   useEffect(() => {
     if (!containerRef.current) return;
     const observer = new IntersectionObserver(([entry]) => {
       if (entry.isIntersecting) {
         setIsVisible(true);
-        observer.disconnect(); // Only need to trigger once
+        observer.disconnect();
       }
-    }, { threshold: 0.1 }); // Trigger when 10% visible
+    }, { threshold: 0.1 });
     
     observer.observe(containerRef.current);
     return () => observer.disconnect();
   }, []);
 
-  // 2. Heavy PDF render logic only runs when visible
+  // 3. Generate Thumbnail via PDF.js
   useEffect(() => {
     let cancelled = false;
 
     const generateThumbnail = async () => {
-      if (!isVisible) return; // DON'T START UNTIL VISIBLE!
-      
-      if (!pdfUrl) {
+      // DON'T generate if not visible.
+      // If network is slow (3G/2G), DON'T auto-generate unless user clicked "Load".
+      if (!isVisible) return;
+      if ((networkType === '3g' || networkType === '2g' || networkType === 'slow-2g') && !userTriggered) {
         setLoading(false);
-        return;
+        return; 
       }
 
-      if (isImage) {
-        setThumbnail(fullUrl);
-        setLoading(false);
-        return;
-      }
-
-      if (!isPdf) {
-        setLoading(false);
-        setError(true);
-        return;
-      }
+      if (!pdfUrl) { setLoading(false); return; }
+      if (isImage) { setThumbnail(fullUrl); setLoading(false); return; }
+      if (!isPdf)  { setLoading(false); setError(true); return; }
 
       if (renderTaskRef.current) {
         try { renderTaskRef.current.cancel(); } catch (_) {}
@@ -63,7 +65,7 @@ const PDFThumbnail = ({ pdfUrl, title, note }) => {
 
       const timeoutId = setTimeout(() => {
         if (!cancelled) { setError(true); setLoading(false); }
-      }, 10000);
+      }, 15000); // 15 sec timeout for slow networks
 
       try {
         setLoading(true);
@@ -133,50 +135,50 @@ const PDFThumbnail = ({ pdfUrl, title, note }) => {
         renderTaskRef.current = null;
       }
     };
-  }, [pdfUrl, isImage, isPdf, fullUrl, isVisible]);
+  }, [pdfUrl, isImage, isPdf, fullUrl, isVisible, networkType, userTriggered]);
 
   const canvasEl = !thumbnail ? <canvas ref={canvasRef} style={{ display: 'none' }} /> : null;
 
+  // ─── UI RENDER STATES ────────────────────────────────────────────────────────
+
+  // Slow Network Prompt (Saves Data on 3G)
+  if (isVisible && (networkType === '3g' || networkType === '2g' || networkType === 'slow-2g') && !userTriggered && !thumbnail) {
+    return (
+      <div ref={containerRef} className="w-full h-full relative bg-gray-900 flex flex-col items-center justify-center p-4">
+        {canvasEl}
+        <div className="text-3xl mb-2">🐢</div>
+        <div className="text-white/80 font-bold text-xs mb-2">Slow Network ({networkType.toUpperCase()})</div>
+        <button 
+          onClick={(e) => { e.stopPropagation(); setUserTriggered(true); setLoading(true); }}
+          className="px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white text-[10px] rounded-lg shadow-lg font-semibold"
+        >
+          Load Thumbnail
+        </button>
+      </div>
+    );
+  }
+
+  // Loading State
   if (loading || !isVisible) {
     return (
       <div ref={containerRef} className="w-full h-full relative">
         {canvasEl}
         <div className="w-full h-full flex flex-col items-center justify-center bg-black/20">
           <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-          <div className="text-white/50 text-xs mt-2">{!isVisible ? 'Waiting to render...' : 'Loading preview...'}</div>
+          <div className="text-white/50 text-xs mt-2">{!isVisible ? 'Waiting...' : 'Loading PDF...'}</div>
         </div>
       </div>
     );
   }
 
+  // Error / Fallback State
   if (error || !thumbnail) {
-    const isOfficeDoc = ['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'].includes(ext);
-    const isPublicUrl = fullUrl.startsWith('http') && !fullUrl.includes('localhost');
-    const isFreeNote = note?.price === 0;
-
-    if (isOfficeDoc && isPublicUrl && isFreeNote) {
-      const officeViewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fullUrl)}`;
-      return (
-        <div ref={containerRef} className="w-full h-full relative overflow-hidden bg-white">
-          <iframe
-            src={officeViewerUrl}
-            className="w-full h-[150%] -mt-12 pointer-events-none border-none"
-            title={title}
-            scrolling="no"
-          />
-          <div className="absolute inset-0 z-10 bg-transparent" />
-        </div>
-      );
-    }
-
     let IconComponent = '📄';
-    let typeName = 'Document';
+    let typeName = 'PDF Document';
     
     if (['doc', 'docx'].includes(ext)) { IconComponent = '📝'; typeName = 'Word Document'; }
     else if (['ppt', 'pptx'].includes(ext)) { IconComponent = '📊'; typeName = 'PowerPoint'; }
     else if (['xls', 'xlsx'].includes(ext)) { IconComponent = '📈'; typeName = 'Excel'; }
-    else if (['zip', 'rar'].includes(ext)) { IconComponent = '🗜️'; typeName = 'Archive'; }
-    else if (isPdf) { typeName = 'PDF'; }
 
     return (
       <div ref={containerRef} className="w-full h-full relative">
@@ -192,6 +194,7 @@ const PDFThumbnail = ({ pdfUrl, title, note }) => {
     );
   }
 
+  // Success State (Real Thumbnail)
   return (
     <div ref={containerRef} className="w-full h-full relative">
       {canvasEl}
