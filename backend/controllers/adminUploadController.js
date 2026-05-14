@@ -90,3 +90,26 @@ exports.bulkUploadNotes = async (req, res) => {
     res.status(500).json({ success: false, message: 'Bulk upload engine failure', error: error.message });
   }
 };
+
+/**
+ * @desc    Check which hashes already exist in the DB
+ * @route   POST /api/admin/check-duplicates
+ */
+exports.checkDuplicates = async (req, res) => {
+  try {
+    const { hashes } = req.body; // Array of hashes
+    if (!hashes || !Array.isArray(hashes)) {
+      return res.status(400).json({ success: false, message: 'Invalid hashes array' });
+    }
+
+    const existingNotes = await Note.find({ fileHash: { $in: hashes } }).select('fileHash title');
+    const existingHashes = existingNotes.map(n => n.fileHash);
+
+    res.json({
+      success: true,
+      existingHashes
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

@@ -3,7 +3,8 @@ import {
   FiUploadCloud, FiFile, FiCheckCircle, FiX, FiInfo, FiLayers, 
   FiAlertCircle, FiSettings, FiSave, FiFolder, FiGrid, FiList,
   FiTrash2, FiActivity, FiDatabase, FiFileText, FiPlusSquare,
-  FiTable, FiCheck, FiPlay, FiPause, FiCircle, FiChevronDown, FiChevronUp
+  FiTable, FiCheck, FiPlay, FiPause, FiCircle, FiChevronDown, FiChevronUp,
+  FiSearch
 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDropzone } from 'react-dropzone';
@@ -27,7 +28,7 @@ const BulkUploadsTab = () => {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [stats, setStats] = useState({ total: 0, current: 0, failed: 0, success: 0, duplicates: 0 });
-  const [report, setReport] = useState(null); // Detailed report from server
+  const [report, setReport] = useState(null); 
   const [showReport, setShowReport] = useState(false);
   
   const [currentBatchInfo, setCurrentBatchInfo] = useState('');
@@ -48,34 +49,6 @@ const BulkUploadsTab = () => {
     setTimeout(() => setToast(null), 4000);
   }, []);
 
-  const handleCSVImport = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        const mapping = {};
-        results.data.forEach(row => {
-          const key = row.Filename || row.filename;
-          if (key) {
-            mapping[key] = {
-              title: row.Title || row.title,
-              subject: row.Subject || row.subject,
-              semester: row.Semester || row.semester,
-              college: row.College || row.college,
-              itemType: row.ItemType || row.itemType || 'note'
-            };
-          }
-        });
-        setCsvMetadata(mapping);
-        setCsvFileName(file.name);
-        showToast("CSV metadata loaded!", "success");
-      },
-      error: () => showToast("CSV Error", "error")
-    });
-  };
-
   const onDrop = useCallback((acceptedFiles) => {
     const pdfs = acceptedFiles.filter(f => f.type === 'application/pdf');
     setFiles(prev => {
@@ -92,33 +65,80 @@ const BulkUploadsTab = () => {
   });
 
   const handleBulkUpload = async () => {
+    if (files.length === 0) return;
     setUploading(true);
     setReport(null);
-    setStats({ total: files.length, current: 0, failed: 0, success: 0, duplicates: 0 });
     setProgress(0);
     abortControllerRef.current = new AbortController();
 
-    const totalBatches = Math.ceil(files.length / BATCH_SIZE);
-    let finalStats = { success: 0, failed: 0, duplicates: 0, successFiles: [], failedFiles: [], duplicateFiles: [] };
-
+    const finalStats = { success: 0, failed: 0, duplicates: 0, successFiles: [], failedFiles: [], duplicateFiles: [] };
+    
     try {
+      // 1. PHASE 1: Hashing & Duplicate Pre-Check
+      setCurrentBatchInfo("Phase 1: Calculating Fingerprints (SHA-256)...");
+      const fileHashes = [];
+      const fileMap = new Map();
+
+      for(let i=0; i<files.length; i++) {
+        const hash = await calculateFileHash(files[i]);
+        fileHashes.push(hash);
+        fileMap.set(hash, files[i]);
+        setProgress(Math.round(((i + 1) / files.length) * 10)); // First 10% for hashing
+      }
+
+      setCurrentBatchInfo("Phase 2: Syncing with Database...");
+      const { data: dupData } = await API.post('/api/admin/check-duplicates', { hashes: fileHashes });
+      const existingHashes = new Set(dupData.existingHashes);
+
+      // Filter out duplicates from the upload queue
+      const uploadQueue = files.filter(f => {
+          // We need the hash again or store it. Let's re-hash or store in a WeakMap? 
+          // Better: just check the map we built
+          return true; // placeholder logic below
+      });
+
+      // Actually, let's rebuild the queue based on the check
+      const cleanQueue = [];
+      fileMap.forEach((file, hash) => {
+          if (existingHashes.has(hash)) {
+              finalStats.duplicates++;
+              finalStats.duplicateFiles.push({ name: file.name, hash });
+          } else {
+              cleanQueue.push({ file, hash });
+          }
+      });
+
+      setStats({ total: files.length, current: finalStats.duplicates, failed: 0, success: 0, duplicates: finalStats.duplicates });
+
+      if (cleanQueue.length === 0) {
+          showToast("All files are already in the database!", "info");
+          setReport(finalStats);
+          setShowReport(true);
+          setUploading(false);
+          return;
+      }
+
+      // 2. PHASE 2: Uploading Clean Queue in Batches
+      const totalBatches = Math.ceil(cleanQueue.length / BATCH_SIZE);
+      
       for (let b = 0; b < totalBatches; b++) {
         if (abortControllerRef.current.signal.aborted) break;
 
         const start = b * BATCH_SIZE;
-        const end = Math.min(start + BATCH_SIZE, files.length);
-        const batchFiles = files.slice(start, end);
-        setCurrentBatchInfo(`Processing Batch ${b + 1}/${totalBatches}...`);
+        const end = Math.min(start + BATCH_SIZE, cleanQueue.length);
+        const batchItems = cleanQueue.slice(start, end);
+        
+        setCurrentBatchInfo(`Phase 3: Uploading Batch ${b + 1}/${totalBatches}...`);
         
         const batchMetadata = {};
-        await Promise.all(batchFiles.map(async (f) => {
-           const hash = await calculateFileHash(f);
-           const csvData = csvMetadata[f.name] || {};
-           batchMetadata[f.name] = { ...csvData, hash };
-        }));
-
         const formData = new FormData();
-        batchFiles.forEach(f => formData.append('pdfs', f));
+        
+        batchItems.forEach(item => {
+            formData.append('pdfs', item.file);
+            const csvData = csvMetadata[item.file.name] || {};
+            batchMetadata[item.file.name] = { ...csvData, hash: item.hash };
+        });
+
         formData.append('subject', subject);
         formData.append('semester', semester);
         formData.append('college', college);
@@ -126,47 +146,44 @@ const BulkUploadsTab = () => {
         formData.append('metadata', JSON.stringify(batchMetadata));
 
         try {
-            const { data } = await API.post('/admin/bulk-upload', formData, {
+            const { data } = await API.post('/api/admin/bulk-upload', formData, {
                 signal: abortControllerRef.current.signal,
                 onUploadProgress: (pEvent) => {
                     const batchP = Math.round((pEvent.loaded * 100) / pEvent.total);
-                    setProgress(Math.round(((b * 100) + batchP) / totalBatches));
+                    // Progress from 10% to 100%
+                    const overallP = 10 + Math.round((((b * 100) + batchP) / totalBatches) * 0.9);
+                    setProgress(overallP);
                 }
             });
-            // Accumulate detailed stats
             finalStats.success += data.stats.success;
             finalStats.failed += data.stats.failed;
-            finalStats.duplicates += data.stats.duplicates;
             finalStats.successFiles.push(...data.stats.successFiles);
             finalStats.failedFiles.push(...data.stats.failedFiles);
-            finalStats.duplicateFiles.push(...data.stats.duplicateFiles);
         } catch (err) {
             if (err.name === 'AbortError') break;
-            finalStats.failed += batchFiles.length;
-            batchFiles.forEach(f => finalStats.failedFiles.push({ name: f.name, error: "Network or Server Timeout" }));
+            finalStats.failed += batchItems.length;
+            batchItems.forEach(item => finalStats.failedFiles.push({ name: item.file.name, error: "Network Error" }));
         }
 
         setStats(prev => ({ 
             ...prev, 
-            current: end, 
+            current: finalStats.duplicates + finalStats.success + finalStats.failed,
             success: finalStats.success, 
-            failed: finalStats.failed, 
-            duplicates: finalStats.duplicates 
+            failed: finalStats.failed 
         }));
       }
 
       setReport(finalStats);
       setShowReport(true);
       if (!abortControllerRef.current.signal.aborted) {
-        showToast("Upload completed with detailed report", "info");
-        setFiles([]);
+          setFiles([]);
+          showToast("Process complete", "success");
       }
     } catch (error) {
-      showToast("Upload Engine Error", "error");
+      showToast("Engine Failure", "error");
     } finally {
       setUploading(false);
       setProgress(100);
-      setCurrentBatchInfo('Processing Complete');
     }
   };
 
@@ -175,49 +192,56 @@ const BulkUploadsTab = () => {
       <Toast toast={toast} />
       
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <SectionHeader 
-          icon={FiLayers} 
-          iconColor="bg-amber-500/20 text-amber-400"
-          title="Admin God Mode" 
-          subtitle="High-performance batch engine with audit reporting."
-        />
+        <SectionHeader icon={FiLayers} iconColor="bg-amber-500/20 text-amber-400" title="Elite Bulk Uploader" subtitle="Advanced SHA-256 duplicate prevention & batch delivery." />
         <div className="flex items-center gap-2">
-          {report && <Btn variant="ghost" onClick={() => setShowReport(true)} icon={FiList}>View Last Report</Btn>}
-          <Btn variant="danger" icon={FiTrash2} onClick={() => setFiles([])} disabled={uploading}>Clear Queue</Btn>
+          {report && <Btn variant="ghost" onClick={() => setShowReport(true)} icon={FiList}>Last Report</Btn>}
+          <Btn variant="danger" icon={FiTrash2} onClick={() => setFiles([])} disabled={uploading}>Clear</Btn>
         </div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
-        {/* Left: Controls */}
         <div className="xl:col-span-4 space-y-6">
           <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 space-y-6 shadow-2xl relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-3xl" />
             <h3 className="text-xs font-bold text-white uppercase tracking-widest flex items-center gap-2"><FiDatabase className="text-amber-400" /> Controller</h3>
             
             <div className="space-y-4">
-              <label className="flex items-center gap-3 px-4 py-3 bg-white/5 border border-dashed border-white/10 rounded-xl cursor-pointer hover:border-amber-500/50 transition">
-                <FiTable className="text-gray-400" />
-                <span className="text-xs text-gray-400 truncate">{csvFileName || 'Attach Metadata CSV'}</span>
-                <input type="file" accept=".csv" className="hidden" onChange={handleCSVImport} />
-              </label>
-              <input type="text" value={subject} onChange={e => setSubject(e.target.value)} placeholder="Common Subject" className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm text-white outline-none focus:border-amber-500/50" />
+              <input type="text" value={subject} onChange={e => setSubject(e.target.value)} placeholder="Subject" className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm text-white outline-none focus:border-amber-500/50" />
+              <div className="grid grid-cols-2 gap-4">
+                  <select value={semester} onChange={e => setSemester(e.target.value)} className="bg-[#0d0b1a] border border-white/10 rounded-2xl px-4 py-4 text-xs text-white">
+                      <option value="">Sem</option>
+                      {[1,2,3,4,5,6,7,8].map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  <select value={itemType} onChange={e => setItemType(e.target.value)} className="bg-[#0d0b1a] border border-white/10 rounded-2xl px-4 py-4 text-xs text-white">
+                      <option value="note">Notes</option>
+                      <option value="book">Books</option>
+                  </select>
+              </div>
             </div>
 
             <div className="pt-4">
               <Btn variant="primary" className="w-full justify-center py-5 bg-gradient-to-r from-amber-600 to-orange-600 border-none shadow-2xl text-base font-bold"
                 onClick={handleBulkUpload} disabled={uploading || files.length === 0}>
-                {uploading ? 'Processing Engine Active...' : '🚀 Start Bulk Batch'}
+                {uploading ? 'Processing...' : '🚀 Launch Bulk Engine'}
               </Btn>
               {uploading && (
-                <button onClick={() => abortControllerRef.current.abort()} className="w-full mt-3 py-2 text-xs text-red-400 font-bold hover:underline">
-                  Emergency Stop
+                <button onClick={() => abortControllerRef.current.abort()} className="w-full mt-3 py-2 text-xs text-red-400 font-bold hover:underline flex items-center justify-center gap-2">
+                   <FiPause /> Stop Process
                 </button>
               )}
             </div>
           </div>
+
+          <div className="bg-amber-500/5 border border-amber-500/10 rounded-3xl p-6">
+              <p className="text-[10px] text-amber-500 font-black uppercase tracking-[0.2em] mb-2 flex items-center gap-2">
+                  <FiSearch /> Smart Detection
+              </p>
+              <p className="text-[11px] text-gray-500 leading-relaxed">
+                  System automatically scans file contents (SHA-256) to prevent re-uploading existing documents.
+              </p>
+          </div>
         </div>
 
-        {/* Right: Progress & Queue */}
         <div className="xl:col-span-8 space-y-6">
           <AnimatePresence>
             {uploading && (
@@ -225,19 +249,22 @@ const BulkUploadsTab = () => {
                 className="bg-gray-950 border border-amber-500/30 rounded-[2.5rem] p-8 shadow-2xl">
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center gap-3">
-                    <FiActivity className="text-amber-400 animate-pulse" />
+                    <FiActivity className={`text-amber-400 ${progress < 100 ? 'animate-pulse' : ''}`} />
                     <div>
-                      <p className="text-sm font-bold text-white uppercase">{currentBatchInfo}</p>
-                      <p className="text-[10px] text-gray-500">{progress}% Total Progress</p>
+                      <p className="text-sm font-bold text-white uppercase tracking-widest">{currentBatchInfo}</p>
+                      <p className="text-[10px] text-gray-500 font-medium">Batch Engine active</p>
                     </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-2xl font-black text-amber-400">{progress}%</p>
                   </div>
                 </div>
                 <div className="h-4 bg-white/5 rounded-full overflow-hidden mb-8 border border-white/10 p-1">
-                  <motion.div initial={{ width: 0 }} animate={{ width: `${progress}%` }} className="h-full rounded-full bg-gradient-to-r from-amber-600 via-orange-500 to-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.4)]" />
+                  <motion.div initial={{ width: 0 }} animate={{ width: `${progress}%` }} className="h-full rounded-full bg-gradient-to-r from-amber-600 via-orange-500 to-amber-400" />
                 </div>
                 <div className="grid grid-cols-3 gap-4">
                   {[
-                    { label: 'Successful', val: stats.success, color: 'text-emerald-400' },
+                    { label: 'Success', val: stats.success, color: 'text-emerald-400' },
                     { label: 'Duplicates', val: stats.duplicates, color: 'text-amber-400' },
                     { label: 'Failed', val: stats.failed, color: 'text-red-400' }
                   ].map(s => (
@@ -251,21 +278,41 @@ const BulkUploadsTab = () => {
             )}
           </AnimatePresence>
 
-          <div {...getRootProps()} className={`border-2 border-dashed rounded-[2.5rem] p-16 flex flex-col items-center justify-center transition-all ${isDragActive ? 'border-amber-500 bg-amber-500/5' : 'border-white/10 bg-white/[0.02]'}`}>
+          <div {...getRootProps()} className={`border-2 border-dashed rounded-[2.5rem] p-20 flex flex-col items-center justify-center transition-all ${isDragActive ? 'border-amber-500 bg-amber-500/5' : 'border-white/10 bg-white/[0.02]'}`}>
             <input {...getInputProps()} />
             <FiUploadCloud size={48} className="text-gray-600 mb-4" />
-            <h3 className="text-xl font-bold text-white">Batch Upload Engine</h3>
-            <p className="text-sm text-gray-500 mt-2 font-medium">Drag and drop PDFs here</p>
+            <h3 className="text-xl font-bold text-white">Enterprise Bulk Engine</h3>
+            <p className="text-sm text-gray-500 mt-2 font-medium">Up to 500 PDFs at once</p>
           </div>
 
           {files.length > 0 && !uploading && (
             <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-6 max-h-[400px] overflow-y-auto custom-scrollbar">
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Queued Files ({files.length})</p>
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Queue ({files.length})</p>
+                <div className="flex gap-2">
+                    <label className="text-[10px] bg-white/5 hover:bg-white/10 px-3 py-1 rounded-full text-gray-400 cursor-pointer flex items-center gap-2">
+                        <FiTable /> {csvFileName || 'CSV Metadata'}
+                        <input type="file" accept=".csv" className="hidden" onChange={e => {
+                            const file = e.target.files?.[0];
+                            if(file) {
+                                Papa.parse(file, { header: true, complete: (res) => {
+                                    const map = {};
+                                    res.data.forEach(r => { if(r.Filename) map[r.Filename] = r; });
+                                    setCsvMetadata(map);
+                                    setCsvFileName(file.name);
+                                }});
+                            }
+                        }} />
+                    </label>
+                </div>
+              </div>
               <div className="space-y-2">
                 {files.map((f, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-black/20 border border-white/5">
-                    <span className="text-sm text-gray-300 truncate">{f.name}</span>
-                    <FiFile className="text-gray-600" />
+                  <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-black/20 border border-white/5 group">
+                    <span className="text-sm text-gray-300 truncate">{csvMetadata[f.name]?.Title || f.name}</span>
+                    <button onClick={() => setFiles(prev => prev.filter((_, idx) => idx !== i))} className="p-1 text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <FiX />
+                    </button>
                   </div>
                 ))}
               </div>
@@ -274,8 +321,7 @@ const BulkUploadsTab = () => {
         </div>
       </div>
 
-      {/* REPORT MODAL */}
-      <Modal open={showReport} onClose={() => setShowReport(false)} title="Audit Report: Batch Upload" maxW="max-w-4xl">
+      <Modal open={showReport} onClose={() => setShowReport(false)} title="Batch Processing Audit" maxW="max-w-4xl">
         <div className="space-y-6">
             <div className="grid grid-cols-3 gap-4">
                 <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 text-center">
@@ -292,47 +338,38 @@ const BulkUploadsTab = () => {
                 </div>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                 {report?.failedFiles?.length > 0 && (
                     <div className="space-y-2">
-                        <p className="text-xs font-bold text-red-400 uppercase tracking-widest">Failed Files Log</p>
-                        <div className="space-y-1">
-                            {report.failedFiles.map((f, i) => (
-                                <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-red-500/5 border border-red-500/10">
-                                    <span className="text-xs text-gray-300">{f.name}</span>
-                                    <span className="text-[10px] text-red-400 font-bold uppercase">{f.error}</span>
-                                </div>
-                            ))}
-                        </div>
+                        <p className="text-xs font-bold text-red-400 uppercase tracking-widest">Failures</p>
+                        {report.failedFiles.map((f, i) => (
+                            <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-red-500/5 border border-red-500/10 text-xs">
+                                <span className="text-gray-300">{f.name}</span>
+                                <span className="text-red-400 font-bold uppercase">{f.error}</span>
+                            </div>
+                        ))}
                     </div>
                 )}
-
                 {report?.duplicateFiles?.length > 0 && (
                     <div className="space-y-2">
-                        <p className="text-xs font-bold text-amber-400 uppercase tracking-widest">Duplicate Files (Already Exist)</p>
-                        <div className="space-y-1">
-                            {report.duplicateFiles.map((f, i) => (
-                                <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-amber-500/5 border border-amber-500/10">
-                                    <span className="text-xs text-gray-300">{f.name}</span>
-                                    <span className="text-[10px] text-amber-400 font-bold">DUPLICATE HASH</span>
-                                </div>
-                            ))}
-                        </div>
+                        <p className="text-xs font-bold text-amber-400 uppercase tracking-widest">Detected Duplicates (Skipped Upload)</p>
+                        {report.duplicateFiles.map((f, i) => (
+                            <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-amber-500/5 border border-amber-500/10 text-xs">
+                                <span className="text-gray-300">{f.name}</span>
+                                <span className="text-amber-400 font-bold">ALREADY EXISTS</span>
+                            </div>
+                        ))}
                     </div>
                 )}
-                
                 {report?.successFiles?.length > 0 && (
-                     <div className="space-y-2">
-                        <p className="text-xs font-bold text-emerald-400 uppercase tracking-widest">Success Log (Top 10)</p>
-                        <div className="space-y-1">
-                            {report.successFiles.slice(0, 10).map((f, i) => (
-                                <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/10">
-                                    <span className="text-xs text-gray-300">{f.name}</span>
-                                    <FiCheckCircle className="text-emerald-400" size={14} />
-                                </div>
-                            ))}
-                            {report.successFiles.length > 10 && <p className="text-center text-[10px] text-gray-500">...and {report.successFiles.length - 10} more files</p>}
-                        </div>
+                    <div className="space-y-2">
+                        <p className="text-xs font-bold text-emerald-400 uppercase tracking-widest">Success Log</p>
+                        {report.successFiles.slice(0, 15).map((f, i) => (
+                            <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/10 text-xs text-gray-300">
+                                <span>{f.name}</span>
+                                <FiCheckCircle className="text-emerald-400" />
+                            </div>
+                        ))}
                     </div>
                 )}
             </div>
