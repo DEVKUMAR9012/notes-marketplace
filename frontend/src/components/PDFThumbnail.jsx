@@ -15,10 +15,30 @@ const PDFThumbnail = ({ pdfUrl, title, note }) => {
     ? pdfUrl
     : `${process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL.replace('/api', '') : 'http://localhost:5000'}${pdfUrl}`;
 
+  const [isVisible, setIsVisible] = useState(false);
+  const containerRef = useRef(null);
+
+  // 1. Observer to detect when thumbnail is actually in viewport
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setIsVisible(true);
+        observer.disconnect(); // Only need to trigger once
+      }
+    }, { threshold: 0.1 }); // Trigger when 10% visible
+    
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  // 2. Heavy PDF render logic only runs when visible
   useEffect(() => {
     let cancelled = false;
 
     const generateThumbnail = async () => {
+      if (!isVisible) return; // DON'T START UNTIL VISIBLE!
+      
       if (!pdfUrl) {
         setLoading(false);
         return;
@@ -113,19 +133,19 @@ const PDFThumbnail = ({ pdfUrl, title, note }) => {
         renderTaskRef.current = null;
       }
     };
-  }, [pdfUrl, isImage, isPdf, fullUrl]);
+  }, [pdfUrl, isImage, isPdf, fullUrl, isVisible]);
 
   const canvasEl = !thumbnail ? <canvas ref={canvasRef} style={{ display: 'none' }} /> : null;
 
-  if (loading) {
+  if (loading || !isVisible) {
     return (
-      <>
+      <div ref={containerRef} className="w-full h-full relative">
         {canvasEl}
         <div className="w-full h-full flex flex-col items-center justify-center bg-black/20">
           <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-          <div className="text-white/50 text-xs mt-2">Loading preview...</div>
+          <div className="text-white/50 text-xs mt-2">{!isVisible ? 'Waiting to render...' : 'Loading preview...'}</div>
         </div>
-      </>
+      </div>
     );
   }
 
@@ -137,7 +157,7 @@ const PDFThumbnail = ({ pdfUrl, title, note }) => {
     if (isOfficeDoc && isPublicUrl && isFreeNote) {
       const officeViewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fullUrl)}`;
       return (
-        <div className="w-full h-full relative overflow-hidden bg-white">
+        <div ref={containerRef} className="w-full h-full relative overflow-hidden bg-white">
           <iframe
             src={officeViewerUrl}
             className="w-full h-[150%] -mt-12 pointer-events-none border-none"
@@ -159,7 +179,7 @@ const PDFThumbnail = ({ pdfUrl, title, note }) => {
     else if (isPdf) { typeName = 'PDF'; }
 
     return (
-      <>
+      <div ref={containerRef} className="w-full h-full relative">
         {canvasEl}
         <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-700 to-gray-800">
           <div className="text-5xl mb-2">{IconComponent}</div>
@@ -168,19 +188,19 @@ const PDFThumbnail = ({ pdfUrl, title, note }) => {
             {title?.slice(0, 30)}
           </div>
         </div>
-      </>
+      </div>
     );
   }
 
   return (
-    <>
+    <div ref={containerRef} className="w-full h-full relative">
       {canvasEl}
       <img
         src={thumbnail}
         alt={title || 'Thumbnail'}
         className="w-full h-full object-cover object-top bg-white"
       />
-    </>
+    </div>
   );
 };
 
