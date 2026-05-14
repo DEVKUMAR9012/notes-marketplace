@@ -4,7 +4,7 @@ import {
   FiUsers, FiFileText, FiDollarSign, FiActivity,
   FiMail, FiShield, FiMenu,
   FiMessageSquare,
-  FiSettings, FiFlag
+  FiSettings, FiFlag, FiUpload
 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import API from '../utils/api';
@@ -19,6 +19,7 @@ const FinancialsTab = lazy(() => import('./tabs/FinancialsTab'));
 const SupportTab = lazy(() => import('./tabs/SupportTab'));
 const EmailsTab = lazy(() => import('./tabs/EmailsTab'));
 const SettingsTab = lazy(() => import('./tabs/SettingsTab'));
+const BulkUploadsTab = lazy(() => import('./tabs/BulkUploadsTab'));
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -38,6 +39,7 @@ export default function AdminDashboard() {
   const sidebarItems = [
     { id: 'overview', label: 'Overview', icon: FiActivity, badge: null },
     { id: 'users', label: 'User Management', icon: FiUsers, badge: null },
+    { id: 'bulk-upload', label: 'Bulk Upload', icon: FiUpload, badge: null },
     { id: 'content', label: 'Content Moderation', icon: FiFileText, badge: stats.pendingNotes },
     { id: 'chats', label: 'Live Chats', icon: FiMessageSquare, badge: null },
     { id: 'finance', label: 'Financials', icon: FiDollarSign, badge: null },
@@ -129,6 +131,7 @@ export default function AdminDashboard() {
             <Suspense fallback={<div className="animate-pulse flex space-x-4"><div className="flex-1 space-y-4 py-1"><div className="h-4 bg-white/5 rounded w-3/4"></div><div className="space-y-2"><div className="h-4 bg-white/5 rounded"></div><div className="h-4 bg-white/5 rounded w-5/6"></div></div></div></div>}>
               {activeTab === 'overview' && <OverviewTab onTabChange={setActiveTab} />}
               {activeTab === 'users' && <UserManagementTab />}
+              {activeTab === 'bulk-upload' && <BulkUploadsTab />}
               {activeTab === 'content' && <ContentModerationTab />}
               {activeTab === 'chats' && <LiveChatsTab />}
               {activeTab === 'finance' && <FinancialsTab />}

@@ -15,7 +15,7 @@ exports.getNotes = async (req, res) => {
   try {
     const { search, semester, subject, college, priceType, itemType } = req.query;
 
-    let query = { isApproved: true };
+    let query = { status: 'approved' };
     
     if (itemType === 'note') {
       // Legacy notes may not have itemType field, so we fetch anything that is NOT a book
@@ -146,7 +146,7 @@ exports.createNote = async (req, res) => {
       pdfUrl,
       fileHash,
       uploadedBy:   req.user._id,   // ✅ Fixed: was using wrong field name
-      isApproved:   true
+      status:       'approved'
     });
 
     // ✅ Populate uploadedBy before sending response

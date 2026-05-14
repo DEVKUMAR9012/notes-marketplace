@@ -1,4 +1,6 @@
-export const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
+export const MAX_FILE_SIZE_USER = 10 * 1024 * 1024; // 10MB
+export const MAX_FILE_SIZE_ADMIN = 100 * 1024 * 1024; // 100MB
+export const MAX_FILE_SIZE = MAX_FILE_SIZE_USER; // Default legacy support
 
 export const ALLOWED_MIME_TYPES = [
   'application/pdf',

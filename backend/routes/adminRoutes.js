@@ -26,10 +26,15 @@ const {
   updateSettings
 } = require('../controllers/adminController');
 const { getEmailStats, getEmailLogs, sendMarketingCampaign } = require('../controllers/adminEmailController');
+const { bulkUploadNotes } = require('../controllers/adminUploadController');
+const adminBulkUpload = require('../middleware/adminBulkUpload');
 
 // All routes require protection and admin role
 router.use(protect);
 router.use(admin);
+
+// Bulk Upload (Admin God Mode)
+router.post('/bulk-upload', adminBulkUpload.array('pdfs', 200), bulkUploadNotes);
 
 // Overview
 router.get('/dashboard', getDashboardStats);

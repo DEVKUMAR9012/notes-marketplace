@@ -28,7 +28,7 @@ export default function FileDropzone({ file, setFile, setError }) {
 
   const { getRootProps, getInputProps, isDragActive, isDragReject } = useDropzone({
     onDrop,
-    maxSize: 25 * 1024 * 1024, // 25MB via react-dropzone
+    maxSize: 10 * 1024 * 1024, // 10MB via react-dropzone
     multiple: false,
     accept: {
       'application/pdf': ['.pdf'],
@@ -101,7 +101,7 @@ export default function FileDropzone({ file, setFile, setError }) {
             <span className="bg-white/5 px-2 py-1 rounded-md">DOCX</span>
             <span className="bg-white/5 px-2 py-1 rounded-md">PPT</span>
             <span className="bg-white/5 px-2 py-1 rounded-md">Images</span>
-            <span className="bg-white/5 px-2 py-1 rounded-md text-violet-400/70">MAX 25MB</span>
+            <span className="bg-white/5 px-2 py-1 rounded-md text-violet-400/70">MAX 10MB</span>
           </div>
         </div>
       )}

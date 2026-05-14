@@ -188,8 +188,8 @@ io.on('connection', async (socket) => {
 });
 
 // ========== MIDDLEWARE ==========
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use('/uploads', express.static('uploads'));
 
 // ========== ROUTES ==========
@@ -223,6 +223,26 @@ mongoose.connect(process.env.MONGO_URI)
   .catch(err => console.error('MongoDB error:', err));
 
 if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
+
+// ========== GLOBAL ERROR HANDLER ==========
+app.use((err, req, res, next) => {
+  if (err instanceof require('multer').MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ success: false, message: 'One or more files exceed the size limit (Max 100MB for Admin, 10MB for Users).' });
+    }
+    if (err.code === 'LIMIT_FILE_COUNT') {
+      return res.status(400).json({ success: false, message: 'Too many files uploaded in one batch (Max 200).' });
+    }
+    return res.status(400).json({ success: false, message: `Upload error: ${err.message}` });
+  }
+  
+  const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
+  res.status(statusCode).json({
+    success: false,
+    message: err.message || 'Internal Server Error',
+    stack: process.env.NODE_ENV === 'production' ? null : err.stack,
+  });
+});
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => console.log(`🚀 Server on port ${PORT}`));
