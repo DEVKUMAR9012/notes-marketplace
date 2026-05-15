@@ -13,7 +13,7 @@ import API from '../../utils/api';
 import { SectionHeader, Btn, Toast, Modal } from './SharedAdminUI';
 import { calculateFileHash } from '../../components/upload/ValidationHelpers';
 
-const BATCH_SIZE = 25; 
+const BATCH_SIZE = 5; 
 
 const BulkUploadsTab = () => {
   const [files, setFiles] = useState([]);

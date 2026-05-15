@@ -200,6 +200,8 @@ export default function Chat() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [showSearch, setShowSearch] = useState(false);
+  const [showMsgSearch, setShowMsgSearch] = useState(false);
+  const [msgSearchQuery, setMsgSearchQuery] = useState('');
 
   // Interaction buffers
   const [typingUser, setTypingUser] = useState(null);
@@ -807,6 +809,17 @@ export default function Chat() {
         conversations={conversations}
         user={user}
         Avatar={Avatar}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        searchResults={searchResults}
+        startChat={startChat}
+        isCreatingGroup={isCreatingGroup}
+        setIsCreatingGroup={setIsCreatingGroup}
+        groupName={groupName}
+        setGroupName={setGroupName}
+        selectedUsers={selectedUsers}
+        handleCreateGroup={handleCreateGroup}
+        toggleUserSelection={toggleUserSelection}
       />
 
       {/* ──────── MAIN PANEL: Chat Header & Messages ──────── */}
@@ -832,6 +845,10 @@ export default function Chat() {
               headerMenuRef={headerMenuRef}
               handleBlockToggle={handleBlockToggle}
               setShowSettingsModal={setShowSettingsModal}
+              showMsgSearch={showMsgSearch}
+              setShowMsgSearch={setShowMsgSearch}
+              msgSearchQuery={msgSearchQuery}
+              setMsgSearchQuery={setMsgSearchQuery}
             />
 
             {/* ──────── MESSAGES BUFFER ──────── */}
@@ -841,7 +858,7 @@ export default function Chat() {
 
               <Virtuoso
                 style={{ height: '100%', width: '100%' }}
-                data={messages}
+                data={showMsgSearch && msgSearchQuery ? messages.filter(m => m.text?.toLowerCase().includes(msgSearchQuery.toLowerCase())) : messages}
                 initialTopMostItemIndex={messages.length - 1}
                 followOutput="smooth"
                 alignToBottom

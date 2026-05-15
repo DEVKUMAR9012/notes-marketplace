@@ -342,14 +342,58 @@
 }
 
 /* Chat Header Upgrades */
-.chat-window-header {
-  padding: 12px 20px;
+.chat-window-header-wrapper {
   background: #110f24;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-window-header {
+  padding: 12px 20px;
   display: flex;
   align-items: center;
   gap: 12px;
   z-index: 30;
+}
+
+.msg-search-bar-row {
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.search-input-inner {
+  margin: 0 20px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  gap: 8px;
+}
+
+.search-input-inner input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: #fff;
+  font-size: 12px;
+}
+
+.close-search-btn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.action-circle-btn.active-tool {
+  background: rgba(139, 92, 246, 0.3);
+  color: #a78bfa;
+  border-color: #8b5cf6;
 }
 
 .back-arrow-btn {

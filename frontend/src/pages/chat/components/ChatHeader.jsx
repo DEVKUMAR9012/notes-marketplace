@@ -21,7 +21,8 @@ const ChatHeader = memo(function ChatHeader({
   activeChat, user, typingUser, Avatar,
   setActiveChat, initializeAudioCall, showToast,
   headerMenuOpen, setHeaderMenuOpen, headerMenuRef,
-  handleBlockToggle, setShowSettingsModal
+  handleBlockToggle, setShowSettingsModal,
+  showMsgSearch, setShowMsgSearch, msgSearchQuery, setMsgSearchQuery
 }) {
   if (!activeChat) return null;
 
@@ -39,57 +40,58 @@ const ChatHeader = memo(function ChatHeader({
         : `Last seen: ${otherParticipant?.lastSeen ? formatTime(otherParticipant.lastSeen) : 'N/A'}`);
 
   return (
-    <div className="chat-window-header">
-      <button
-        type="button"
-        className="back-arrow-btn"
-        onClick={() => setActiveChat(null)}
-        aria-label="Back to conversations"
-      >
-        <FiArrowLeft size={18} />
-      </button>
-
-      <div className="header-avatar-frame">
-        <Avatar user={otherParticipant || { name: chatTitle }} size={36} isOnline={otherParticipant?.isOnline} />
-      </div>
-
-      <div className="header-member-details">
-        <div className="header-title-box">
-          <span className="header-name-text">{chatTitle}</span>
-          {!isGroup && otherParticipant?.totalSales > 0 && (
-            <span className="verified-tick" title="Verified Seller">✓</span>
-          )}
-        </div>
-        <div className="header-status-text" aria-live="polite">
-          {typingUser ? (
-            <span className="typing-active-text">● {typingUser.name} is typing…</span>
-          ) : (
-            <span className={otherParticipant?.isOnline ? 'online-now-text' : ''}>
-              {otherParticipant?.isOnline ? '● Online now' : chatStatus}
-            </span>
-          )}
-        </div>
-      </div>
-
-      <div className="header-action-tools relative">
+    <div className="chat-window-header-wrapper">
+      <div className="chat-window-header">
         <button
           type="button"
-          className="action-circle-btn"
-          onClick={initializeAudioCall}
-          title="Start audio call"
-          aria-label="Start audio call"
+          className="back-arrow-btn"
+          onClick={() => setActiveChat(null)}
+          aria-label="Back to conversations"
         >
-          <FiPhone size={14} />
+          <FiArrowLeft size={18} />
         </button>
-        <button
-          type="button"
-          className="action-circle-btn"
-          onClick={() => showToast("Search panel active", "success")}
-          title="Search inside messages"
-          aria-label="Search messages"
-        >
-          <FiSearch size={14} />
-        </button>
+
+        <div className="header-avatar-frame">
+          <Avatar user={otherParticipant || { name: chatTitle }} size={36} isOnline={otherParticipant?.isOnline} />
+        </div>
+
+        <div className="header-member-details">
+          <div className="header-title-box">
+            <span className="header-name-text">{chatTitle}</span>
+            {!isGroup && otherParticipant?.totalSales > 0 && (
+              <span className="verified-tick" title="Verified Seller">✓</span>
+            )}
+          </div>
+          <div className="header-status-text" aria-live="polite">
+            {typingUser ? (
+              <span className="typing-active-text">● {typingUser.name} is typing…</span>
+            ) : (
+              <span className={otherParticipant?.isOnline ? 'online-now-text' : ''}>
+                {otherParticipant?.isOnline ? '● Online now' : chatStatus}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="header-action-tools relative">
+          <button
+            type="button"
+            className="action-circle-btn"
+            onClick={initializeAudioCall}
+            title="Start audio call"
+            aria-label="Start audio call"
+          >
+            <FiPhone size={14} />
+          </button>
+          <button
+            type="button"
+            className={`action-circle-btn ${showMsgSearch ? 'active-tool' : ''}`}
+            onClick={() => setShowMsgSearch(!showMsgSearch)}
+            title="Search inside messages"
+            aria-label="Search messages"
+          >
+            <FiSearch size={14} />
+          </button>
 
         <div className="relative inline-block" ref={headerMenuRef}>
           <button
@@ -142,6 +144,36 @@ const ChatHeader = memo(function ChatHeader({
           </AnimatePresence>
         </div>
       </div>
+    </div>
+
+      <AnimatePresence>
+        {showMsgSearch && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="msg-search-bar-row"
+          >
+            <div className="search-input-inner">
+              <FiSearch size={12} className="text-gray-500" />
+              <input
+                type="text"
+                placeholder="Search messages..."
+                value={msgSearchQuery}
+                onChange={(e) => setMsgSearchQuery(e.target.value)}
+                autoFocus
+              />
+              <button 
+                type="button" 
+                className="close-search-btn"
+                onClick={() => { setShowMsgSearch(false); setMsgSearchQuery(''); }}
+              >
+                ✕
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 });

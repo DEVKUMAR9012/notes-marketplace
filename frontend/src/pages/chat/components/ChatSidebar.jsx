@@ -27,7 +27,10 @@ export default function ChatSidebar({
   setShowSettingsModal, showSearch, setShowSearch,
   sidebarSearchQuery, setSidebarSearchQuery,
   activeFilterTab, setActiveFilterTab,
-  conversations, user, Avatar
+  conversations, user, Avatar,
+  searchQuery, setSearchQuery, searchResults, startChat,
+  isCreatingGroup, setIsCreatingGroup, groupName, setGroupName,
+  selectedUsers, handleCreateGroup, toggleUserSelection
 }) {
 
   const filteredConversations = conversations.filter(c => {
@@ -65,6 +68,64 @@ export default function ChatSidebar({
           </button>
         </div>
       </div>
+
+      {showSearch && (
+        <div className="inbox-search-creations">
+          <div className="search-header-group">
+            <input
+              type="text"
+              placeholder="Find peers by name..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              autoFocus
+            />
+            <button 
+              type="button" 
+              className="create-group-btn"
+              onClick={() => setIsCreatingGroup(!isCreatingGroup)}
+            >
+              {isCreatingGroup ? 'Cancel' : 'Group'}
+            </button>
+          </div>
+
+          {isCreatingGroup && (
+            <div className="group-creation-panel">
+              <input
+                type="text"
+                placeholder="Group Name"
+                value={groupName}
+                onChange={e => setGroupName(e.target.value)}
+              />
+              <div className="selected-users-chips">
+                {selectedUsers.map(u => (
+                  <span key={u._id} className="user-chip" onClick={() => toggleUserSelection(u)}>
+                    {u.name} ✕
+                  </span>
+                ))}
+              </div>
+              {selectedUsers.length > 0 && (
+                <button type="button" className="submit-group-btn" onClick={handleCreateGroup}>
+                  Create Group
+                </button>
+              )}
+            </div>
+          )}
+
+          <div className="search-results-list">
+            {searchResults.map(u => (
+              <div 
+                key={u._id} 
+                className="search-result" 
+                onClick={() => isCreatingGroup ? toggleUserSelection(u) : startChat(u)}
+              >
+                <Avatar user={u} size={28} />
+                <span>{u.name}</span>
+                {isCreatingGroup && selectedUsers.find(su => su._id === u._id) && <span>✅</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="sidebar-search-capsule">
         <FiSearch className="search-glass-icon" />
