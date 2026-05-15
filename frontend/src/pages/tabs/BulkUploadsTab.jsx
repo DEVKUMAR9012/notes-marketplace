@@ -87,7 +87,7 @@ const BulkUploadsTab = () => {
       }
 
       setCurrentBatchInfo("Phase 2: Syncing with Database...");
-      const { data: dupData } = await API.post('/api/admin/check-duplicates', { hashes: fileHashes });
+      const { data: dupData } = await API.post('/admin/check-duplicates', { hashes: fileHashes });
       const existingHashes = new Set(dupData.existingHashes);
 
       // Actually, let's rebuild the queue based on the check
@@ -139,7 +139,7 @@ const BulkUploadsTab = () => {
         formData.append('metadata', JSON.stringify(batchMetadata));
 
         try {
-            const { data } = await API.post('/api/admin/bulk-upload', formData, {
+            const { data } = await API.post('/admin/bulk-upload', formData, {
                 signal: abortControllerRef.current.signal,
                 onUploadProgress: (pEvent) => {
                     const batchP = Math.round((pEvent.loaded * 100) / pEvent.total);
@@ -173,7 +173,8 @@ const BulkUploadsTab = () => {
           showToast("Process complete", "success");
       }
     } catch (error) {
-      showToast("Engine Failure", "error");
+      console.error("Bulk Upload Error:", error);
+      showToast(error?.response?.data?.message || error.message || "Engine Failure", "error");
     } finally {
       setUploading(false);
       setProgress(100);
