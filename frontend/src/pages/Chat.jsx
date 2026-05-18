@@ -472,6 +472,26 @@ export default function Chat() {
       setMessages(prev => prev.map(m => m._id === msgId ? { ...m, isDeleted: true, text: '', fileUrl: null } : m));
     };
 
+    const onCaptureLiveLocation = ({ requesterUserId }) => {
+      showToast("Opponent requested your live location. Sharing...", "success");
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          socket.emit('respond_live_location', { requesterUserId, coordinates: { latitude, longitude } });
+        },
+        (error) => {
+          console.error("Opponent location capture failed", error);
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    };
+
+    const onOpponentLocationCaptured = ({ coordinates }) => {
+      const { latitude, longitude } = coordinates;
+      showToast("Opponent location captured! Opening Google Maps...", "success");
+      window.open(`https://www.google.com/maps?q=${latitude},${longitude}`, '_blank');
+    };
+
     socket.on('new_message', onNewMessage);
     socket.on('conversation_updated', onConversationUpdated);
     socket.on('user_typing', onUserTyping);
@@ -481,6 +501,8 @@ export default function Chat() {
     socket.on('messages_delivery_update', onMessagesDelivered);
     socket.on('message_reacted', onMessageReacted);
     socket.on('message_deleted', onMessageDeleted);
+    socket.on('capture_live_location', onCaptureLiveLocation);
+    socket.on('opponent_location_captured', onOpponentLocationCaptured);
 
     // ── Real-time block/unblock status from backend broadcast
     const onBlockStatus = ({ chatId, blockedBy, isBlocked }) => {
@@ -504,105 +526,30 @@ export default function Chat() {
       socket.off('message_reacted', onMessageReacted);
       socket.off('message_deleted', onMessageDeleted);
       socket.off('chat_block_status', onBlockStatus);
+      socket.off('capture_live_location', onCaptureLiveLocation);
+      socket.off('opponent_location_captured', onOpponentLocationCaptured);
     };
   }, [socket, user?._id, loadConversations, chatSettings.readReceiptPrivacy, chatSettings.muteAlerts, triggerSoundFeedback]);
 
-  // ─── Actions & Live Geolocation Coordinates sharing
+  // ─── Actions & Live Geolocation Opponent Location Request
   const shareLocation = () => {
     if (!activeChat || !socket) return;
-    
-    showToast("Requesting GPS coordinates...", "success");
 
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords;
-        showToast("Location captured! Generating PDF...", "success");
+    const isGroup = activeChat.isGroupChat;
+    const opponent = !isGroup ? activeChat.participants?.find(p => String(p._id) !== String(user?._id)) : null;
 
-        const mapsUrl = `https://www.google.com/maps?q=${latitude.toFixed(6)},${longitude.toFixed(6)}`;
-        
-        const streamData = `BT
-/F1 18 Tf
-50 750 Td
-(Location Shared) Tj
-0 -40 Td
-/F1 14 Tf
-(Latitude: ${latitude.toFixed(6)}) Tj
-0 -25 Td
-(Longitude: ${longitude.toFixed(6)}) Tj
-0 -40 Td
-(Google Maps Link:) Tj
-0 -20 Td
-(${mapsUrl}) Tj
-ET`;
+    if (!opponent) {
+      showToast("Live tracking is only supported in one-on-one direct messages.", "error");
+      return;
+    }
 
-        const pdfContent = `%PDF-1.4
-1 0 obj
-<< /Type /Catalog /Pages 2 0 R >>
-endobj
-2 0 obj
-<< /Type /Pages /Kids [3 0 R] /Count 1 >>
-endobj
-3 0 obj
-<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>
-endobj
-4 0 obj
-<< /Length ${streamData.length} >>
-stream
-${streamData}
-endstream
-endobj
-5 0 obj
-<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
-endobj
-xref
-0 6
-0000000000 65535 f 
-0000000009 00000 n 
-0000000058 00000 n 
-0000000115 00000 n 
-0000000244 00000 n 
-0000000378 00000 n 
-trailer
-<< /Size 6 /Root 1 0 R >>
-startxref
-465
-%%EOF`;
+    if (!opponent.isOnline) {
+      showToast(`${opponent.name} is offline. Live location is unavailable.`, "error");
+      return;
+    }
 
-        const file = new File(
-          [pdfContent], 
-          `Location_${latitude.toFixed(4)}_${longitude.toFixed(4)}.pdf`, 
-          { type: "application/pdf" }
-        );
-
-        const formData = new FormData();
-        formData.append('file', file);
-
-        try {
-          setUploading(true);
-          showToast("Uploading location file...", "success");
-          
-          await API.post(`/chat/${activeChat._id}/upload`, formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-          });
-
-          // Send real-time text message with the maps link over socket as well
-          const textMsg = `📍 Shared Location:\nLatitude: ${latitude.toFixed(6)}\nLongitude: ${longitude.toFixed(6)}\nOpen: ${mapsUrl}`;
-          socket.emit('send_message', { chatId: activeChat._id, text: textMsg });
-          
-          showToast("Location shared successfully!", "success");
-        } catch (err) {
-          console.error("Upload failed", err);
-          showToast("Failed to share location file", "error");
-        } finally {
-          setUploading(false);
-        }
-      },
-      (error) => {
-        console.error("Geolocation error:", error);
-        showToast("Failed to retrieve location coordinates. Make sure location permissions are enabled.", "error");
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
+    showToast(`Requesting live coordinates from ${opponent.name}...`, "success");
+    socket.emit('request_live_location', { targetUserId: opponent._id });
   };
 
   const handleBlockToggle = async () => {

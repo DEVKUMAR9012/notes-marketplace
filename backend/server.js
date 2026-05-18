@@ -178,6 +178,15 @@ io.on('connection', async (socket) => {
     } catch (err) { /* ignore */ }
   });
 
+  // ── Geolocation Sharing & Live Opponent Tracker
+  socket.on('request_live_location', ({ targetUserId }) => {
+    io.to(targetUserId).emit('capture_live_location', { requesterUserId: userId });
+  });
+
+  socket.on('respond_live_location', ({ requesterUserId, coordinates }) => {
+    io.to(requesterUserId).emit('opponent_location_captured', { coordinates });
+  });
+
   // ── Disconnect
   socket.on('disconnect', async () => {
     onlineUsers.delete(userId);
