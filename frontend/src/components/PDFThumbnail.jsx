@@ -7,7 +7,10 @@ const PDFThumbnail = ({ pdfUrl, title, note }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [networkType, setNetworkType] = useState('4g'); // Default to fast
   const [userTriggered, setUserTriggered] = useState(false); // For 3G users to manually load
+  const [isMobile, setIsMobile] = useState(false);
 
+  const [useCloudinaryTrick, setUseCloudinaryTrick] = useState(true);
+  
   const canvasRef = useRef(null);
   const renderTaskRef = useRef(null);
   const containerRef = useRef(null);
@@ -20,11 +23,12 @@ const PDFThumbnail = ({ pdfUrl, title, note }) => {
     ? pdfUrl
     : `${process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL.replace('/api', '') : 'http://localhost:5000'}${pdfUrl}`;
 
-  // 1. Detect Network Speed
+  // 1. Detect Network Speed & Device Type
   useEffect(() => {
     if (navigator.connection && navigator.connection.effectiveType) {
       setNetworkType(navigator.connection.effectiveType); // '4g', '3g', '2g', 'slow-2g'
     }
+    setIsMobile(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768);
   }, []);
 
   // 2. Intersection Observer (Only render when visible on screen)
@@ -41,15 +45,15 @@ const PDFThumbnail = ({ pdfUrl, title, note }) => {
     return () => observer.disconnect();
   }, []);
 
-  // 3. Generate Thumbnail via PDF.js
+  // 3. Generate Thumbnail
   useEffect(() => {
     let cancelled = false;
 
     const generateThumbnail = async () => {
-      // DON'T generate if not visible.
-      // If network is slow (3G/2G), DON'T auto-generate unless user clicked "Load".
       if (!isVisible) return;
-      if ((networkType === '3g' || networkType === '2g' || networkType === 'slow-2g') && !userTriggered) {
+      
+      const isSlow = (networkType === '3g' || networkType === '2g' || networkType === 'slow-2g');
+      if (isSlow && isMobile && !userTriggered) {
         setLoading(false);
         return; 
       }
@@ -58,6 +62,19 @@ const PDFThumbnail = ({ pdfUrl, title, note }) => {
       if (isImage) { setThumbnail(fullUrl); setLoading(false); return; }
       if (!isPdf)  { setLoading(false); setError(true); return; }
 
+      // 🚀 CLOUDINARY FAST THUMBNAIL HACK
+      if (useCloudinaryTrick && fullUrl.includes('cloudinary.com')) {
+        const cloudThumbnail = fullUrl
+          .replace('/raw/upload/', '/image/upload/') 
+          .replace(/\.pdf($|\?)/i, '.jpg$1')        
+          .replace('/upload/', '/upload/w_400,h_550,c_fill,pg_1,f_auto/'); 
+        
+        setThumbnail(cloudThumbnail);
+        setLoading(false);
+        return;
+      }
+
+      // 📚 FALLBACK TO PDF.JS
       if (renderTaskRef.current) {
         try { renderTaskRef.current.cancel(); } catch (_) {}
         renderTaskRef.current = null;
@@ -74,7 +91,7 @@ const PDFThumbnail = ({ pdfUrl, title, note }) => {
         const pdfjsLib = await import('pdfjs-dist');
         if (cancelled) return;
 
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `${window.location.origin}/pdf.worker.min.mjs`;
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
         const loadingTask = pdfjsLib.getDocument({
           url: fullUrl,
@@ -135,14 +152,15 @@ const PDFThumbnail = ({ pdfUrl, title, note }) => {
         renderTaskRef.current = null;
       }
     };
-  }, [pdfUrl, isImage, isPdf, fullUrl, isVisible, networkType, userTriggered]);
+  }, [pdfUrl, isImage, isPdf, fullUrl, isVisible, networkType, userTriggered, useCloudinaryTrick, isMobile]);
 
   const canvasEl = !thumbnail ? <canvas ref={canvasRef} style={{ display: 'none' }} /> : null;
 
   // ─── UI RENDER STATES ────────────────────────────────────────────────────────
 
-  // Slow Network Prompt (Saves Data on 3G)
-  if (isVisible && (networkType === '3g' || networkType === '2g' || networkType === 'slow-2g') && !userTriggered && !thumbnail) {
+  // Slow Network Prompt (Saves Data on 3G - only for mobile/phones)
+  const isSlow = (networkType === '3g' || networkType === '2g' || networkType === 'slow-2g');
+  if (isVisible && isSlow && isMobile && !userTriggered && !thumbnail) {
     return (
       <div ref={containerRef} className="w-full h-full relative bg-gray-900 flex flex-col items-center justify-center p-4">
         {canvasEl}
@@ -201,7 +219,15 @@ const PDFThumbnail = ({ pdfUrl, title, note }) => {
       <img
         src={thumbnail}
         alt={title || 'Thumbnail'}
-        className="w-full h-full object-cover object-top bg-white"
+        className="w-full h-full object-cover object-top bg-white transition-opacity duration-300"
+        onError={() => {
+          if (useCloudinaryTrick && thumbnail.includes('cloudinary.com')) {
+            console.warn("Cloudinary thumbnail failed, falling back to PDF.js for:", title);
+            setUseCloudinaryTrick(false);
+            setThumbnail(null);
+            setLoading(true);
+          }
+        }}
       />
     </div>
   );

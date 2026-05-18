@@ -97,11 +97,11 @@ const PreviewModal = ({ note, onClose, onBuy }) => {
     (async () => {
       try {
         const pdfjsLib = await import('pdfjs-dist');
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `${window.location.origin}/pdf.worker.min.mjs`;
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
         if (cancelRef.current) return;
 
         const fullUrl = note.pdfUrl?.startsWith('http')
-          ? note.pdfUrl : `${process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL.replace('/api', '') : 'http://localhost:5000'}${note.pdfUrl}`;
+          ? note.pdfUrl : `${process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL.replace(/\/api$/, '') : 'http://localhost:5000'}${note.pdfUrl}`;
 
         const pdf  = await pdfjsLib.getDocument({
           url: fullUrl,
@@ -163,7 +163,7 @@ const PreviewModal = ({ note, onClose, onBuy }) => {
           </div>
           <div className="flex items-center gap-2">
             {canViewFull && (
-              <a href={note.pdfUrl?.startsWith('http') ? note.pdfUrl : `${process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL.replace('/api', '') : 'http://localhost:5000'}${note.pdfUrl}`} target="_blank" rel="noopener noreferrer"
+              <a href={note.pdfUrl?.startsWith('http') ? note.pdfUrl : `${process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL.replace(/\/api$/, '') : 'http://localhost:5000'}${note.pdfUrl}`} target="_blank" rel="noopener noreferrer"
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-700 rounded-lg text-xs text-white font-medium transition">
                 <FiDownload /> {isPaid ? 'Download' : 'Open Full'}
               </a>
@@ -480,7 +480,7 @@ export default function Books() {
   const handlePreview = (note) => { if (note.pdfUrl) setPreviewNote(note); else alert('Preview not available'); };
   const handleBuy = (note) => {
     if (note.price === 0 && note.pdfUrl) {
-      window.open(note.pdfUrl?.startsWith('http') ? note.pdfUrl : `${process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL.replace('/api', '') : 'http://localhost:5000'}${note.pdfUrl}`, '_blank');
+      window.open(note.pdfUrl?.startsWith('http') ? note.pdfUrl : `${process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL.replace(/\/api$/, '') : 'http://localhost:5000'}${note.pdfUrl}`, '_blank');
     } else {
       setBuyNote(note);
     }

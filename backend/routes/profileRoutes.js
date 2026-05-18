@@ -38,7 +38,10 @@ const uploadToCloudinary = async (req, res, next) => {
           transformation: [{ width: 400, height: 400, crop: 'fill', gravity: 'face' }],
           overwrite: true,
         },
-        (err, result) => err ? reject(err) : resolve(result)
+        (err, result) => {
+          if (err) return reject(err);
+          resolve(result);
+        }
       );
       stream.end(req.file.buffer);
     });

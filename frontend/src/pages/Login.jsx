@@ -24,7 +24,11 @@ export default function Login() {
 
   // Bug 2 fix: guard setState calls after component unmount
   const mountedRef = useRef(true);
-  useEffect(() => () => { mountedRef.current = false; }, []);
+  const successTimeoutRef = useRef(null);
+  useEffect(() => () => { 
+    mountedRef.current = false; 
+    if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current); 
+  }, []);
 
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -141,8 +145,8 @@ export default function Login() {
       setPassword('');
       setStep('login');
       // Bug 2 fix: guard against setState-after-unmount
-      const t = setTimeout(() => { if (mountedRef.current) setSuccess(''); }, 3000);
-      return () => clearTimeout(t);
+      if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
+      successTimeoutRef.current = setTimeout(() => { if (mountedRef.current) setSuccess(''); }, 3000);
     } catch (err) {
       const errorMsg = err.response?.data?.message || err.message || 'Reset failed';
       setError(errorMsg);

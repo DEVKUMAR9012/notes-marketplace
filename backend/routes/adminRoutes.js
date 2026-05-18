@@ -33,7 +33,7 @@ const rateLimit = require('express-rate-limit');
 // Rate limiter for duplicate checking to prevent DB probing
 const dupCheckLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 20,             // limit each IP to 20 requests per windowMs
+  max: 2000,           // Increased limit for 1000+ files bulk upload pipeline
   message: { success: false, message: 'Too many duplicate checks from this IP, please try again after a minute' }
 });
 

@@ -42,16 +42,30 @@ export default function ChatSidebar({
     return true;
   });
 
-  const displayedConversations = useMemo(() =>
-    filteredConversations.filter(c => {
+  const displayedConversations = useMemo(() => {
+    let list = filteredConversations.filter(c => {
       if (!sidebarSearchQuery) return true;
       const isGrp = c.isGroupChat;
       const other = !isGrp ? c.participants?.find(p => String(p._id) !== String(user?._id)) : null;
       const title = isGrp ? c.chatName : other?.name;
       return title?.toLowerCase().includes(sidebarSearchQuery.toLowerCase());
-    }),
-    [filteredConversations, sidebarSearchQuery, user?._id]
-  );
+    });
+
+    const isCurrentUserAdmin = user?.role === 'admin';
+    if (!isCurrentUserAdmin) {
+      const adminChatIndex = list.findIndex(c => 
+        !c.isGroupChat && c.participants?.some(p => p.role === 'admin')
+      );
+
+      if (adminChatIndex > -1) {
+        const adminChatObj = { ...list[adminChatIndex], isPinnedAdmin: true };
+        list.splice(adminChatIndex, 1);
+        list.unshift(adminChatObj);
+      }
+    }
+
+    return list;
+  }, [filteredConversations, sidebarSearchQuery, user?._id, user?.role]);
 
   return (
     <aside className={`messenger-sidebar ${activeChat ? 'hidden-mobile' : ''}`}>
@@ -160,11 +174,15 @@ export default function ChatSidebar({
           const isBlockedLocal = chat.blockedBy ? true : false;
 
           return (
-            <div key={chat._id} className={`contact-entry-row ${activeChat?._id === chat._id ? 'active' : ''} ${isBlockedLocal ? 'muted-local-row' : ''}`} onClick={() => setActiveChat(chat)}>
+            <div key={chat._id} className={`contact-entry-row ${activeChat?._id === chat._id ? 'active' : ''} ${isBlockedLocal ? 'muted-local-row' : ''} ${chat.isPinnedAdmin ? 'pinned-admin' : ''}`} onClick={() => setActiveChat(chat)}>
               <Avatar user={other || { name: title }} size={38} isOnline={isOnline} />
               <div className="contact-metadata-left">
                 <div className="contact-title-top">
-                  <span className="contact-name-label">{title || 'Member'} {isBlockedLocal && <span className="local-blocked-tag">BLOCKED</span>}</span>
+                  <span className="contact-name-label">
+                    {title || 'Member'}{' '}
+                    {chat.isPinnedAdmin && <span className="admin-pin-icon">📌 Support</span>}{' '}
+                    {isBlockedLocal && <span className="local-blocked-tag">BLOCKED</span>}
+                  </span>
                   <span className="contact-timestamp-label">{chat.lastMessage?.sentAt && formatTime(chat.lastMessage.sentAt)}</span>
                 </div>
                 <div className="contact-preview-label">

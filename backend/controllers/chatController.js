@@ -5,11 +5,49 @@ const User    = require('../models/User');
 // ─── GET /api/chat ────────────────────────────────────────────────────────────
 exports.getConversations = async (req, res) => {
   try {
-    const chats = await Chat.find({ participants: req.user._id })
-      .populate('participants', 'name avatar profileImage isOnline lastSeen totalSales')
+    let chats = await Chat.find({ participants: req.user._id })
+      .populate('participants', 'name avatar profileImage isOnline lastSeen totalSales role')
       .sort({ 'lastMessage.sentAt': -1 });
+
+    const admin = await User.findOne({ role: 'admin' }).select('name avatar profileImage isOnline lastSeen totalSales role');
+    
+    if (admin && String(req.user._id) !== String(admin._id)) {
+      const hasAdminChat = chats.some(c => 
+        !c.isGroupChat && c.participants.some(p => String(p._id) === String(admin._id))
+      );
+
+      if (!hasAdminChat) {
+        // Automatically create a real chat in DB!
+        let newChat = await Chat.create({
+          participants: [req.user._id, admin._id],
+          unreadCounts: { [String(req.user._id)]: 0, [String(admin._id)]: 0 }
+        });
+
+        // Create the greeting message inside Message collection
+        const greetingMsg = await Message.create({
+          chat: newChat._id,
+          sender: admin._id,
+          text: "Hi! Welcome to Notes Marketplace. How can I help you today?",
+        });
+
+        newChat.lastMessage = {
+          text: greetingMsg.text,
+          senderId: admin._id,
+          sentAt: greetingMsg.createdAt,
+          type: 'text'
+        };
+        await newChat.save();
+
+        newChat = await Chat.findById(newChat._id)
+          .populate('participants', 'name avatar profileImage isOnline lastSeen totalSales role');
+        
+        chats.unshift(newChat);
+      }
+    }
+
     res.json({ success: true, chats });
   } catch (e) {
+    console.error('getConversations error:', e);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };

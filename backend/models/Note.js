@@ -17,15 +17,18 @@ const noteSchema = new mongoose.Schema({
   },
   subject: {
     type: String,
-    required: true
+    required: true,
+    index: true
   },
   college: {
     type: String,
-    default: ''
+    default: '',
+    index: true
   },
   semester: {
     type: Number,
-    default: null
+    default: null,
+    index: true
   },
   price: {
     type: Number,

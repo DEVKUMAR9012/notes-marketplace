@@ -188,8 +188,8 @@ io.on('connection', async (socket) => {
 });
 
 // ========== MIDDLEWARE ==========
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(express.json({ limit: '500mb' }));
+app.use(express.urlencoded({ limit: '500mb', extended: true }));
 app.use('/uploads', express.static('uploads'));
 
 // ========== ROUTES ==========
@@ -231,7 +231,7 @@ app.use((err, req, res, next) => {
       return res.status(400).json({ success: false, message: 'One or more files exceed the size limit (Max 100MB for Admin, 10MB for Users).' });
     }
     if (err.code === 'LIMIT_FILE_COUNT') {
-      return res.status(400).json({ success: false, message: 'Too many files uploaded in one batch (Max 200).' });
+      return res.status(400).json({ success: false, message: 'Too many files uploaded in one batch (Max 500).' });
     }
     return res.status(400).json({ success: false, message: `Upload error: ${err.message}` });
   }
@@ -245,4 +245,6 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => console.log(`🚀 Server on port ${PORT}`));
+server.listen(PORT, () => {
+  console.log(`🚀 Server on port ${PORT}`);
+});

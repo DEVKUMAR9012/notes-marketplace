@@ -252,6 +252,7 @@ const LiveChatButton = () => {
   
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const abortControllerRef = useRef(null);
 
   // Smooth auto-scroll tracking
   useEffect(() => {
@@ -271,6 +272,11 @@ const LiveChatButton = () => {
   const sendMessage = async () => {
     const text = inputText.trim();
     if (!text || isTyping) return;
+
+    // Abort any existing request first
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = new AbortController();
+    const { signal } = abortControllerRef.current;
 
     const userMsg = { role: 'user', content: text };
     const placeholderMsg = { role: 'assistant', content: '' };
@@ -292,7 +298,8 @@ const LiveChatButton = () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
         },
-        body: JSON.stringify({ messages: apiMessages })
+        body: JSON.stringify({ messages: apiMessages }),
+        signal
       });
 
       if (!response.ok) throw new Error('Network streaming response was blocked.');
@@ -303,7 +310,7 @@ const LiveChatButton = () => {
 
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done || signal.aborted) break;
 
         const chunk = decoder.decode(value, { stream: true });
         accumulatedText += chunk;
@@ -316,19 +323,30 @@ const LiveChatButton = () => {
         });
       }
     } catch (err) {
-      console.error("AI Live Streaming Error:", err);
-      setMessages(prev => {
-        const updated = [...prev];
-        updated[updated.length - 1] = { 
-          role: 'assistant', 
-          content: "❌ Connection timeout. Our AI backend is currently busy processing summaries. Please try again." 
-        };
-        return updated;
-      });
+      if (err.name !== 'AbortError') {
+        console.error("AI Live Streaming Error:", err);
+        setMessages(prev => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { 
+            role: 'assistant', 
+            content: "❌ Connection timeout. Our AI backend is currently busy processing summaries. Please try again." 
+          };
+          return updated;
+        });
+      }
     } finally {
-      setIsTyping(false);
+      if (!signal.aborted) {
+        setIsTyping(false);
+      }
     }
   };
+
+  // Cleanup: abort on component unmount
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, []);
 
   const handleKey = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { 

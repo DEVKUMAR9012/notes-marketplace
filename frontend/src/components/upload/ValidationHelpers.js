@@ -37,9 +37,46 @@ export const validateFile = (file) => {
   return null; // Valid
 };
 
-export const calculateFileHash = async (file) => {
-  const buffer = await file.arrayBuffer();
-  const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+let hashWorker = null;
+let resolveQueue = {};
+let msgId = 0;
+
+export const calculateFileHash = (file) => {
+  return new Promise((resolve, reject) => {
+    // Fallback if workers aren't supported (e.g. testing environments)
+    if (typeof window === 'undefined' || !window.Worker) {
+      file.arrayBuffer().then(buffer => crypto.subtle.digest('SHA-256', buffer))
+        .then(hashBuffer => resolve(Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('')))
+        .catch(reject);
+      return;
+    }
+
+    if (!hashWorker) {
+      const workerScript = `
+        self.onmessage = async function(e) {
+          try {
+            const { file, id } = e.data;
+            const buffer = await file.arrayBuffer();
+            const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            const hash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            self.postMessage({ id, hash });
+          } catch(err) {
+            self.postMessage({ id, error: err.message });
+          }
+        };
+      `;
+      const blob = new Blob([workerScript], { type: 'application/javascript' });
+      hashWorker = new Worker(URL.createObjectURL(blob));
+      hashWorker.onmessage = (e) => {
+        const { id, hash, error } = e.data;
+        if (error) resolveQueue[id].reject(new Error(error));
+        else resolveQueue[id].resolve(hash);
+        delete resolveQueue[id];
+      };
+    }
+    const id = msgId++;
+    resolveQueue[id] = { resolve, reject };
+    hashWorker.postMessage({ file, id });
+  });
 };

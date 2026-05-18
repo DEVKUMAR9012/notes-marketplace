@@ -20,7 +20,7 @@ exports.bulkUploadNotes = async (req, res) => {
 
     const { subject, semester, college, itemType = 'note', metadata = '{}' } = req.body;
     let customMetadata = {};
-    try { customMetadata = JSON.parse(metadata); } catch (e) { console.warn('Meta parse error'); }
+    try { customMetadata = JSON.parse(metadata); } catch (e) { console.warn('Meta parse error:', e.message); }
 
     const results = {
       success: 0,
@@ -33,51 +33,71 @@ exports.bulkUploadNotes = async (req, res) => {
 
     for (const file of req.files) {
       try {
-        const fileMeta = customMetadata[file.originalname] || {};
-        const hash = fileMeta.hash || null;
+        // ✅ Robust hash lookup — multiple fallbacks
+        const fileMeta = 
+          customMetadata[file.originalname] ||
+          customMetadata[file.originalname.trim()] ||
+          customMetadata[file.originalname.trim().toLowerCase()] ||
+          {};
 
-        // 1. DUPLICATE CHECK (By Hash)
-        if (!hash) {
-          throw new Error("Missing fileHash from frontend (Duplicate check bypassed)");
+        const hash = fileMeta.hash || fileMeta.Hash || null;
+
+        // Duplicate check sirf tab karo jab hash mile
+        if (hash) {
+          const existing = await Note.findOne({ fileHash: hash });
+          if (existing) {
+            results.duplicates++;
+            results.duplicateFiles.push({ name: file.originalname, hash });
+            continue;
+          }
+        }
+
+        // ✅ Better Cloudinary URL handling with validation
+        const pdfUrl = file.secure_url || file.path || file.url;
+        if (!pdfUrl) {
+          throw new Error('No valid URL returned from Cloudinary');
         }
         
-        const existing = await Note.findOne({ fileHash: hash });
-        if (existing) {
-          results.duplicates++;
-          results.duplicateFiles.push({ name: file.originalname, hash });
-          continue; // Skip this file
-        }
-
-        // 2. DATA PREP
-        const title = fileMeta.title || file.originalname.replace(/\.[^/.]+$/, "").replace(/[_-]/g, ' ');
+        const title = fileMeta.title || fileMeta.Title ||
+          file.originalname.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ');
         
+        console.log(`Processing: ${file.originalname} -> ${pdfUrl}`);
+
         const noteData = {
           title,
-          subject: fileMeta.subject || subject || 'Uncategorized',
-          semester: (fileMeta.semester ? Number(fileMeta.semester) : null) || (semester ? Number(semester) : null),
-          college: fileMeta.college || college || '',
-          itemType: fileMeta.itemType || itemType,
+          subject: fileMeta.subject || fileMeta.Subject || subject || 'Uncategorized',
+          semester: fileMeta.semester ? Number(fileMeta.semester) : semester ? Number(semester) : null,
+          college: fileMeta.college || fileMeta.College || college || '',
+          itemType: fileMeta.itemType || fileMeta.ItemType || itemType,
           price: 0,
-          pdfUrl: file.secure_url || file.path, 
+          pdfUrl,
+          fileHash: hash,
+          fileSize: file.size || 0,
           uploadedBy: req.user._id,
           status: 'approved',
-          fileHash: hash
         };
+        
+        // Validate required fields before creation
+        if (!noteData.title || !noteData.subject || !noteData.pdfUrl) {
+          throw new Error('Missing required fields: title, subject, or pdfUrl');
+        }
+        
+        await Note.create(noteData);
 
-        // 3. SAVE
-        const newNote = await Note.create(noteData);
         results.success++;
-        results.successFiles.push({ id: newNote._id, name: file.originalname });
+        results.successFiles.push({ name: file.originalname });
 
       } catch (err) {
-        console.error(`Failed ${file.originalname}:`, err.message);
+        console.error(`Failed ${file.originalname}:`, err.message, err.stack);
         results.failed++;
         results.failedFiles.push({ name: file.originalname, error: err.message });
       }
     }
 
     await logAction(
-      req.user._id, req.user.name, 'BULK_UPLOAD_COMPLETED', 'Note', null,
+      req.user._id, req.user.name,
+      'BULK_UPLOAD_COMPLETED', 'AdminAction',
+      req.user._id, 
       { success: results.success, failed: results.failed, duplicates: results.duplicates }
     );
 
@@ -88,8 +108,17 @@ exports.bulkUploadNotes = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Bulk Upload Error:', error);
-    res.status(500).json({ success: false, message: 'Bulk upload engine failure', error: error.message });
+    console.error('Bulk Upload Engine Failure:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Request files count:', req.files?.length || 0);
+    console.error('Request body keys:', Object.keys(req.body));
+    
+    res.status(500).json({ 
+      success: false, 
+      message: 'Bulk upload engine failure', 
+      error: error.message,
+      details: process.env.NODE_ENV !== 'production' ? error.stack : undefined
+    });
   }
 };
 

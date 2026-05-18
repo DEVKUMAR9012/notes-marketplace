@@ -13,12 +13,13 @@ const auditLogSchema = new mongoose.Schema({
   },
   targetType: {
     type: String,
-    enum: ['User', 'Note', 'Withdrawal', 'Report', 'Setting', 'Contact'],
+    enum: ['User', 'Note', 'Withdrawal', 'Report', 'Setting', 'Contact', 'AdminAction'],
     required: true
   },
   targetId: {
     type: mongoose.Schema.Types.ObjectId,
-    required: true
+    required: false,
+    default: null
   },
   details: mongoose.Schema.Types.Mixed,
   timestamp: {

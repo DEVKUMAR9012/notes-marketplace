@@ -4,13 +4,13 @@ import { AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import API, { API_BASE_URL } from '../utils/api';
-import { FiMaximize2 } from 'react-icons/fi';
 import MessageInput from './chat/components/MessageInput';
 import MessageBubble from './chat/components/MessageBubble';
 import ChatSidebar from './chat/components/ChatSidebar';
 import ChatHeader from './chat/components/ChatHeader';
 import CallOverlay from './chat/components/CallOverlay';
 import SettingsModal from './chat/components/SettingsModal';
+import ProfileSidebar from './chat/components/ProfileSidebar';
 import { Virtuoso } from 'react-virtuoso';
 import './Chat.css';
 
@@ -31,8 +31,6 @@ const formatTime = (dateStr) => {
   if (diffDays === 1) return 'yesterday';
   if (diffDays < 7) return `${diffDays} days ago`;
 
-  if (d.toDateString() === now.toDateString())
-    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   return d.toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 };
 
@@ -74,21 +72,7 @@ const getAvatarStyle = (name = '') => {
   return AVATAR_COLORS[index];
 };
 
-// ─── Read Receipts
-const getReceiptIcon = (msg, userId, privacyActive) => {
-  if (privacyActive) return <span className="receipt sent" title="Sent privately">✓</span>;
-  if (msg.readBy?.some(id => String(id) !== String(userId))) return <span className="receipt read" title="Read">✓✓</span>;
-  if (msg.deliveredTo?.some(id => String(id) !== String(userId))) return <span className="receipt delivered" title="Delivered">✓✓</span>;
-  return <span className="receipt sent" title="Sent">✓</span>;
-};
 
-// ─── Safely map attachment URLs
-const getAttachmentUrl = (url) => {
-  if (!url) return '';
-  if (url.startsWith('http')) return url;
-  const cleanUrl = url.replace(/\\/g, '/');
-  return `${API_BASE_URL}${cleanUrl.startsWith('/') ? '' : '/'}${cleanUrl}`;
-};
 
 // ─── Custom Click-Outside Hook (with Escape key support)
 function useOnClickOutside(ref, handler) {
@@ -181,11 +165,12 @@ export default function Chat() {
   const [activeChat, setActiveChat] = useState(null);
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
   const [msgLoading, setMsgLoading] = useState(false);
 
   // Layout overlays & dropdowns
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showProfileSidebar, setShowProfileSidebar] = useState(false);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const headerMenuRef = useRef(null);
   useOnClickOutside(headerMenuRef, () => setHeaderMenuOpen(false));
@@ -212,7 +197,6 @@ export default function Chat() {
   const [toast, setToast] = useState(null);
 
   // Groups buffer
-  const [suggestedUsers, setSuggestedUsers] = useState([]);
   const [isCreatingGroup, setIsCreatingGroup] = useState(false);
   const [groupName, setGroupName] = useState('');
   const [selectedUsers, setSelectedUsers] = useState([]);
@@ -221,15 +205,16 @@ export default function Chat() {
   const [replyingTo, setReplyingTo] = useState(null);
   const [hoveredMsg, setHoveredMsg] = useState(null);
 
-  const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const isTypingEmittedRef = useRef(false);
   const isInitialScrollRef = useRef(true);
   const toastTimerRef = useRef(null);
-  const fileInputRef = useRef(null);
   const textInputRef = useRef(null);
+  const longPressTimerRef = useRef(null);
 
   const activeChatRef = useRef(null);
+  const inputTextRef = useRef(inputText);
+  inputTextRef.current = inputText;
   useEffect(() => {
     activeChatRef.current = activeChat;
     isInitialScrollRef.current = true;
@@ -237,16 +222,7 @@ export default function Chat() {
     window.scrollTo(0, 0);
   }, [activeChat]);
 
-  // Dynamic scroll mapping
-  useEffect(() => {
-    if (!messagesEndRef.current) return;
-    if (isInitialScrollRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'auto' });
-      setTimeout(() => { isInitialScrollRef.current = false; }, 100);
-    } else {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages]);
+
 
   // iOS visualViewport keyboard fix — prevents input area jumping out of view
   useEffect(() => {
@@ -289,12 +265,14 @@ export default function Chat() {
 
   // #18: Pooled Audio instance — avoids new Audio() on every notification (prevents memory leaks)
   const notificationAudioRef = useRef(null);
+  const currentAssetRef = useRef(null);
   const triggerSoundFeedback = useCallback((asset) => {
     if (chatSettings.muteAlerts) return;
     try {
-      if (!notificationAudioRef.current || notificationAudioRef.current.src !== `/sounds/${asset}`) {
+      if (!notificationAudioRef.current || currentAssetRef.current !== asset) {
         notificationAudioRef.current = new Audio(`/sounds/${asset}`);
         notificationAudioRef.current.volume = 0.5;
+        currentAssetRef.current = asset;
       }
       notificationAudioRef.current.currentTime = 0;
       notificationAudioRef.current.play().catch(() => {});
@@ -302,9 +280,7 @@ export default function Chat() {
   }, [chatSettings.muteAlerts]);
 
   // ─── Fetch catalogs
-  useEffect(() => {
-    API.get('/chat/users/suggestions').then(res => setSuggestedUsers(res.data.users)).catch(() => { });
-  }, []);
+
 
   const loadConversations = useCallback(async () => {
     if (!user?._id) return;
@@ -470,7 +446,7 @@ export default function Chat() {
     const onWarning = ({ text, originalText }) => {
       // #2: store the original text separately so force_send sends the real content
       setWarningMsg(text);
-      setPendingForceSend(originalText || inputText);
+      setPendingForceSend(originalText || inputTextRef.current);
     };
 
     const onMessagesDelivered = ({ chatId, deliveredTo }) => {
@@ -529,7 +505,7 @@ export default function Chat() {
       socket.off('message_deleted', onMessageDeleted);
       socket.off('chat_block_status', onBlockStatus);
     };
-  }, [socket, user?._id, loadConversations, chatSettings.readReceiptPrivacy, chatSettings.muteAlerts]);
+  }, [socket, user?._id, loadConversations, chatSettings.readReceiptPrivacy, chatSettings.muteAlerts, triggerSoundFeedback]);
 
   // ─── Actions & Live Audio Signaling Emitter
   const initializeAudioCall = () => {
@@ -551,24 +527,24 @@ export default function Chat() {
   const handleBlockToggle = async () => {
     if (!activeChat) return;
     setHeaderMenuOpen(false);
-    const isCurrentlyBlocked = activeChat.blockedBy ? true : false;
+    const wasBlocked = activeChat.blockedBy ? true : false;
     const currentChatId = activeChat._id;
 
     // Instantly apply client-side reconciliation before network resolves
     setConversations(prev => prev.map(c => {
       if (c._id === currentChatId) {
-        return { ...c, blockedBy: !isCurrentlyBlocked ? user?._id : null };
+        return { ...c, blockedBy: !wasBlocked ? user?._id : null };
       }
       return c;
     }));
 
     setActiveChat(prev => {
       if (!prev) return prev;
-      return { ...prev, blockedBy: !isCurrentlyBlocked ? user?._id : null };
+      return { ...prev, blockedBy: !wasBlocked ? user?._id : null };
     });
 
     try {
-      if (!isCurrentlyBlocked) {
+      if (!wasBlocked) {
         await API.post(`/chat/${currentChatId}/block`);
         showToast("Member blocked successfully", "success");
       } else {
@@ -578,10 +554,10 @@ export default function Chat() {
     } catch (err) {
       // Revert optimistic state if network drops
       setConversations(prev => prev.map(c => {
-        if (c._id === currentChatId) return { ...c, blockedBy: isCurrentlyBlocked ? user?._id : null };
+        if (c._id === currentChatId) return { ...c, blockedBy: wasBlocked ? user?._id : null };
         return c;
       }));
-      setActiveChat(prev => prev ? { ...prev, blockedBy: isCurrentlyBlocked ? user?._id : null } : null);
+      setActiveChat(prev => prev ? { ...prev, blockedBy: wasBlocked ? user?._id : null } : null);
       showToast("Network reconciliation failed", "error");
     }
   };
@@ -592,8 +568,13 @@ export default function Chat() {
 
   const handleUnsend = async (msgId) => {
     try {
-      await API.delete(`/chat/messages/${msgId}`);
+      setMessages(prev => prev.map(m => 
+        m._id === msgId 
+          ? { ...m, isDeleted: true, text: '', fileUrl: null } 
+          : m 
+      ));
       setHoveredMsg(null);
+      await API.delete(`/chat/messages/${msgId}`);
     } catch (e) { console.error(e); }
   };
 
@@ -661,8 +642,38 @@ export default function Chat() {
   };
 
   const sendQuickReply = (text) => {
-    if (!activeChat || !socket) return;
-    socket.emit('send_message', { chatId: activeChat._id, text, quickReply: text });
+    if (!text || !activeChat || !socket) return;
+
+    // Optimistic UI update (same as handleSend)
+    const tempId = `temp_${Date.now()}`;
+    const optimisticMessage = {
+      _id: tempId,
+      tempId,
+      chat: activeChat._id,
+      sender: user,
+      text,
+      createdAt: new Date().toISOString(),
+      pending: true,
+      replyTo: replyingTo
+    };
+    
+    setMessages(prev => [...prev, optimisticMessage]);
+
+    socket.emit('send_message', { chatId: activeChat._id, text, replyTo: replyingTo?._id, tempId, quickReply: text });
+    setReplyingTo(null);
+    isTypingEmittedRef.current = false;
+    clearTimeout(typingTimeoutRef.current);
+    socket.emit('typing_stop', { chatId: activeChat._id });
+
+    // Handle failure simulation
+    setTimeout(() => {
+      setMessages(prev => prev.map(m => {
+        if (m.tempId === tempId && m.pending) {
+          return { ...m, pending: false, failed: true };
+        }
+        return m;
+      }));
+    }, 5000);
   };
 
   const handleFileUpload = async (e) => {
@@ -699,7 +710,7 @@ export default function Chat() {
     return () => clearTimeout(t);
   }, [searchQuery]);
 
-  const startChat = async (recipient) => {
+  const startChat = useCallback(async (recipient) => {
     try {
       const res = await API.post('/chat', { recipientId: recipient._id });
       const newChat = res.data.chat;
@@ -708,7 +719,7 @@ export default function Chat() {
       setShowSearch(false);
       setSearchQuery('');
     } catch (e) { console.error(e); }
-  };
+  }, []);
 
   const chatStartedRef = useRef(false);
   useEffect(() => {
@@ -717,7 +728,7 @@ export default function Chat() {
       startChat(location.state.startChatWith);
       navigate(location.pathname, { replace: true, state: {} });
     }
-  }, [location.state, navigate]);
+  }, [location.state, location.pathname, navigate, startChat]);
 
   const handleCreateGroup = async () => {
     if (selectedUsers.length < 1 || !groupName.trim()) return showToast('Select users and enter a group name', 'error');
@@ -748,7 +759,7 @@ export default function Chat() {
   };
 
   // Segmenting conversations
-  const filteredConversations = conversations.filter(c => {
+  const filteredConversations = useMemo(() => conversations.filter(c => {
     if (activeFilterTab === 'unread') return (unreadCounts[c._id] || 0) > 0;
     // 'buyers' tab: show only chats where the other participant has made a purchase (isBuyer flag)
     if (activeFilterTab === 'buyers') {
@@ -756,19 +767,33 @@ export default function Chat() {
       return other?.isBuyer === true;
     }
     return true;
-  });
+  }), [conversations, activeFilterTab, unreadCounts, user?._id]);
 
   // #7: memoized — avoids recreating filter chain on every render
-  const displayedConversations = useMemo(() =>
-    filteredConversations.filter(c => {
+  const displayedConversations = useMemo(() => {
+    let list = filteredConversations.filter(c => {
       if (!sidebarSearchQuery) return true;
       const isGrp = c.isGroupChat;
       const other = !isGrp ? c.participants?.find(p => String(p._id) !== String(user?._id)) : null;
       const title = isGrp ? c.chatName : other?.name;
       return title?.toLowerCase().includes(sidebarSearchQuery.toLowerCase());
-    }),
-    [filteredConversations, sidebarSearchQuery, user?._id]
-  );
+    });
+
+    const isCurrentUserAdmin = user?.role === 'admin';
+    if (!isCurrentUserAdmin) {
+      const adminChatIndex = list.findIndex(c => 
+        !c.isGroupChat && c.participants?.some(p => p.role === 'admin')
+      );
+
+      if (adminChatIndex > -1) {
+        const adminChatObj = { ...list[adminChatIndex], isPinnedAdmin: true };
+        list.splice(adminChatIndex, 1);
+        list.unshift(adminChatObj);
+      }
+    }
+
+    return list;
+  }, [filteredConversations, sidebarSearchQuery, user?._id, user?.role]);
 
   const isGroup = activeChat?.isGroupChat;
   const otherParticipant = !isGroup ? activeChat?.participants?.find(p => String(p._id) !== String(user?._id)) : null;
@@ -806,7 +831,7 @@ export default function Chat() {
         setSidebarSearchQuery={setSidebarSearchQuery}
         activeFilterTab={activeFilterTab}
         setActiveFilterTab={setActiveFilterTab}
-        conversations={conversations}
+        conversations={displayedConversations}
         user={user}
         Avatar={Avatar}
         searchQuery={searchQuery}
@@ -831,7 +856,6 @@ export default function Chat() {
           </div>
         ) : (
           <>
-            {/* Extracted Chat Header Component */}
             <ChatHeader
               activeChat={activeChat}
               user={user}
@@ -849,6 +873,7 @@ export default function Chat() {
               setShowMsgSearch={setShowMsgSearch}
               msgSearchQuery={msgSearchQuery}
               setMsgSearchQuery={setMsgSearchQuery}
+              onViewProfile={() => setShowProfileSidebar(true)}
             />
 
             {/* ──────── MESSAGES BUFFER ──────── */}
@@ -858,14 +883,27 @@ export default function Chat() {
 
               <Virtuoso
                 style={{ height: '100%', width: '100%' }}
-                data={showMsgSearch && msgSearchQuery ? messages.filter(m => m.text?.toLowerCase().includes(msgSearchQuery.toLowerCase())) : messages}
-                initialTopMostItemIndex={messages.length - 1}
+                data={(() => {
+                  const displayed = showMsgSearch && msgSearchQuery 
+                    ? messages.filter(m => m.text?.toLowerCase().includes(msgSearchQuery.toLowerCase())) 
+                    : messages;
+                  return displayed;
+                })()}
+                initialTopMostItemIndex={(() => {
+                  const displayed = showMsgSearch && msgSearchQuery 
+                    ? messages.filter(m => m.text?.toLowerCase().includes(msgSearchQuery.toLowerCase())) 
+                    : messages;
+                  return displayed.length - 1;
+                })()}
                 followOutput="smooth"
                 alignToBottom
                 itemContent={(idx, msg) => {
+                  const displayed = showMsgSearch && msgSearchQuery 
+                    ? messages.filter(m => m.text?.toLowerCase().includes(msgSearchQuery.toLowerCase())) 
+                    : messages;
                   const isMine = String(msg.sender?._id || msg.sender) === String(user?._id);
-                  const prevMsg = messages[idx - 1];
-                  const nextMsg = messages[idx + 1];
+                  const prevMsg = displayed[idx - 1];
+                  const nextMsg = displayed[idx + 1];
                   const isFirstInGroup = !prevMsg || String(prevMsg.sender?._id || prevMsg.sender) !== String(msg.sender?._id || msg.sender);
                   const isLastInGroup = !nextMsg || String(nextMsg.sender?._id || nextMsg.sender) !== String(msg.sender?._id || msg.sender);
 
@@ -884,6 +922,14 @@ export default function Chat() {
                         className={`message-row ${isMine ? 'sent' : 'recv'} ${isFirstInGroup ? 'first' : ''} ${isLastInGroup ? 'last' : ''}`}
                         onMouseEnter={() => setHoveredMsg(msg._id)}
                         onMouseLeave={() => setHoveredMsg(null)}
+                        onTouchStart={(e) => {
+                          longPressTimerRef.current = setTimeout(() =>
+                            e.currentTarget.classList.add('touch-active'), 500);
+                        }}
+                        onTouchEnd={(e) => {
+                          clearTimeout(longPressTimerRef.current);
+                          e.currentTarget.classList.remove('touch-active');
+                        }}
                       >
                         {!isMine && isLastInGroup && (
                           <div className="inline-message-avatar">
@@ -920,7 +966,6 @@ export default function Chat() {
               />
 
               {typingUser && <TypingBubble name={typingUser.name} />}
-              <div ref={messagesEndRef} />
             </div>
 
             {/* PILL-SHAPED QUICK REPLIES — show for first 3 messages or after 2+ days idle */}
@@ -968,6 +1013,17 @@ export default function Chat() {
         chatSettings={chatSettings}
         updateChatSetting={updateChatSetting}
       />
+
+      <AnimatePresence>
+        {showProfileSidebar && (
+          <ProfileSidebar
+            show={showProfileSidebar}
+            onClose={() => setShowProfileSidebar(false)}
+            userId={otherParticipant?._id}
+            currentUser={user}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

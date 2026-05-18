@@ -12,6 +12,7 @@ import Navbar from './components/Navbar';
 // ── Lazy-loaded pages (code splitting — each page is a separate JS chunk)
 // This means the browser only downloads code for the page the user is on.
 const Home          = lazy(() => import('./pages/Home'));
+const Explorer      = lazy(() => import('./pages/Explorer'));
 const Login         = lazy(() => import('./pages/Login'));
 const Register      = lazy(() => import('./pages/Register'));
 const VerifyOTP     = lazy(() => import('./pages/VerifyOTP'));
@@ -19,7 +20,6 @@ const Books         = lazy(() => import('./pages/Books'));
 const Upload        = lazy(() => import('./pages/Upload'));
 const Profile       = lazy(() => import('./pages/Profile'));
 const Cart          = lazy(() => import('./pages/Cart'));
-const Checkout      = lazy(() => import('./pages/Checkout'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const Contact       = lazy(() => import('./pages/Contact'));
 const Chat          = lazy(() => import('./pages/Chat'));
@@ -76,6 +76,9 @@ function App() {
                     <Route path="/" element={
                       <ProtectedRoute><LayoutWithNavbar><Home /></LayoutWithNavbar></ProtectedRoute>
                     } />
+                    <Route path="/explorer" element={
+                      <ProtectedRoute><LayoutWithNavbar><Explorer /></LayoutWithNavbar></ProtectedRoute>
+                    } />
                     <Route path="/books" element={
                       <ProtectedRoute><LayoutWithNavbar><Books /></LayoutWithNavbar></ProtectedRoute>
                     } />
@@ -90,9 +93,6 @@ function App() {
                     } />
                     <Route path="/cart" element={
                       <ProtectedRoute><LayoutWithNavbar><Cart /></LayoutWithNavbar></ProtectedRoute>
-                    } />
-                    <Route path="/checkout" element={
-                      <ProtectedRoute><LayoutWithNavbar><Checkout /></LayoutWithNavbar></ProtectedRoute>
                     } />
                     <Route path="/admin/dashboard" element={
                       <ProtectedRoute><LayoutWithNavbar><AdminDashboard /></LayoutWithNavbar></ProtectedRoute>

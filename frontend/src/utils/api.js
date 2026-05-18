@@ -29,9 +29,6 @@ const RETRY_CONFIG = {
 const API = axios.create({
   baseURL: getBaseUrl(),
   timeout: TIMEOUT,
-  headers: {
-    'Content-Type': 'application/json'
-  },
   withCredentials: true  // ⭐ IMPORTANT for CORS + tokens
 });
 

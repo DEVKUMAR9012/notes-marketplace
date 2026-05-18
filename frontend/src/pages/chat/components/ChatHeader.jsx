@@ -22,7 +22,8 @@ const ChatHeader = memo(function ChatHeader({
   setActiveChat, initializeAudioCall, showToast,
   headerMenuOpen, setHeaderMenuOpen, headerMenuRef,
   handleBlockToggle, setShowSettingsModal,
-  showMsgSearch, setShowMsgSearch, msgSearchQuery, setMsgSearchQuery
+  showMsgSearch, setShowMsgSearch, msgSearchQuery, setMsgSearchQuery,
+  onViewProfile
 }) {
   if (!activeChat) return null;
 
@@ -51,25 +52,31 @@ const ChatHeader = memo(function ChatHeader({
           <FiArrowLeft size={18} />
         </button>
 
-        <div className="header-avatar-frame">
-          <Avatar user={otherParticipant || { name: chatTitle }} size={36} isOnline={otherParticipant?.isOnline} />
-        </div>
-
-        <div className="header-member-details">
-          <div className="header-title-box">
-            <span className="header-name-text">{chatTitle}</span>
-            {!isGroup && otherParticipant?.totalSales > 0 && (
-              <span className="verified-tick" title="Verified Seller">✓</span>
-            )}
+        <div 
+          className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
+          onClick={onViewProfile}
+          title="View profile details"
+        >
+          <div className="header-avatar-frame">
+            <Avatar user={otherParticipant || { name: chatTitle }} size={36} isOnline={otherParticipant?.isOnline} />
           </div>
-          <div className="header-status-text" aria-live="polite">
-            {typingUser ? (
-              <span className="typing-active-text">● {typingUser.name} is typing…</span>
-            ) : (
-              <span className={otherParticipant?.isOnline ? 'online-now-text' : ''}>
-                {otherParticipant?.isOnline ? '● Online now' : chatStatus}
-              </span>
-            )}
+
+          <div className="header-member-details">
+            <div className="header-title-box">
+              <span className="header-name-text">{chatTitle}</span>
+              {!isGroup && otherParticipant?.totalSales > 0 && (
+                <span className="verified-tick" title="Verified Seller">✓</span>
+              )}
+            </div>
+            <div className="header-status-text" aria-live="polite">
+              {typingUser ? (
+                <span className="typing-active-text">● {typingUser.name} is typing…</span>
+              ) : (
+                <span className={otherParticipant?.isOnline ? 'online-now-text' : ''}>
+                  {otherParticipant?.isOnline ? '● Online now' : chatStatus}
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
