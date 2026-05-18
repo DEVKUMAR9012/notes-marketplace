@@ -507,21 +507,102 @@ export default function Chat() {
     };
   }, [socket, user?._id, loadConversations, chatSettings.readReceiptPrivacy, chatSettings.muteAlerts, triggerSoundFeedback]);
 
-  // ─── Actions & Live Audio Signaling Emitter
-  const initializeAudioCall = () => {
+  // ─── Actions & Live Geolocation Coordinates sharing
+  const shareLocation = () => {
     if (!activeChat || !socket) return;
-    const isGroup = activeChat.isGroupChat;
-    const targetId = !isGroup ? activeChat.participants?.find(p => String(p._id) !== String(user?._id))?._id : null;
+    
+    showToast("Requesting GPS coordinates...", "success");
 
-    // Generate a non-guessable room token: chatId prefix + random 8-char suffix
-    const roomToken = Math.random().toString(36).slice(2, 10).toUpperCase();
-    const dynamicRoomStr = `https://meet.jit.si/NM_${activeChat._id.slice(-6)}_${roomToken}`;
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        showToast("Location captured! Generating PDF...", "success");
 
-    if (targetId) {
-      socket.emit('initiate_audio_call', { recipientId: targetId, callerName: user?.name, roomUrl: dynamicRoomStr });
-    }
+        const mapsUrl = `https://www.google.com/maps?q=${latitude.toFixed(6)},${longitude.toFixed(6)}`;
+        
+        const streamData = `BT
+/F1 18 Tf
+50 750 Td
+(Location Shared) Tj
+0 -40 Td
+/F1 14 Tf
+(Latitude: ${latitude.toFixed(6)}) Tj
+0 -25 Td
+(Longitude: ${longitude.toFixed(6)}) Tj
+0 -40 Td
+(Google Maps Link:) Tj
+0 -20 Td
+(${mapsUrl}) Tj
+ET`;
 
-    setActiveCallPayload({ incoming: false, callerName: activeChat?.chatName || 'Peer', roomUrl: dynamicRoomStr });
+        const pdfContent = `%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length ${streamData.length} >>
+stream
+${streamData}
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000244 00000 n 
+0000000378 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+465
+%%EOF`;
+
+        const file = new File(
+          [pdfContent], 
+          `Location_${latitude.toFixed(4)}_${longitude.toFixed(4)}.pdf`, 
+          { type: "application/pdf" }
+        );
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+          setUploading(true);
+          showToast("Uploading location file...", "success");
+          
+          await API.post(`/chat/${activeChat._id}/upload`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+
+          // Send real-time text message with the maps link over socket as well
+          const textMsg = `📍 Shared Location:\nLatitude: ${latitude.toFixed(6)}\nLongitude: ${longitude.toFixed(6)}\nOpen: ${mapsUrl}`;
+          socket.emit('send_message', { chatId: activeChat._id, text: textMsg });
+          
+          showToast("Location shared successfully!", "success");
+        } catch (err) {
+          console.error("Upload failed", err);
+          showToast("Failed to share location file", "error");
+        } finally {
+          setUploading(false);
+        }
+      },
+      (error) => {
+        console.error("Geolocation error:", error);
+        showToast("Failed to retrieve location coordinates. Make sure location permissions are enabled.", "error");
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
   };
 
   const handleBlockToggle = async () => {
@@ -862,7 +943,7 @@ export default function Chat() {
               typingUser={typingUser}
               Avatar={Avatar}
               setActiveChat={setActiveChat}
-              initializeAudioCall={initializeAudioCall}
+              shareLocation={shareLocation}
               showToast={showToast}
               headerMenuOpen={headerMenuOpen}
               setHeaderMenuOpen={setHeaderMenuOpen}

@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  FiArrowLeft, FiPhone, FiSearch, FiMoreVertical,
+  FiArrowLeft, FiMapPin, FiSearch, FiMoreVertical,
   FiBell, FiShield, FiSliders
 } from 'react-icons/fi';
 
@@ -19,7 +19,7 @@ const formatTime = (dateStr) => {
 
 const ChatHeader = memo(function ChatHeader({
   activeChat, user, typingUser, Avatar,
-  setActiveChat, initializeAudioCall, showToast,
+  setActiveChat, shareLocation, showToast,
   headerMenuOpen, setHeaderMenuOpen, headerMenuRef,
   handleBlockToggle, setShowSettingsModal,
   showMsgSearch, setShowMsgSearch, msgSearchQuery, setMsgSearchQuery,
@@ -84,11 +84,11 @@ const ChatHeader = memo(function ChatHeader({
           <button
             type="button"
             className="action-circle-btn"
-            onClick={initializeAudioCall}
-            title="Start audio call"
-            aria-label="Start audio call"
+            onClick={shareLocation}
+            title="Share current location"
+            aria-label="Share current location"
           >
-            <FiPhone size={14} />
+            <FiMapPin size={14} />
           </button>
           <button
             type="button"
