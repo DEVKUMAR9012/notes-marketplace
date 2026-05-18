@@ -14,6 +14,16 @@ import ProfileSidebar from './chat/components/ProfileSidebar';
 import { Virtuoso } from 'react-virtuoso';
 import './Chat.css';
 
+// 🚀 DYNAMIC ADMIN IDENTIFICATION
+export const ADMIN_ID = "69ea4e321025725313352f9f";
+export const ADMIN_PROFILE = {
+  _id: ADMIN_ID,
+  name: "Dev Kumar (Admin)",
+  avatar: null, 
+  isOnline: true,
+  role: "admin"
+};
+
 // ─── Highly strict dynamic time formatter
 const formatTime = (dateStr) => {
   if (!dateStr) return '';
@@ -578,16 +588,44 @@ export default function Chat() {
     } catch (e) { console.error(e); }
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const text = inputText.trim();
     if (!text || !activeChat || !socket) return;
 
-    // Optimistic UI update
+    let targetChatId = activeChat._id;
+
+    // 🚀 THE FIX: Intercept Virtual Chat & Create Real Chat in DB
+    if (targetChatId === "virtual_admin_chat") {
+      try {
+        setMsgLoading(true); // Optional: show loading while creating
+        // Make sure ADMIN_ID variable is accessible here (defined at the top of your file)
+        const res = await API.post('/chat', { recipientId: ADMIN_ID }); 
+        const realChat = res.data.chat;
+        targetChatId = realChat._id;
+
+        // Update UI states to replace fake chat with real chat
+        setActiveChat(realChat);
+        setConversations(prev => {
+          const cleanList = prev.filter(c => c._id !== "virtual_admin_chat");
+          // Prevent duplicates if it already exists
+          return cleanList.find(c => c._id === realChat._id) ? cleanList : [realChat, ...cleanList];
+        });
+      } catch (err) {
+        console.error("Failed to initialize real admin chat", err);
+        showToast("Could not connect to Admin database. Try again.", "error");
+        setMsgLoading(false);
+        return; // Stop execution if DB fails
+      } finally {
+        setMsgLoading(false);
+      }
+    }
+
+    // --- STANDARD OPTIMISTIC UI LOGIC (Now using real targetChatId) ---
     const tempId = `temp_${Date.now()}`;
     const optimisticMessage = {
       _id: tempId,
       tempId,
-      chat: activeChat._id,
+      chat: targetChatId, // Use the real ID here!
       sender: user,
       text,
       createdAt: new Date().toISOString(),
@@ -597,14 +635,16 @@ export default function Chat() {
     
     setMessages(prev => [...prev, optimisticMessage]);
 
-    socket.emit('send_message', { chatId: activeChat._id, text, replyTo: replyingTo?._id, tempId });
+    // Send via socket using the real ID
+    socket.emit('send_message', { chatId: targetChatId, text, replyTo: replyingTo?._id, tempId });
+    
     setInputText('');
     setReplyingTo(null);
     isTypingEmittedRef.current = false;
     clearTimeout(typingTimeoutRef.current);
-    socket.emit('typing_stop', { chatId: activeChat._id });
+    socket.emit('typing_stop', { chatId: targetChatId });
 
-    // Handle failure simulation (if no response after 5s)
+    // Handle failure simulation
     setTimeout(() => {
       setMessages(prev => prev.map(m => {
         if (m.tempId === tempId && m.pending) {
@@ -779,21 +819,35 @@ export default function Chat() {
       return title?.toLowerCase().includes(sidebarSearchQuery.toLowerCase());
     });
 
-    const isCurrentUserAdmin = user?.role === 'admin';
-    if (!isCurrentUserAdmin) {
-      const adminChatIndex = list.findIndex(c => 
-        !c.isGroupChat && c.participants?.some(p => p.role === 'admin')
+    // 🚀 ADMIN PIN LOGIC: Inject Admin at Top for everyone except Admin himself
+    if (user && String(user._id) !== String(ADMIN_ID)) {
+      const existingAdminChatIndex = list.findIndex(c => 
+        !c.isGroupChat && c.participants?.some(p => String(p._id) === String(ADMIN_ID))
       );
 
-      if (adminChatIndex > -1) {
-        const adminChatObj = { ...list[adminChatIndex], isPinnedAdmin: true };
-        list.splice(adminChatIndex, 1);
-        list.unshift(adminChatObj);
+      let adminChatObj;
+
+      if (existingAdminChatIndex > -1) {
+        // Chat exists, extract it
+        adminChatObj = { ...list[existingAdminChatIndex], isPinnedAdmin: true };
+        list.splice(existingAdminChatIndex, 1);
+      } else {
+        // Virtual Chat (If user hasn't talked to you yet)
+        adminChatObj = {
+          _id: "virtual_admin_chat",
+          isGroupChat: false,
+          participants: [user, ADMIN_PROFILE],
+          lastMessage: { text: "👋 Welcome! How can I help you today?", createdAt: new Date().toISOString() },
+          isPinnedAdmin: true,
+        };
       }
+      
+      // Unshift puts it at Index 0 (Top)
+      list.unshift(adminChatObj);
     }
 
     return list;
-  }, [filteredConversations, sidebarSearchQuery, user?._id, user?.role]);
+  }, [filteredConversations, sidebarSearchQuery, user?._id]);
 
   const isGroup = activeChat?.isGroupChat;
   const otherParticipant = !isGroup ? activeChat?.participants?.find(p => String(p._id) !== String(user?._id)) : null;
