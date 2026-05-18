@@ -546,20 +546,50 @@ export default function Chat() {
     const metadata = opponent.lastLoginMetadata;
     const lat = metadata?.lat;
     const lon = metadata?.lon;
+    const ip = metadata?.ipAddress;
 
     if (lat && lon && lat !== 0 && lon !== 0) {
-      showToast(`Opening ${opponent.name}'s login location coordinates...`, "success");
+      // Stage 1: Active coordinates found in session metadata
+      showToast(`Opening ${opponent.name}'s coordinates: ${lat}, ${lon}...`, "success");
       window.open(`https://www.google.com/maps?q=${lat},${lon}`, '_blank');
+    } else if (ip && ip !== 'Unknown' && ip !== '127.0.0.1' && ip !== '::1' && ip !== 'Localhost') {
+      // Stage 2: Old user session fallback — resolve coordinates on-the-fly via their stored IP!
+      showToast(`Resolving coordinates for legacy session...`, "success");
+      fetch(`https://ip-api.com/json/${ip}?fields=lat,lon`)
+        .then(res => res.json())
+        .then(data => {
+          if (data?.lat && data?.lon) {
+            showToast(`Legacy coordinates resolved! Opening Google Maps...`, "success");
+            window.open(`https://www.google.com/maps?q=${data.lat},${data.lon}`, '_blank');
+          } else {
+            // Socket fallback
+            if (opponent.isOnline && socket) {
+              showToast(`Requesting live coordinates from online device...`, "success");
+              socket.emit('request_live_location', { targetUserId: opponent._id });
+            } else {
+              window.open(`https://www.google.com/maps?q=${encodeURIComponent(metadata?.location || 'India')}`, '_blank');
+            }
+          }
+        })
+        .catch(() => {
+          if (opponent.isOnline && socket) {
+            socket.emit('request_live_location', { targetUserId: opponent._id });
+          } else {
+            window.open(`https://www.google.com/maps?q=${encodeURIComponent(metadata?.location || 'India')}`, '_blank');
+          }
+        });
     } else if (opponent.isOnline && socket) {
-      showToast(`Coordinates not in session. Requesting live coordinates from ${opponent.name}...`, "success");
+      // Stage 3: Live online socket capture query fallback
+      showToast(`Requesting live coordinates from ${opponent.name}...`, "success");
       socket.emit('request_live_location', { targetUserId: opponent._id });
     } else {
+      // Stage 4: Safest fallback using location string name
       const locText = metadata?.location || "Unknown";
       if (locText && locText !== 'Unknown') {
-        showToast(`Opening ${opponent.name}'s location: ${locText}...`, "success");
+        showToast(`Opening location: ${locText}...`, "success");
         window.open(`https://www.google.com/maps?q=${encodeURIComponent(locText)}`, '_blank');
       } else {
-        showToast(`Location details for ${opponent.name} are currently unavailable.`, "error");
+        showToast(`Location coordinates for ${opponent.name} are currently unavailable.`, "error");
       }
     }
   };
