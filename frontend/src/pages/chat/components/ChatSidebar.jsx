@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react';
 import { FiSearch, FiSettings } from 'react-icons/fi';
-import { ADMIN_ID, ADMIN_PROFILE } from '../../Chat';
 
 const formatTime = (dateStr) => {
   if (!dateStr) return '';
@@ -52,31 +51,21 @@ export default function ChatSidebar({
       return title?.toLowerCase().includes(sidebarSearchQuery.toLowerCase());
     });
 
-    if (user && String(user._id) !== String(ADMIN_ID)) {
-      const existingAdminChatIndex = list.findIndex(c => 
-        !c.isGroupChat && c.participants?.some(p => String(p._id) === String(ADMIN_ID))
+    const isCurrentUserAdmin = user?.role === 'admin';
+    if (!isCurrentUserAdmin) {
+      const adminChatIndex = list.findIndex(c => 
+        !c.isGroupChat && c.participants?.some(p => p.role === 'admin')
       );
 
-      let adminChatObj;
-
-      if (existingAdminChatIndex > -1) {
-        adminChatObj = { ...list[existingAdminChatIndex], isPinnedAdmin: true };
-        list.splice(existingAdminChatIndex, 1);
-      } else {
-        adminChatObj = {
-          _id: "virtual_admin_chat",
-          isGroupChat: false,
-          participants: [user, ADMIN_PROFILE],
-          lastMessage: { text: "👋 Welcome! How can I help you today?", createdAt: new Date().toISOString() },
-          isPinnedAdmin: true,
-        };
+      if (adminChatIndex > -1) {
+        const adminChatObj = { ...list[adminChatIndex], isPinnedAdmin: true };
+        list.splice(adminChatIndex, 1);
+        list.unshift(adminChatObj);
       }
-      
-      list.unshift(adminChatObj);
     }
 
     return list;
-  }, [filteredConversations, sidebarSearchQuery, user?._id]);
+  }, [filteredConversations, sidebarSearchQuery, user?._id, user?.role]);
 
   return (
     <aside className={`messenger-sidebar ${activeChat ? 'hidden-mobile' : ''}`}>
