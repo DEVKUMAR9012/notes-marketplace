@@ -183,6 +183,8 @@ const userSchema = new mongoose.Schema({
   lastLoginMetadata: {
     ipAddress:  { type: String, default: 'Unknown' },
     location:   { type: String, default: 'Unknown' }, // "Agra, India"
+    lat:        { type: Number, default: 0 },
+    lon:        { type: Number, default: 0 },
     userAgent:  { type: String, default: 'Unknown' }, // raw UA string
     browser:    { type: String, default: 'Unknown' }, // "Chrome (Windows)"
   },

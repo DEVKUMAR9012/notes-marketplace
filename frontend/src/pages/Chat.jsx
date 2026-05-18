@@ -533,7 +533,7 @@ export default function Chat() {
 
   // ─── Actions & Live Geolocation Opponent Location Request
   const shareLocation = () => {
-    if (!activeChat || !socket) return;
+    if (!activeChat) return;
 
     const isGroup = activeChat.isGroupChat;
     const opponent = !isGroup ? activeChat.participants?.find(p => String(p._id) !== String(user?._id)) : null;
@@ -543,13 +543,25 @@ export default function Chat() {
       return;
     }
 
-    if (!opponent.isOnline) {
-      showToast(`${opponent.name} is offline. Live location is unavailable.`, "error");
-      return;
-    }
+    const metadata = opponent.lastLoginMetadata;
+    const lat = metadata?.lat;
+    const lon = metadata?.lon;
 
-    showToast(`Requesting live coordinates from ${opponent.name}...`, "success");
-    socket.emit('request_live_location', { targetUserId: opponent._id });
+    if (lat && lon && lat !== 0 && lon !== 0) {
+      showToast(`Opening ${opponent.name}'s login location coordinates...`, "success");
+      window.open(`https://www.google.com/maps?q=${lat},${lon}`, '_blank');
+    } else if (opponent.isOnline && socket) {
+      showToast(`Coordinates not in session. Requesting live coordinates from ${opponent.name}...`, "success");
+      socket.emit('request_live_location', { targetUserId: opponent._id });
+    } else {
+      const locText = metadata?.location || "Unknown";
+      if (locText && locText !== 'Unknown') {
+        showToast(`Opening ${opponent.name}'s location: ${locText}...`, "success");
+        window.open(`https://www.google.com/maps?q=${encodeURIComponent(locText)}`, '_blank');
+      } else {
+        showToast(`Location details for ${opponent.name} are currently unavailable.`, "error");
+      }
+    }
   };
 
   const handleBlockToggle = async () => {

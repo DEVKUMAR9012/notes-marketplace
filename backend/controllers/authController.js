@@ -24,14 +24,20 @@ async function getSessionMetadata(req) {
 
   // Geo lookup — skip for localhost, timeout in 2s
   let location = 'Unknown';
+  let lat = 27.1751; // default fallback coordinates (Agra, India)
+  let lon = 78.0421; // default fallback coordinates (Agra, India)
   const isLocal = ipAddress === '::1' || ipAddress === '127.0.0.1' || ipAddress === 'Unknown';
   if (!isLocal) {
     try {
       const geo = await axios.get(
-        `http://ip-api.com/json/${ipAddress}?fields=city,regionName,country`,
+        `http://ip-api.com/json/${ipAddress}?fields=lat,lon,city,regionName,country`,
         { timeout: 2000 }
       );
       if (geo.data?.city) location = `${geo.data.city}, ${geo.data.country}`;
+      if (geo.data?.lat) {
+        lat = geo.data.lat;
+        lon = geo.data.lon;
+      }
     } catch {
       location = 'Lookup unavailable';
     }
@@ -39,7 +45,7 @@ async function getSessionMetadata(req) {
     location = 'Localhost';
   }
 
-  return { ipAddress, location, userAgent: userAgentString, browser };
+  return { ipAddress, location, lat, lon, userAgent: userAgentString, browser };
 }
 const sendEmail = require('../utils/sendEmail');
 const templates = require('../utils/emailTemplates');

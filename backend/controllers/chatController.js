@@ -6,7 +6,7 @@ const User    = require('../models/User');
 exports.getConversations = async (req, res) => {
   try {
     let chats = await Chat.find({ participants: req.user._id })
-      .populate('participants', 'name avatar profileImage isOnline lastSeen totalSales role')
+      .populate('participants', 'name avatar profileImage isOnline lastSeen totalSales role lastLoginMetadata')
       .sort({ 'lastMessage.sentAt': -1 });
 
     const admin = await User.findOne({ role: 'admin' }).select('name avatar profileImage isOnline lastSeen totalSales role');
@@ -39,7 +39,7 @@ exports.getConversations = async (req, res) => {
         await newChat.save();
 
         newChat = await Chat.findById(newChat._id)
-          .populate('participants', 'name avatar profileImage isOnline lastSeen totalSales role');
+          .populate('participants', 'name avatar profileImage isOnline lastSeen totalSales role lastLoginMetadata');
         
         chats.unshift(newChat);
       }
@@ -61,11 +61,11 @@ exports.getOrCreateConversation = async (req, res) => {
     if (String(myId) === String(recipientId)) return res.status(400).json({ success: false, message: 'Cannot chat with yourself' });
 
     let chat = await Chat.findOne({ participants: { $all: [myId, recipientId], $size: 2 } })
-      .populate('participants', 'name avatar profileImage isOnline lastSeen totalSales');
+      .populate('participants', 'name avatar profileImage isOnline lastSeen totalSales role lastLoginMetadata');
 
     if (!chat) {
       chat = await Chat.create({ participants: [myId, recipientId], unreadCounts: { [String(myId)]: 0, [String(recipientId)]: 0 } });
-      chat = await chat.populate('participants', 'name avatar profileImage isOnline lastSeen totalSales');
+      chat = await chat.populate('participants', 'name avatar profileImage isOnline lastSeen totalSales role lastLoginMetadata');
     }
     res.json({ success: true, chat });
   } catch (e) {
@@ -99,7 +99,7 @@ exports.createGroupChat = async (req, res) => {
       unreadCounts
     });
 
-    chat = await chat.populate('participants', 'name avatar profileImage isOnline lastSeen totalSales');
+    chat = await chat.populate('participants', 'name avatar profileImage isOnline lastSeen totalSales role lastLoginMetadata');
     
     res.status(201).json({ success: true, chat });
   } catch (e) {
