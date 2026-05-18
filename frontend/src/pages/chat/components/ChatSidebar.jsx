@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { FiSearch, FiSettings } from 'react-icons/fi';
-import { ADMIN_ID, ADMIN_PROFILE } from '../Chat';
+import { ADMIN_ID, ADMIN_PROFILE } from '../../Chat';
 
 const formatTime = (dateStr) => {
   if (!dateStr) return '';
