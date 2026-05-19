@@ -955,10 +955,9 @@
 .chat-input-wrapper-embedded {
   display: flex;
   flex-direction: column;
-  padding: 10px 20px 16px;
-  background: #110f24;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-  /* Removed position:relative — send btn now in flex row, no absolute needed */
+  padding: 14px 24px 20px;
+  background: #0d0b1a; /* Deeper black-violet background */
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 .reply-preview {
@@ -1005,13 +1004,20 @@
 .embedded-input-container {
   display: flex;
   align-items: center;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 24px;
-  padding: 6px 14px;
-  gap: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 28px;
+  padding: 8px 18px;
+  gap: 12px;
   flex: 1;
   min-width: 0;
+  transition: all 0.2s ease;
+}
+
+.embedded-input-container:focus-within {
+  border-color: rgba(139, 92, 246, 0.4);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 0 16px rgba(139, 92, 246, 0.08);
 }
 
 .embedded-tools-left,
