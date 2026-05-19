@@ -23,11 +23,16 @@ const MessageInput = memo(function MessageInput({
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const durationIntervalRef = useRef(null);
+  const holdTimeoutRef = useRef(null);
+  const isHoldingRef = useRef(false);
 
   useEffect(() => {
     return () => {
       if (durationIntervalRef.current) {
         clearInterval(durationIntervalRef.current);
+      }
+      if (holdTimeoutRef.current) {
+        clearTimeout(holdTimeoutRef.current);
       }
     };
   }, []);
@@ -113,6 +118,39 @@ const MessageInput = memo(function MessageInput({
       clearInterval(durationIntervalRef.current);
     }
     showToast("Voice Note discarded", "success");
+  };
+
+  const handleMicPressStart = (e) => {
+    if (uploading) return;
+    if (e.cancelable) e.preventDefault();
+    isHoldingRef.current = false;
+    
+    holdTimeoutRef.current = setTimeout(() => {
+      isHoldingRef.current = true;
+      if (!isRecording) {
+        startRecording();
+      }
+    }, 250);
+  };
+
+  const handleMicPressEnd = (e) => {
+    if (e.cancelable) e.preventDefault();
+    if (holdTimeoutRef.current) {
+      clearTimeout(holdTimeoutRef.current);
+    }
+    
+    if (isHoldingRef.current) {
+      isHoldingRef.current = false;
+      if (isRecording) {
+        stopRecording();
+      }
+    } else {
+      if (isRecording) {
+        stopRecording();
+      } else {
+        startRecording();
+      }
+    }
   };
 
   const handleFileUpload = async (e) => {
@@ -315,10 +353,17 @@ const MessageInput = memo(function MessageInput({
               <button
                 type="button"
                 className={`embedded-tool-btn mic-btn ${isRecording ? 'text-red-500 animate-pulse font-bold' : 'text-violet-400'}`}
-                onClick={isRecording ? stopRecording : startRecording}
+                onMouseDown={handleMicPressStart}
+                onMouseUp={handleMicPressEnd}
+                onMouseLeave={(e) => {
+                  if (isHoldingRef.current) handleMicPressEnd(e);
+                }}
+                onTouchStart={handleMicPressStart}
+                onTouchEnd={handleMicPressEnd}
                 aria-label={isRecording ? "Stop and Send Voice Note" : "Record voice note"}
                 title={isRecording ? "Stop & Send" : "Record Voice Note"}
                 disabled={uploading}
+                style={{ userSelect: 'none', touchAction: 'none' }}
               >
                 {isRecording ? '✔️' : '🎙️'}
               </button>
