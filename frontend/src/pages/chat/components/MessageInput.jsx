@@ -6,10 +6,16 @@ import API from '../../../utils/api';
 const MessageInput = memo(function MessageInput({
   inputText, setInputText, handleTyping, handleSend,
   replyingTo, setReplyingTo,
-  activeChat, uploading, setUploading, showToast
+  activeChat, uploading, setUploading, showToast,
+  socket
 }) {
   const fileInputRef = useRef(null);
   const textInputRef = useRef(null);
+
+  // Poll Creator State
+  const [showPollCreator, setShowPollCreator] = useState(false);
+  const [pollQuestion, setPollQuestion] = useState('');
+  const [pollOptions, setPollOptions] = useState(['', '']);
 
   // Voice Note states and refs
   const [isRecording, setIsRecording] = useState(false);
@@ -147,6 +153,24 @@ const MessageInput = memo(function MessageInput({
       setUploading(false);
       e.target.value = null;
     }
+  const submitPoll = () => {
+    if (!pollQuestion.trim()) return showToast("Enter a poll question", "error");
+    const validOptions = pollOptions.filter(opt => opt.trim());
+    if (validOptions.length < 2) return showToast("Provide at least 2 options", "error");
+    if (!socket) return showToast("Messenger is offline", "error");
+
+    socket.emit('create_poll', {
+      chatId: activeChat._id,
+      question: pollQuestion.trim(),
+      options: validOptions,
+      tempId: `temp_${Date.now()}`
+    });
+
+    // Reset State
+    setPollQuestion('');
+    setPollOptions(['', '']);
+    setShowPollCreator(false);
+    showToast("Live Group Poll Created!", "success");
   };
 
   return (
@@ -161,88 +185,159 @@ const MessageInput = memo(function MessageInput({
         </div>
       )}
 
-      {/* Flex row: input + send button — no absolute positioning */}
-      <div className="embedded-input-row">
-        <div className="embedded-input-container">
-          <div className="embedded-tools-left">
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileUpload}
-              accept="image/*,.pdf"
-              style={{ display: 'none' }}
-              aria-hidden="true"
-            />
-            <button
-              type="button"
-              className="embedded-tool-btn"
-              onClick={() => fileInputRef.current?.click()}
-              aria-label="Attach image or PDF"
-              title="Attach image or PDF only"
-              disabled={uploading}
-            >
-              {uploading ? '⏳' : '📎'}
-            </button>
-            <span className="text-[10px] text-gray-600 hidden sm:inline leading-none" aria-hidden="true">img/PDF</span>
+      {showPollCreator ? (
+        <div className="inline-poll-creator-box">
+          <div className="poll-creator-header">
+            <span className="poll-badge">📊 INTERACTIVE POLL CREATOR</span>
+            <button type="button" className="close-poll-x" onClick={() => setShowPollCreator(false)}>✕</button>
+          </div>
+          <input
+            type="text"
+            placeholder="Enter poll question..."
+            value={pollQuestion}
+            onChange={(e) => setPollQuestion(e.target.value)}
+            className="poll-question-input"
+          />
+          <div className="poll-options-grid">
+            {pollOptions.map((option, idx) => (
+              <div key={idx} className="poll-option-row">
+                <span className="option-number-label">{idx + 1}</span>
+                <input
+                  type="text"
+                  placeholder={`Option ${idx + 1}`}
+                  value={option}
+                  onChange={(e) => {
+                    const nextOpts = [...pollOptions];
+                    nextOpts[idx] = e.target.value;
+                    setPollOptions(nextOpts);
+                  }}
+                  className="poll-option-input-field"
+                />
+                {pollOptions.length > 2 && (
+                  <button
+                    type="button"
+                    className="delete-option-btn"
+                    onClick={() => setPollOptions(pollOptions.filter((_, i) => i !== idx))}
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            ))}
           </div>
 
-          {isRecording ? (
-            <div className="flex items-center gap-3 flex-1 px-2 text-red-400">
-              <span className="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse" />
-              <span className="text-sm font-semibold">Recording Voice Note... {formatDuration(duration)}</span>
-              <button 
-                type="button" 
-                onClick={cancelRecording}
-                className="ml-auto text-[11px] bg-white/5 hover:bg-white/10 hover:text-white transition-all px-2.5 py-1 rounded-full font-medium"
+          <div className="poll-creator-actions">
+            {pollOptions.length < 6 && (
+              <button
+                type="button"
+                className="add-option-pill"
+                onClick={() => setPollOptions([...pollOptions, ''])}
               >
-                ✕ Discard
+                ➕ Add Option
               </button>
-            </div>
-          ) : (
-            <input
-              type="text"
-              ref={textInputRef}
-              value={inputText}
-              onChange={handleTyping}
-              onKeyDown={e => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  handleSend();
-                }
-              }}
-              placeholder="Type a secure message..."
-              className="embedded-text-field"
-              aria-label="Message input"
-              autoComplete="off"
-            />
-          )}
-
-          <div className="embedded-tools-right">
+            )}
             <button
               type="button"
-              className={`embedded-tool-btn mic-btn ${isRecording ? 'text-red-500 animate-pulse font-bold' : 'text-violet-400'}`}
-              onClick={isRecording ? stopRecording : startRecording}
-              aria-label={isRecording ? "Stop and Send Voice Note" : "Record voice note"}
-              title={isRecording ? "Stop & Send" : "Record Voice Note"}
-              disabled={uploading}
+              className="create-poll-submit-btn"
+              onClick={submitPoll}
             >
-              {isRecording ? '✔️' : '🎙️'}
+              📊 Create Live Poll
             </button>
           </div>
         </div>
+      ) : (
+        /* Flex row: input + send button — no absolute positioning */
+        <div className="embedded-input-row">
+          <div className="embedded-input-container">
+            <div className="embedded-tools-left">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                accept="image/*,.pdf"
+                style={{ display: 'none' }}
+                aria-hidden="true"
+              />
+              <button
+                type="button"
+                className="embedded-tool-btn"
+                onClick={() => fileInputRef.current?.click()}
+                aria-label="Attach image or PDF"
+                title="Attach image or PDF only"
+                disabled={uploading}
+              >
+                {uploading ? '⏳' : '📎'}
+              </button>
+              
+              <button
+                type="button"
+                className="embedded-tool-btn poll-toggle-btn text-violet-400"
+                onClick={() => setShowPollCreator(true)}
+                aria-label="Create a poll"
+                title="Create Interactive Poll"
+              >
+                📊
+              </button>
+            </div>
 
-        {/* Send button in flex row — eliminates absolute overlap on small phones */}
-        <button
-          type="button"
-          className="circular-send-btn"
-          onClick={handleSend}
-          aria-label="Send message"
-          title="Send Message"
-          disabled={!inputText.trim() || isRecording}
-        >
-          <FiSend size={16} />
-        </button>
-      </div>
+            {isRecording ? (
+              <div className="flex items-center gap-3 flex-1 px-2 text-red-400">
+                <span className="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse" />
+                <span className="text-sm font-semibold">Recording Voice Note... {formatDuration(duration)}</span>
+                <button 
+                  type="button" 
+                  onClick={cancelRecording}
+                  className="ml-auto text-[11px] bg-white/5 hover:bg-white/10 hover:text-white transition-all px-2.5 py-1 rounded-full font-medium"
+                >
+                  ✕ Discard
+                </button>
+              </div>
+            ) : (
+              <input
+                type="text"
+                ref={textInputRef}
+                value={inputText}
+                onChange={handleTyping}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+                placeholder="Type a secure message..."
+                className="embedded-text-field"
+                aria-label="Message input"
+                autoComplete="off"
+              />
+            )}
+
+            <div className="embedded-tools-right">
+              <button
+                type="button"
+                className={`embedded-tool-btn mic-btn ${isRecording ? 'text-red-500 animate-pulse font-bold' : 'text-violet-400'}`}
+                onClick={isRecording ? stopRecording : startRecording}
+                aria-label={isRecording ? "Stop and Send Voice Note" : "Record voice note"}
+                title={isRecording ? "Stop & Send" : "Record Voice Note"}
+                disabled={uploading}
+              >
+                {isRecording ? '✔️' : '🎙️'}
+              </button>
+            </div>
+          </div>
+
+          {/* Send button in flex row — eliminates absolute overlap on small phones */}
+          <button
+            type="button"
+            className="circular-send-btn"
+            onClick={handleSend}
+            aria-label="Send message"
+            title="Send Message"
+            disabled={!inputText.trim() || isRecording}
+          >
+            <FiSend size={16} />
+          </button>
+        </div>
+      )}
     </div>
   );
 });

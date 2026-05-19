@@ -13,9 +13,20 @@ const messageSchema = new mongoose.Schema(
 
     // File attachment
     fileUrl:  { type: String, default: null },
-    fileType: { type: String, enum: ['image', 'pdf', 'audio', 'other', null], default: null },
+    fileType: { type: String, enum: ['image', 'pdf', 'audio', 'poll', 'other', null], default: null },
     fileName: { type: String, default: null },
     fileSize: { type: Number, default: null },
+
+    // Interactive Polls
+    poll: {
+      question: { type: String, trim: true },
+      options: [
+        {
+          optionText: { type: String, required: true },
+          votes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
+        }
+      ]
+    },
 
     // Quick reply preset text used
     quickReply: { type: String, default: null },

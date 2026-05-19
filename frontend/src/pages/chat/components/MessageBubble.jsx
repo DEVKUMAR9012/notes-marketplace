@@ -27,11 +27,71 @@ const getAttachmentUrl = (url, API_BASE_URL) => {
 export default function MessageBubble({ 
   msg, isMine, isFirstInGroup, isLastInGroup, 
   user, otherParticipant, chatSettings, API_BASE_URL,
-  handleReact, handleUnsend, setReplyingTo, textInputRef
+  handleReact, handleUnsend, setReplyingTo, textInputRef,
+  socket
 }) {
   const isImg = msg.fileType === 'image' || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(msg.fileUrl || '');
   const isAudio = msg.fileType === 'audio' || /\.(webm|mp3|wav|ogg)$/i.test(msg.fileUrl || '');
   const isRichNote = msg.noteMetadata || (msg.text && msg.text.includes('pages · ₹'));
+  const isPoll = msg.fileType === 'poll' || msg.poll;
+
+  const renderPoll = () => {
+    if (!msg.poll) return null;
+
+    const totalVotes = msg.poll.options?.reduce((sum, opt) => sum + (opt.votes?.length || 0), 0) || 0;
+
+    const handleVote = (optionIndex) => {
+      if (!socket || msg.pending) return;
+      socket.emit('vote_poll', {
+        chatId: msg.chat?._id || msg.chat,
+        messageId: msg._id,
+        optionIndex
+      });
+    };
+
+    return (
+      <div className="chat-poll-wrapper">
+        <div className="chat-poll-question">
+          <span className="poll-icon">📊</span>
+          <span>{msg.poll.question}</span>
+        </div>
+        <div className="chat-poll-options">
+          {msg.poll.options?.map((option, idx) => {
+            const votesCount = option.votes?.length || 0;
+            const percentage = totalVotes > 0 ? Math.round((votesCount / totalVotes) * 100) : 0;
+            const hasVoted = option.votes?.some(vId => String(vId) === String(user?._id));
+
+            return (
+              <button
+                key={idx}
+                type="button"
+                className={`chat-poll-option-btn ${hasVoted ? 'voted' : ''}`}
+                onClick={() => handleVote(idx)}
+              >
+                {/* Visual percentage progress background */}
+                <div 
+                  className="chat-poll-option-progress" 
+                  style={{ width: `${percentage}%` }} 
+                />
+                
+                <span className="chat-poll-option-text">
+                  {hasVoted && <span className="voted-tick-icon">✓</span>}
+                  {option.optionText}
+                </span>
+                
+                <span className="chat-poll-option-meta">
+                  {percentage}% ({votesCount})
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="chat-poll-footer">
+          <span>{totalVotes} {totalVotes === 1 ? 'vote' : 'votes'} total</span>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className={`relative flex items-center max-w-full ${isMine ? 'justify-end pr-2' : 'justify-start pl-2'}`}>
@@ -97,7 +157,9 @@ export default function MessageBubble({
               </div>
             )}
 
-            {isRichNote ? (
+            {isPoll ? (
+              renderPoll()
+            ) : isRichNote ? (
               <div className="rich-note-preview-card">
                 <div className="rich-note-icon">📄</div>
                 <div className="rich-note-details">
@@ -132,7 +194,7 @@ export default function MessageBubble({
               )
             )}
 
-            {!isRichNote && msg.text && <p>{msg.text}</p>}
+            {!isPoll && !isRichNote && msg.text && <p>{msg.text}</p>}
 
             {msg.reactions && Object.keys(msg.reactions).length > 0 && (
               <div className="reactions-display">

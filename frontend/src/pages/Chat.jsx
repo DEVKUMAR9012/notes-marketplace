@@ -518,6 +518,16 @@ export default function Chat() {
       window.open(`https://www.google.com/maps?q=${latitude},${longitude}`, '_blank');
     };
 
+    const onPollUpdated = (updatedMsg) => {
+      const current = activeChatRef.current;
+      const incomingChatId = String(updatedMsg.chat?._id || updatedMsg.chat);
+      const currentChatId = String(current?._id);
+
+      if (current && incomingChatId === currentChatId) {
+        setMessages(prev => prev.map(m => (m._id === updatedMsg._id || (m.tempId && m.tempId === updatedMsg.tempId)) ? updatedMsg : m));
+      }
+    };
+
     socket.on('new_message', onNewMessage);
     socket.on('conversation_updated', onConversationUpdated);
     socket.on('user_typing', onUserTyping);
@@ -529,6 +539,7 @@ export default function Chat() {
     socket.on('message_deleted', onMessageDeleted);
     socket.on('capture_live_location', onCaptureLiveLocation);
     socket.on('opponent_location_captured', onOpponentLocationCaptured);
+    socket.on('poll_updated', onPollUpdated);
 
     // ── Real-time block/unblock status from backend broadcast
     const onBlockStatus = ({ chatId, blockedBy, isBlocked }) => {
@@ -554,6 +565,7 @@ export default function Chat() {
       socket.off('chat_block_status', onBlockStatus);
       socket.off('capture_live_location', onCaptureLiveLocation);
       socket.off('opponent_location_captured', onOpponentLocationCaptured);
+      socket.off('poll_updated', onPollUpdated);
     };
   }, [socket, user?._id, loadConversations, chatSettings.readReceiptPrivacy, chatSettings.muteAlerts, triggerSoundFeedback]);
 
@@ -1277,6 +1289,7 @@ export default function Chat() {
                           msg={msg} isMine={isMine} isFirstInGroup={isFirstInGroup} isLastInGroup={isLastInGroup}
                           user={user} otherParticipant={otherParticipant} chatSettings={chatSettings} API_BASE_URL={API_BASE_URL}
                           handleReact={handleReact} handleUnsend={handleUnsend} setReplyingTo={setReplyingTo} textInputRef={textInputRef}
+                          socket={socket}
                         />
                       </div>
                     </div>
@@ -1319,6 +1332,7 @@ export default function Chat() {
               <MessageInput 
                 inputText={inputText} setInputText={setInputText} handleTyping={handleTyping} handleSend={handleSend}
                 replyingTo={replyingTo} setReplyingTo={setReplyingTo} activeChat={activeChat} uploading={uploading} setUploading={setUploading} showToast={showToast}
+                socket={socket}
               />
             )}
           </>

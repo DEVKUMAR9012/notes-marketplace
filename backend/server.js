@@ -183,6 +183,89 @@ io.on('connection', async (socket) => {
     } catch (err) { /* ignore */ }
   });
 
+  // ── Interactive Group Chat Polls
+  socket.on('create_poll', async ({ chatId, question, options, tempId }) => {
+    try {
+      if (!question?.trim() || !options || options.length < 2) return;
+
+      const chat = await Chat.findOne({ _id: chatId, participants: socket.user._id });
+      if (!chat) return socket.emit('error', { message: 'Access denied' });
+      if (chat.blockedBy) return socket.emit('error', { message: 'Chat is blocked' });
+
+      const msgData = {
+        chat: chatId,
+        sender: socket.user._id,
+        text: `📊 Poll: ${question.trim()}`,
+        fileType: 'poll',
+        poll: {
+          question: question.trim(),
+          options: options.filter(opt => opt.trim()).map(opt => ({ optionText: opt.trim(), votes: [] }))
+        }
+      };
+
+      const msg = await Message.create(msgData);
+      await msg.populate('sender', 'name avatar profileImage');
+
+      // Update chat lastMessage
+      chat.lastMessage = { text: `📊 Poll: ${msg.poll.question}`, senderId: socket.user._id, sentAt: new Date(), type: 'poll' };
+      chat.participants.forEach(pId => {
+        if (String(pId) !== userId) {
+          chat.unreadCounts.set(String(pId), (chat.unreadCounts.get(String(pId)) || 0) + 1);
+        }
+      });
+      await chat.save();
+
+      // Broadcast to room
+      const msgObj = msg.toObject();
+      if (tempId) msgObj.tempId = tempId;
+      io.to(chatId).emit('new_message', msgObj);
+
+      // Notify conversation update
+      chat.participants.forEach(pId => {
+        if (String(pId) !== userId) {
+          io.to(String(pId)).emit('conversation_updated', {
+            chatId,
+            lastMessage: chat.lastMessage,
+            unreadCount: chat.unreadCounts.get(String(pId)) || 0,
+          });
+        }
+      });
+    } catch (err) {
+      console.error('create_poll error:', err);
+    }
+  });
+
+  socket.on('vote_poll', async ({ chatId, messageId, optionIndex }) => {
+    try {
+      const msg = await Message.findById(messageId);
+      if (!msg || msg.fileType !== 'poll' || !msg.poll) return;
+
+      // Check access
+      const chat = await Chat.findOne({ _id: msg.chat, participants: socket.user._id });
+      if (!chat) return;
+
+      // Cast vote: remove user ID from all options first, then push to index option
+      msg.poll.options.forEach((opt) => {
+        opt.votes = opt.votes.filter(vId => String(vId) !== userId);
+      });
+
+      if (optionIndex >= 0 && optionIndex < msg.poll.options.length) {
+        msg.poll.options[optionIndex].votes.push(socket.user._id);
+      }
+
+      await msg.save();
+      await msg.populate('sender', 'name avatar profileImage');
+      if (msg.replyTo) {
+        await msg.populate({ path: 'replyTo', select: 'text sender fileUrl fileType isDeleted', populate: { path: 'sender', select: 'name' } });
+      }
+
+      // Broadcast updated poll object
+      io.to(chatId).emit('poll_updated', msg.toObject());
+    } catch (err) {
+      console.error('vote_poll error:', err);
+    }
+  });
+
   // ── Geolocation Sharing & Live Opponent Tracker
   socket.on('request_live_location', ({ targetUserId }) => {
     io.to(targetUserId).emit('capture_live_location', { requesterUserId: userId });
