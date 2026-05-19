@@ -7,6 +7,7 @@ import {
   FiUser, FiMail, FiLock, FiEye, FiEyeOff, FiUserPlus,
   FiHome, FiKey, FiArrowLeft, FiPhone, FiGift
 } from 'react-icons/fi';
+import AnimatedLogo from '../components/AnimatedLogo';
 
 export default function Register() {
   const [authMethod, setAuthMethod] = useState('email'); // 'email' or 'phone'
@@ -182,8 +183,8 @@ export default function Register() {
 
           {/* Header */}
           <div className="text-center mb-6">
-            <div className="w-16 h-16 bg-gradient-to-tr from-violet-500 to-fuchsia-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-              <FiUserPlus className="text-2xl text-white" />
+            <div className="flex justify-center mb-5 overflow-visible">
+              <AnimatedLogo size="large" />
             </div>
             <h2 className="text-3xl font-bold text-white">
               {isGuest ? 'Claim Your Account' : 'Create Account'}
