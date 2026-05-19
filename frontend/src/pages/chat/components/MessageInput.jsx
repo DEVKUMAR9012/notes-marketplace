@@ -191,6 +191,8 @@ const MessageInput = memo(function MessageInput({
       setUploading(false);
       e.target.value = null;
     }
+  };
+
   const submitPoll = () => {
     if (!pollQuestion.trim()) return showToast("Enter a poll question", "error");
     const validOptions = pollOptions.filter(opt => opt.trim());

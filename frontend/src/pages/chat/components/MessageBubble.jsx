@@ -33,7 +33,7 @@ export default function MessageBubble({
   const isImg = msg.fileType === 'image' || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(msg.fileUrl || '');
   const isAudio = msg.fileType === 'audio' || /\.(webm|mp3|wav|ogg)$/i.test(msg.fileUrl || '');
   const isRichNote = msg.noteMetadata || (msg.text && msg.text.includes('pages · ₹'));
-  const isPoll = msg.fileType === 'poll' || msg.poll;
+  const isPoll = msg.fileType === 'poll' || (msg.poll && msg.poll.question);
 
   const renderPoll = () => {
     if (!msg.poll) return null;
