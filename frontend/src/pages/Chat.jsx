@@ -336,6 +336,10 @@ export default function Chat() {
 
   useEffect(() => {
     if (!socket || !activeChat?._id) return;
+    
+    // 🚀 FIX 3: Do NOT join a socket room if it's the virtual admin chat
+    if (activeChat._id === "virtual_admin_chat") return; 
+
     socket.emit('join_chat', activeChat._id);
     if (!chatSettings.readReceiptPrivacy) {
       socket.emit('messages_delivered', { chatId: activeChat._id });
@@ -369,15 +373,28 @@ export default function Chat() {
 
     const onNewMessage = (msg) => {
       const currentChat = activeChatRef.current;
-      if (currentChat && msg.chat === currentChat._id) {
+      
+      // 🚀 FIX 1: Safely handle populated chat objects from backend
+      const incomingChatId = String(msg.chat?._id || msg.chat);
+      const currentChatId = String(currentChat?._id);
+
+      if (currentChat && incomingChatId === currentChatId) {
         setMessages(prev => {
-          // Replace optimistic message if it exists
-          if (msg.tempId) {
-            return prev.map(m => m.tempId === msg.tempId ? msg : m);
+          // 🚀 FIX 2: Smart Duplicate Detection (Even if backend strips tempId)
+          const isDuplicate = prev.some(m => 
+            m._id === msg._id || 
+            (m.pending && m.text === msg.text && String(m.sender?._id || m.sender) === String(msg.sender?._id || msg.sender))
+          );
+
+          if (isDuplicate) {
+            // Replace the pending/optimistic message with the REAL verified message
+            return prev.map(m => (m._id === msg._id || (m.pending && m.text === msg.text)) ? msg : m);
           }
-          if (prev.some(m => m._id === msg._id)) return prev;
+          
           return [...prev, msg];
         });
+
+        // Trigger read receipt logic
         if (!chatSettings.readReceiptPrivacy) {
           API.put(`/chat/${currentChat._id}/read`).catch(() => { });
           socket.emit('messages_delivered', { chatId: currentChat._id });
@@ -685,16 +702,78 @@ export default function Chat() {
     } catch (e) { console.error(e); }
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const text = inputText.trim();
     if (!text || !activeChat || !socket) return;
 
-    // Optimistic UI update
+    let targetChatId = activeChat._id;
+
+    // 🚀 THE CRITICAL FIX: Intercept Virtual Chat & Create/Resolve Real Chat in DB
+    if (targetChatId === "virtual_admin_chat") {
+      try {
+        setMsgLoading(true);
+        
+        // 1. Try to find admin ID from current conversations list
+        let adminId = null;
+        for (const c of conversations) {
+          const adminPart = c.participants?.find(p => p.role === 'admin');
+          if (adminPart) {
+            adminId = adminPart._id;
+            break;
+          }
+        }
+
+        // 2. If not found in memory, reload conversations from server (which auto-creates the admin chat room)
+        if (!adminId) {
+          const reloadRes = await API.get('/chat');
+          const serverChats = reloadRes.data.chats || [];
+          setConversations(serverChats);
+          
+          const adminChat = serverChats.find(c => !c.isGroupChat && c.participants?.some(p => p.role === 'admin'));
+          if (adminChat) {
+            setActiveChat(adminChat);
+            targetChatId = adminChat._id;
+          } else {
+            // 3. Fallback: Search for admin user if still not found
+            const searchRes = await API.get('/chat/users/search?q=admin');
+            const foundAdmin = searchRes.data.users?.find(u => u.role === 'admin') || searchRes.data.users?.[0];
+            if (foundAdmin) {
+              adminId = foundAdmin._id;
+            } else {
+              // 4. Ultimate Fallback: Use provided Admin ID if search returns nothing
+              adminId = "65a12b3c4d5e6f7g8h9i0j1k"; 
+            }
+          }
+        }
+
+        // 5. If we resolved adminId, get or create the conversation
+        if (adminId && targetChatId === "virtual_admin_chat") {
+          const res = await API.post('/chat', { recipientId: adminId });
+          const realChat = res.data.chat;
+          targetChatId = realChat._id;
+
+          setActiveChat(realChat);
+          setConversations(prev => {
+            const cleanList = prev.filter(c => c._id !== "virtual_admin_chat");
+            return cleanList.find(c => c._id === realChat._id) ? cleanList : [realChat, ...cleanList];
+          });
+        }
+      } catch (err) {
+        console.error("Failed to initialize real admin chat", err);
+        showToast("Could not connect to Admin database. Try again.", "error");
+        setMsgLoading(false);
+        return;
+      } finally {
+        setMsgLoading(false);
+      }
+    }
+
+    // --- STANDARD OPTIMISTIC UI LOGIC ---
     const tempId = `temp_${Date.now()}`;
     const optimisticMessage = {
       _id: tempId,
       tempId,
-      chat: activeChat._id,
+      chat: targetChatId, // Use real ID!
       sender: user,
       text,
       createdAt: new Date().toISOString(),
@@ -704,12 +783,13 @@ export default function Chat() {
     
     setMessages(prev => [...prev, optimisticMessage]);
 
-    socket.emit('send_message', { chatId: activeChat._id, text, replyTo: replyingTo?._id, tempId });
+    // Send via socket using the REAL ID
+    socket.emit('send_message', { chatId: targetChatId, text, replyTo: replyingTo?._id, tempId });
     setInputText('');
     setReplyingTo(null);
     isTypingEmittedRef.current = false;
     clearTimeout(typingTimeoutRef.current);
-    socket.emit('typing_stop', { chatId: activeChat._id });
+    socket.emit('typing_stop', { chatId: targetChatId });
 
     // Handle failure simulation (if no response after 5s)
     setTimeout(() => {
@@ -734,7 +814,9 @@ export default function Chat() {
   // Efficient network debouncing
   const handleTyping = (e) => {
     setInputText(e.target.value);
-    if (!socket || !activeChat) return;
+    
+    // 🚀 FIX 4: Prevent typing emits on fake/virtual chats
+    if (!socket || !activeChat || activeChat._id === "virtual_admin_chat") return;
 
     if (!isTypingEmittedRef.current) {
       isTypingEmittedRef.current = true;
@@ -745,18 +827,80 @@ export default function Chat() {
     typingTimeoutRef.current = setTimeout(() => {
       isTypingEmittedRef.current = false;
       socket.emit('typing_stop', { chatId: activeChat._id });
-    }, 2500); // #19: 2500ms — avoids flicker on mobile autocorrect pauses
+    }, 2500); 
   };
 
-  const sendQuickReply = (text) => {
+  const sendQuickReply = async (text) => {
     if (!text || !activeChat || !socket) return;
+
+    let targetChatId = activeChat._id;
+
+    // 🚀 THE CRITICAL FIX: Intercept Virtual Chat & Create/Resolve Real Chat in DB
+    if (targetChatId === "virtual_admin_chat") {
+      try {
+        setMsgLoading(true);
+        
+        // 1. Try to find admin ID from current conversations list
+        let adminId = null;
+        for (const c of conversations) {
+          const adminPart = c.participants?.find(p => p.role === 'admin');
+          if (adminPart) {
+            adminId = adminPart._id;
+            break;
+          }
+        }
+
+        // 2. If not found in memory, reload conversations from server (which auto-creates the admin chat room)
+        if (!adminId) {
+          const reloadRes = await API.get('/chat');
+          const serverChats = reloadRes.data.chats || [];
+          setConversations(serverChats);
+          
+          const adminChat = serverChats.find(c => !c.isGroupChat && c.participants?.some(p => p.role === 'admin'));
+          if (adminChat) {
+            setActiveChat(adminChat);
+            targetChatId = adminChat._id;
+          } else {
+            // 3. Fallback: Search for admin user if still not found
+            const searchRes = await API.get('/chat/users/search?q=admin');
+            const foundAdmin = searchRes.data.users?.find(u => u.role === 'admin') || searchRes.data.users?.[0];
+            if (foundAdmin) {
+              adminId = foundAdmin._id;
+            } else {
+              // 4. Ultimate Fallback: Use provided Admin ID if search returns nothing
+              adminId = "65a12b3c4d5e6f7g8h9i0j1k"; 
+            }
+          }
+        }
+
+        // 5. If we resolved adminId, get or create the conversation
+        if (adminId && targetChatId === "virtual_admin_chat") {
+          const res = await API.post('/chat', { recipientId: adminId });
+          const realChat = res.data.chat;
+          targetChatId = realChat._id;
+
+          setActiveChat(realChat);
+          setConversations(prev => {
+            const cleanList = prev.filter(c => c._id !== "virtual_admin_chat");
+            return cleanList.find(c => c._id === realChat._id) ? cleanList : [realChat, ...cleanList];
+          });
+        }
+      } catch (err) {
+        console.error("Failed to initialize real admin chat", err);
+        showToast("Could not connect to Admin database. Try again.", "error");
+        setMsgLoading(false);
+        return;
+      } finally {
+        setMsgLoading(false);
+      }
+    }
 
     // Optimistic UI update (same as handleSend)
     const tempId = `temp_${Date.now()}`;
     const optimisticMessage = {
       _id: tempId,
       tempId,
-      chat: activeChat._id,
+      chat: targetChatId, // Use real ID!
       sender: user,
       text,
       createdAt: new Date().toISOString(),
@@ -766,11 +910,11 @@ export default function Chat() {
     
     setMessages(prev => [...prev, optimisticMessage]);
 
-    socket.emit('send_message', { chatId: activeChat._id, text, replyTo: replyingTo?._id, tempId, quickReply: text });
+    socket.emit('send_message', { chatId: targetChatId, text, replyTo: replyingTo?._id, tempId, quickReply: text });
     setReplyingTo(null);
     isTypingEmittedRef.current = false;
     clearTimeout(typingTimeoutRef.current);
-    socket.emit('typing_stop', { chatId: activeChat._id });
+    socket.emit('typing_stop', { chatId: targetChatId });
 
     // Handle failure simulation
     setTimeout(() => {
