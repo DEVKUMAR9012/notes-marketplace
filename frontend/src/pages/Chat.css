@@ -6,6 +6,21 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
+/* Chrome, Safari, Edge, Opera scrollbar hide */
+*::-webkit-scrollbar {
+  display: none;
+}
+
+/* Firefox scrollbar hide */
+* {
+  scrollbar-width: none;
+}
+
+/* Internet Explorer, Legacy Edge scrollbar hide */
+* {
+  -ms-overflow-style: none;
+}
+
 /* ─── Persistent Backdrop Accents Mapping ─── */
 .chat-page-messenger {
   display: flex;

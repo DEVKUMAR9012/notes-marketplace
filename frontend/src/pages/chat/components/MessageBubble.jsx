@@ -72,8 +72,16 @@ export default function MessageBubble({
             if (textInput) textInput.focus();
           }
         }}
-        animate={{ x: 0 }}
-        transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+        initial={{ opacity: 0, y: 15, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1, x: 0 }}
+        exit={{ opacity: 0, scale: 0.9 }}
+        transition={{
+          type: 'spring',
+          stiffness: 450,
+          damping: 28,
+          opacity: { duration: 0.2 },
+          scale: { duration: 0.2 }
+        }}
         className={`message-bubble ${msg.pending ? 'opacity-70' : ''} cursor-grab active:cursor-grabbing`}
         onDoubleClick={() => !msg.isDeleted && handleReact(msg._id, '❤️')}
         style={{ zIndex: 2, touchAction: 'pan-y' }}
