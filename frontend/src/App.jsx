@@ -8,6 +8,7 @@ import { warmupServer } from './utils/api';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 import Navbar from './components/Navbar';
+import ActiveBanners from './components/ActiveBanners';
 
 // ── Lazy-loaded pages (code splitting — each page is a separate JS chunk)
 // This means the browser only downloads code for the page the user is on.
@@ -48,6 +49,7 @@ const PageLoader = () => (
 const LayoutWithNavbar = ({ children }) => (
   <>
     <Navbar />
+    <ActiveBanners />
     {children}
   </>
 );

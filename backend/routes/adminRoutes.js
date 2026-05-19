@@ -28,6 +28,12 @@ const {
 const { getEmailStats, getEmailLogs, sendMarketingCampaign } = require('../controllers/adminEmailController');
 const { bulkUploadNotes, checkDuplicates } = require('../controllers/adminUploadController');
 const adminBulkUpload = require('../middleware/adminBulkUpload');
+const {
+  createBanner,
+  getBannersAdmin,
+  deleteBanner,
+  toggleBannerActive
+} = require('../controllers/bannerController');
 const rateLimit = require('express-rate-limit');
 
 // Rate limiter for duplicate checking to prevent DB probing
@@ -85,5 +91,11 @@ router.put('/settings', updateSettings);
 router.get('/email/stats', getEmailStats);
 router.get('/email/logs', getEmailLogs);
 router.post('/email/campaign', sendMarketingCampaign);
+
+// Banner Management (Admin)
+router.post('/banners', createBanner);
+router.get('/banners', getBannersAdmin);
+router.delete('/banners/:id', deleteBanner);
+router.patch('/banners/:id/toggle', toggleBannerActive);
 
 module.exports = router;

@@ -4,7 +4,7 @@ import {
   FiUsers, FiFileText, FiDollarSign, FiActivity,
   FiMail, FiShield, FiMenu,
   FiMessageSquare,
-  FiSettings, FiFlag, FiUpload
+  FiSettings, FiFlag, FiUpload, FiVolume2
 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import API from '../utils/api';
@@ -20,6 +20,7 @@ const SupportTab = lazy(() => import('./tabs/SupportTab'));
 const EmailsTab = lazy(() => import('./tabs/EmailsTab'));
 const SettingsTab = lazy(() => import('./tabs/SettingsTab'));
 const BulkUploadsTab = lazy(() => import('./tabs/BulkUploadsTab'));
+const BannersTab = lazy(() => import('./tabs/BannersTab'));
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -45,6 +46,7 @@ export default function AdminDashboard() {
     { id: 'finance', label: 'Financials', icon: FiDollarSign, badge: null },
     { id: 'support', label: 'Support & Reports', icon: FiFlag, badge: stats.openReports },
     { id: 'email', label: 'Email Dashboard', icon: FiMail, badge: null },
+    { id: 'banners', label: 'Broadcast Banners', icon: FiVolume2, badge: null },
     { id: 'settings', label: 'Platform Settings', icon: FiSettings, badge: null },
   ];
 
@@ -137,6 +139,7 @@ export default function AdminDashboard() {
               {activeTab === 'finance' && <FinancialsTab />}
               {activeTab === 'support' && <SupportTab />}
               {activeTab === 'email' && <EmailsTab />}
+              {activeTab === 'banners' && <BannersTab />}
               {activeTab === 'settings' && <SettingsTab />}
             </Suspense>
           </ErrorBoundary>

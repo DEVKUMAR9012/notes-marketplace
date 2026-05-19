@@ -389,6 +389,7 @@
   font-size: 64px;
   background: linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   filter: drop-shadow(0 0 20px rgba(124, 58, 237, 0.25));
   margin-bottom: 8px;
@@ -2255,6 +2256,7 @@
   margin: 0 0 6px 0;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
