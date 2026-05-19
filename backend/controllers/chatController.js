@@ -391,8 +391,17 @@ exports.uploadFile = async (req, res) => {
     if (!chat) return res.status(403).json({ success: false, message: 'Access denied' });
     if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded' });
 
-    const isPdf  = req.file.mimetype === 'application/pdf';
-    const fileType = isPdf ? 'pdf' : 'image';
+    const isPdf   = req.file.mimetype === 'application/pdf';
+    const isAudio = req.file.mimetype.startsWith('audio/') || 
+                    req.file.originalname.endsWith('.mp3') || 
+                    req.file.originalname.endsWith('.webm') || 
+                    req.file.originalname.endsWith('.wav') || 
+                    req.file.originalname.endsWith('.ogg');
+
+    let fileType = 'other';
+    if (isPdf) fileType = 'pdf';
+    else if (req.file.mimetype.startsWith('image/')) fileType = 'image';
+    else if (isAudio) fileType = 'audio';
 
     const msg = await Message.create({
       chat:     chatId,
@@ -406,7 +415,8 @@ exports.uploadFile = async (req, res) => {
     await msg.populate('sender', 'name avatar profileImage');
 
     // Update chat lastMessage
-    chat.lastMessage = { text: `📎 ${fileType === 'pdf' ? 'PDF' : 'Image'}`, senderId: req.user._id, sentAt: new Date(), type: 'file' };
+    const lastMsgText = fileType === 'pdf' ? '📎 PDF' : fileType === 'audio' ? '🎙️ Voice Note' : '📎 Image';
+    chat.lastMessage = { text: lastMsgText, senderId: req.user._id, sentAt: new Date(), type: 'file' };
     chat.participants.forEach(p => {
       if (String(p) !== String(req.user._id)) {
         const cur = chat.unreadCounts.get(String(p)) || 0;

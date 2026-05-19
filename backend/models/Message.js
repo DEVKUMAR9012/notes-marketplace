@@ -13,7 +13,7 @@ const messageSchema = new mongoose.Schema(
 
     // File attachment
     fileUrl:  { type: String, default: null },
-    fileType: { type: String, enum: ['image', 'pdf', 'other', null], default: null },
+    fileType: { type: String, enum: ['image', 'pdf', 'audio', 'other', null], default: null },
     fileName: { type: String, default: null },
     fileSize: { type: Number, default: null },
 
