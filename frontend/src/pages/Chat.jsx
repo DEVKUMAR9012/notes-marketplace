@@ -1112,7 +1112,8 @@ export default function Chat() {
         {!activeChat ? (
           <div className="welcome-placeholder-capsule">
             <span className="welcome-icon-glass">💬</span>
-            <h2>Select a conversation to begin messaging</h2>
+            <h2>NotesHere Secure Intercom</h2>
+            <p>Select a verified student or moderator conversation from the sidebar to begin secure end-to-end encrypted messaging.</p>
           </div>
         ) : (
           <>
@@ -1161,11 +1162,16 @@ export default function Chat() {
                   const displayed = showMsgSearch && msgSearchQuery 
                     ? messages.filter(m => m.text?.toLowerCase().includes(msgSearchQuery.toLowerCase())) 
                     : messages;
-                  const isMine = String(msg.sender?._id || msg.sender) === String(user?._id);
+                  const getSenderId = (m) => {
+                    if (!m) return '';
+                    if (typeof m.sender === 'string') return m.sender;
+                    return String(m.sender?._id || m.sender || '');
+                  };
+                  const isMine = getSenderId(msg) === String(user?._id);
                   const prevMsg = displayed[idx - 1];
                   const nextMsg = displayed[idx + 1];
-                  const isFirstInGroup = !prevMsg || String(prevMsg.sender?._id || prevMsg.sender) !== String(msg.sender?._id || msg.sender);
-                  const isLastInGroup = !nextMsg || String(nextMsg.sender?._id || nextMsg.sender) !== String(msg.sender?._id || msg.sender);
+                  const isFirstInGroup = !prevMsg || getSenderId(prevMsg) !== getSenderId(msg);
+                  const isLastInGroup = !nextMsg || getSenderId(nextMsg) !== getSenderId(msg);
 
                   const showDateSeparator = idx === 0 || isDifferentDay(prevMsg?.createdAt, msg.createdAt);
 

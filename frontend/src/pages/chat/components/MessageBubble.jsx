@@ -34,7 +34,7 @@ export default function MessageBubble({
   const isRichNote = msg.noteMetadata || (msg.text && msg.text.includes('pages · ₹'));
 
   return (
-    <div className="relative flex items-center max-w-full">
+    <div className={`relative flex items-center max-w-full ${isMine ? 'justify-end pr-2' : 'justify-start pl-2'}`}>
       {/* Absolute Reply Indicator Behind the Dragging Bubble */}
       <div 
         className="absolute left-[-32px] text-[#a78bfa] opacity-0 transition-all duration-75 pointer-events-none flex items-center justify-center w-7 h-7 rounded-full bg-violet-950/40 border border-violet-500/20 shadow-md"
