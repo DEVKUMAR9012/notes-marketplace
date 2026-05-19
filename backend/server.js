@@ -70,7 +70,7 @@ io.on('connection', async (socket) => {
   socket.on('leave_chat', (chatId) => socket.leave(chatId));
 
   // ── Send message
-  socket.on('send_message', async ({ chatId, text, quickReply, replyTo }) => {
+  socket.on('send_message', async ({ chatId, text, quickReply, replyTo, tempId }) => {
     try {
       if (!text?.trim() && !quickReply) return;
 
@@ -121,8 +121,10 @@ io.on('connection', async (socket) => {
         msg.deliveredTo = deliveredTo;
       }
 
-      // Broadcast to chat room
-      io.to(chatId).emit('new_message', msg);
+      // Broadcast to chat room (attach tempId if provided)
+      const msgObj = msg.toObject();
+      if (tempId) msgObj.tempId = tempId;
+      io.to(chatId).emit('new_message', msgObj);
 
       // Notify non-active participants via personal room
       chat.participants.forEach(pId => {
@@ -141,7 +143,7 @@ io.on('connection', async (socket) => {
   });
 
   // ── Force-send (user confirmed despite personal info warning)
-  socket.on('force_send_message', async ({ chatId, text }) => {
+  socket.on('force_send_message', async ({ chatId, text, tempId }) => {
     try {
       const chat = await Chat.findOne({ _id: chatId, participants: socket.user._id });
       if (!chat) return;
@@ -154,7 +156,10 @@ io.on('connection', async (socket) => {
         if (String(pId) !== userId) chat.unreadCounts.set(String(pId), (chat.unreadCounts.get(String(pId)) || 0) + 1);
       });
       await chat.save();
-      io.to(chatId).emit('new_message', msg);
+
+      const msgObj = msg.toObject();
+      if (tempId) msgObj.tempId = tempId;
+      io.to(chatId).emit('new_message', msgObj);
     } catch (err) {
       console.error('force_send error:', err);
     }

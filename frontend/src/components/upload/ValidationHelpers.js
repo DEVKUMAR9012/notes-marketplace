@@ -21,7 +21,7 @@ export const validateFile = (file) => {
   if (!file) return 'Please select a file to upload.';
 
   if (file.size > MAX_FILE_SIZE) {
-    return 'File size too large (Max 25MB). Please compress the file and try again.';
+    return `File size too large (Max ${(MAX_FILE_SIZE / 1024 / 1024).toFixed(0)}MB). Please compress the file and try again.`;
   }
 
   if (!ALLOWED_MIME_TYPES.includes(file.type)) {

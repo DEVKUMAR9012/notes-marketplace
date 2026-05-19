@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import API, { API_BASE_URL } from '../utils/api';
@@ -12,6 +12,7 @@ import CallOverlay from './chat/components/CallOverlay';
 import SettingsModal from './chat/components/SettingsModal';
 import ProfileSidebar from './chat/components/ProfileSidebar';
 import { Virtuoso } from 'react-virtuoso';
+import EmojiPicker from 'emoji-picker-react';
 import './Chat.css';
 
 // ─── Highly strict dynamic time formatter
@@ -204,6 +205,7 @@ export default function Chat() {
   // Insta quotes & hover bars
   const [replyingTo, setReplyingTo] = useState(null);
   const [hoveredMsg, setHoveredMsg] = useState(null);
+  const [emojiPickerId, setEmojiPickerId] = useState(null);
 
   const typingTimeoutRef = useRef(null);
   const isTypingEmittedRef = useRef(false);
@@ -307,6 +309,10 @@ export default function Chat() {
         API.get(`/chat/${current._id}/messages`)
           .then(r => setMessages(r.data.messages))
           .catch(() => { });
+        // 🚀 CRITICAL RE-JOIN ON RECONNECT!
+        if (current._id !== "virtual_admin_chat") {
+          socket.emit('join_chat', current._id);
+        }
       }
     };
     socket.on('connect', onReconnect);
@@ -380,15 +386,18 @@ export default function Chat() {
 
       if (currentChat && incomingChatId === currentChatId) {
         setMessages(prev => {
-          // 🚀 FIX 2: Smart Duplicate Detection (Even if backend strips tempId)
-          const isDuplicate = prev.some(m => 
+          // Check if this message (by tempId, _id, or smart text-match) is already in the list
+          const index = prev.findIndex(m => 
+            (msg.tempId && m.tempId === msg.tempId) || 
             m._id === msg._id || 
             (m.pending && m.text === msg.text && String(m.sender?._id || m.sender) === String(msg.sender?._id || msg.sender))
           );
-
-          if (isDuplicate) {
-            // Replace the pending/optimistic message with the REAL verified message
-            return prev.map(m => (m._id === msg._id || (m.pending && m.text === msg.text)) ? msg : m);
+          
+          if (index !== -1) {
+            const updated = [...prev];
+            // Merge the real server message, clear pending state
+            updated[index] = { ...msg, pending: false };
+            return updated;
           }
           
           return [...prev, msg];
@@ -1133,7 +1142,7 @@ export default function Chat() {
               {msgLoading && <div className="loading-banner-pill">Loading conversation...</div>}
 
               <Virtuoso
-                style={{ height: '100%', width: '100%' }}
+                style={{ flex: 1, width: '100%' }}
                 data={(() => {
                   const displayed = showMsgSearch && msgSearchQuery 
                     ? messages.filter(m => m.text?.toLowerCase().includes(msgSearchQuery.toLowerCase())) 
@@ -1162,7 +1171,7 @@ export default function Chat() {
 
                   return (
                     <div key={msg.tempId || msg._id} className="message-container-block">
-                      {showDateSeparator && (
+                       {showDateSeparator && (
                         <div className="chat-date-separator-pill">
                           <span>{formatDateSeparator(msg.createdAt)}</span>
                         </div>
@@ -1170,16 +1179,19 @@ export default function Chat() {
 
                       <div
                         id={`msg-${msg._id}`}
-                        className={`message-row ${isMine ? 'sent' : 'recv'} ${isFirstInGroup ? 'first' : ''} ${isLastInGroup ? 'last' : ''}`}
+                        className={`message-row ${isMine ? 'sent' : 'recv'} ${isFirstInGroup ? 'first' : ''} ${isLastInGroup ? 'last' : ''} ${emojiPickerId === msg._id ? 'touch-active' : ''}`}
                         onMouseEnter={() => setHoveredMsg(msg._id)}
-                        onMouseLeave={() => setHoveredMsg(null)}
+                        onMouseLeave={() => {
+                          setHoveredMsg(null);
+                        }}
                         onTouchStart={(e) => {
-                          longPressTimerRef.current = setTimeout(() =>
-                            e.currentTarget.classList.add('touch-active'), 500);
+                          longPressTimerRef.current = setTimeout(() => {
+                            e.currentTarget.classList.add('touch-active');
+                            setHoveredMsg(msg._id);
+                          }, 500);
                         }}
                         onTouchEnd={(e) => {
                           clearTimeout(longPressTimerRef.current);
-                          e.currentTarget.classList.remove('touch-active');
                         }}
                       >
                         {!isMine && isLastInGroup && (
@@ -1191,14 +1203,64 @@ export default function Chat() {
                           <div className="inline-message-avatar-placeholder" style={{ width: 28 }} />
                         )}
 
-                        {hoveredMsg === msg._id && !msg.isDeleted && !msg.pending && (
-                          <div className={`msg-actions ${isMine ? 'mine-actions' : 'theirs-actions'}`}>
-                            <div className="emoji-reaction-bar">
+                        {/* 🚀 SMART HOVER & PICKER CONDITION: Stay active if hovered or full picker is active */}
+                        {(hoveredMsg === msg._id || emojiPickerId === msg._id) && !msg.isDeleted && !msg.pending && (
+                          <div 
+                            className={`msg-actions ${isMine ? 'mine-actions' : 'theirs-actions'} ${emojiPickerId === msg._id ? 'active' : ''}`}
+                            style={emojiPickerId === msg._id ? { opacity: 1, pointerEvents: 'auto' } : undefined}
+                          >
+                            <div className="emoji-reaction-bar relative flex items-center">
+                              {/* Default 5 Quick Emojis */}
                               {['❤️', '👍', '😂', '🔥', '👏'].map(emoji => (
-                                <button type="button" key={emoji} onClick={() => handleReact(msg._id, emoji)} title={`React ${emoji}`}>
+                                <button 
+                                  type="button" 
+                                  key={emoji} 
+                                  onClick={() => {
+                                    handleReact(msg._id, emoji);
+                                    setEmojiPickerId(null);
+                                  }} 
+                                  title={`React ${emoji}`}
+                                >
                                   {emoji}
                                 </button>
                               ))}
+
+                              {/* 🚀 Naya '+' Button for All Emojis */}
+                              <button 
+                                type="button" 
+                                onClick={() => setEmojiPickerId(emojiPickerId === msg._id ? null : msg._id)} 
+                                title="More Emojis"
+                                className="ml-1 opacity-70 hover:opacity-100 transition-opacity text-lg"
+                              >
+                                ➕
+                              </button>
+
+                              {/* 🚀 THE FULL EMOJI PICKER POPUP */}
+                              <AnimatePresence>
+                                {emojiPickerId === msg._id && (
+                                  <motion.div 
+                                    initial={{ opacity: 0, scale: 0.8, y: 10 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.8, y: 10 }}
+                                    className={`absolute bottom-full mb-2 z-50 ${isMine ? 'right-0' : 'left-0'}`}
+                                    style={{ position: 'absolute', bottom: '100%', marginBottom: '8px', zIndex: 100 }}
+                                  >
+                                    <EmojiPicker 
+                                      theme="dark"
+                                      lazyLoadEmojis={true}
+                                      searchDisabled={true}
+                                      skinTonesDisabled={true}
+                                      // 🚀 MOBILE RESPONSIVE WIDTH & HEIGHT
+                                      width={window.innerWidth < 768 ? '74vw' : 280} 
+                                      height={window.innerWidth < 768 ? 300 : 350}
+                                      onEmojiClick={(emojiObj) => {
+                                        handleReact(msg._id, emojiObj.emoji);
+                                        setEmojiPickerId(null); // Click karte hi close
+                                      }}
+                                    />
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
                             </div>
                             <button type="button" onClick={() => { setReplyingTo(msg); textInputRef.current?.focus(); }} title="Reply">↩️</button>
                             {isMine && <button type="button" onClick={() => handleUnsend(msg._id)} title="Unsend" className="delete-btn">🗑️</button>}

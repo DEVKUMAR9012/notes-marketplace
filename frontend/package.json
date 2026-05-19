@@ -5,6 +5,7 @@
   "dependencies": {
     "axios": "^1.6.0",
     "browser-image-compression": "^2.0.2",
+    "emoji-picker-react": "^4.19.1",
     "firebase": "^12.12.1",
     "framer-motion": "^12.38.0",
     "papaparse": "^5.5.3",
