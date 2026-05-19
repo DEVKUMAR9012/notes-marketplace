@@ -49,6 +49,8 @@ const MarkdownMessage = memo(function MarkdownMessage({ content, className = '' 
               <a 
                 href={href} 
                 className="markdown-link"
+                target="_blank"
+                rel="noopener noreferrer"
                 onClick={(e) => {
                   if (!href?.startsWith('http')) {
                     e.preventDefault();
@@ -69,7 +71,6 @@ const MarkdownMessage = memo(function MarkdownMessage({ content, className = '' 
             // Custom style hr
             hr: ({ node, ...props }) => <hr className="markdown-hr" {...props} />,
           }}
-          linkTarget="_blank"
           skipHtml={true}
           disallowedElements={['script', 'iframe', 'img']}
           unwrapDisallowed={false}
