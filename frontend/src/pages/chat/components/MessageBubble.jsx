@@ -1,6 +1,146 @@
-import React from 'react';
+import React, { memo, useState, useEffect } from 'react';
 import { FiMaximize2 } from 'react-icons/fi';
 import { motion } from 'framer-motion';
+import MarkdownMessage from './MarkdownMessage';
+import API from '../../../utils/api';
+
+const noteCache = {};
+const noteListeners = {};
+
+const fetchNoteMetadata = (noteId, callback) => {
+  if (noteCache[noteId]) {
+    callback(noteCache[noteId]);
+    return;
+  }
+
+  if (!noteListeners[noteId]) {
+    noteListeners[noteId] = [callback];
+    
+    API.get(`/notes/${noteId}`)
+      .then(res => {
+        const noteData = res.data?.data;
+        if (noteData) {
+          noteCache[noteId] = { loading: false, data: noteData, error: false };
+        } else {
+          noteCache[noteId] = { loading: false, data: null, error: true };
+        }
+        noteListeners[noteId].forEach(cb => cb(noteCache[noteId]));
+        delete noteListeners[noteId];
+      })
+      .catch(err => {
+        console.error('Failed to fetch note link metadata:', err);
+        noteCache[noteId] = { loading: false, data: null, error: true };
+        noteListeners[noteId].forEach(cb => cb(noteCache[noteId]));
+        delete noteListeners[noteId];
+      });
+  } else {
+    noteListeners[noteId].push(callback);
+  }
+};
+
+function RichNotePreviewCard({ noteId, API_BASE_URL }) {
+  const [state, setState] = useState(noteCache[noteId] || { loading: true, data: null, error: false });
+
+  useEffect(() => {
+    let active = true;
+    fetchNoteMetadata(noteId, (updatedState) => {
+      if (active) {
+        setState(updatedState);
+      }
+    });
+    return () => { active = false; };
+  }, [noteId]);
+
+  if (state.loading) {
+    return (
+      <div className="rich-note-card-skeleton animate-pulse">
+        <div className="rich-note-skeleton-thumb" />
+        <div className="rich-note-skeleton-details">
+          <div className="rich-note-skeleton-line w-3/4 h-4" />
+          <div className="rich-note-skeleton-line w-1/2 h-3" />
+          <div className="rich-note-skeleton-line w-2/3 h-3" />
+        </div>
+      </div>
+    );
+  }
+
+  if (state.error || !state.data) {
+    return null;
+  }
+
+  const note = state.data;
+  const isPaid = note.price > 0;
+  const seller = note.uploadedBy?.name || 'Anonymous Seller';
+  const isVerified = note.uploadedBy?.isVerified;
+
+  const titleChar = note.title ? note.title.charCodeAt(0) : 65;
+  const gradients = [
+    'from-rose-500/30 to-orange-500/30',
+    'from-blue-500/30 to-cyan-500/30',
+    'from-purple-500/30 to-pink-500/30',
+    'from-green-500/30 to-emerald-500/30',
+    'from-indigo-500/30 to-violet-500/30',
+    'from-yellow-500/30 to-amber-500/30'
+  ];
+  const thumbnailGradient = gradients[titleChar % gradients.length];
+
+  const handleActionClick = (e) => {
+    e.stopPropagation();
+    window.open(`/books?noteId=${note._id}`, '_blank');
+  };
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, scale: 0.95, y: 5 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      transition={{ duration: 0.25, ease: 'easeOut' }}
+      className="rich-note-preview-card-interactive"
+    >
+      <div className="rich-note-preview-card-body">
+        <div className={`rich-note-preview-card-thumb bg-gradient-to-br ${thumbnailGradient}`}>
+          <span className="rich-note-preview-icon">📚</span>
+        </div>
+
+        <div className="rich-note-preview-card-info">
+          <h4 className="rich-note-preview-title" title={note.title}>{note.title}</h4>
+          
+          <div className="rich-note-preview-tags">
+            {note.subject && <span className="rich-note-tag subject">📘 {note.subject}</span>}
+            {note.semester && <span className="rich-note-tag semester">Sem {note.semester}</span>}
+          </div>
+
+          <div className="rich-note-preview-seller flex items-center gap-1">
+            <span className="seller-label text-[10.5px]">Seller:</span>
+            <span className="seller-name truncate text-[10.5px]">{seller}</span>
+            {isVerified && <span className="seller-verified-badge" title="Verified Seller">✓</span>}
+          </div>
+        </div>
+      </div>
+
+      <div className="rich-note-preview-card-footer">
+        <div className="rich-note-price-section">
+          {isPaid ? (
+            <span className="rich-note-price-amt font-black">₹{note.price}</span>
+          ) : (
+            <span className="rich-note-price-free font-bold text-emerald-400">🎓 FREE</span>
+          )}
+        </div>
+
+        <button 
+          type="button" 
+          className="rich-note-action-btn flex items-center gap-1.5"
+          onClick={handleActionClick}
+        >
+          {isPaid ? (
+            <><span>🛒 Buy Now</span></>
+          ) : (
+            <><span>📥 Download</span></>
+          )}
+        </button>
+      </div>
+    </motion.div>
+  );
+}
 
 const getReceiptIcon = (msg, userId, privacyActive) => {
   if (msg.pending) return <span className="receipt pending" title="Sending...">⏳</span>;
@@ -24,7 +164,7 @@ const getAttachmentUrl = (url, API_BASE_URL) => {
   return `${API_BASE_URL}${cleanUrl.startsWith('/') ? '' : '/'}${cleanUrl}`;
 };
 
-export default function MessageBubble({ 
+export default memo(function MessageBubble({ 
   msg, isMine, isFirstInGroup, isLastInGroup, 
   user, otherParticipant, chatSettings, API_BASE_URL,
   handleReact, handleUnsend, setReplyingTo, textInputRef,
@@ -34,6 +174,8 @@ export default function MessageBubble({
   const isAudio = msg.fileType === 'audio' || /\.(webm|mp3|wav|ogg)$/i.test(msg.fileUrl || '');
   const isRichNote = msg.noteMetadata || (msg.text && msg.text.includes('pages · ₹'));
   const isPoll = msg.fileType === 'poll' || (msg.poll && msg.poll.question);
+  const noteLinkMatch = msg.text ? msg.text.match(/(?:https?:\/\/[^\s/]+)?\/books\?(?:[^\s&]*&)*(?:id|noteId)=([a-f\d]{24})/i) : null;
+  const detectedNoteId = noteLinkMatch ? noteLinkMatch[1] : null;
 
   const renderPoll = () => {
     if (!msg.poll) return null;
@@ -199,7 +341,8 @@ export default function MessageBubble({
                 )
               )}
 
-              {!isPoll && !isRichNote && msg.text && <p>{msg.text}</p>}
+              {!isPoll && !isRichNote && msg.text && <MarkdownMessage content={msg.text} />}
+              {detectedNoteId && <RichNotePreviewCard noteId={detectedNoteId} API_BASE_URL={API_BASE_URL} />}
 
               {msg.reactions && Object.keys(msg.reactions).length > 0 && (
                 <div className="reactions-display">
@@ -218,4 +361,4 @@ export default function MessageBubble({
       </div>
     </div>
   );
-}
+});

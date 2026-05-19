@@ -14,6 +14,7 @@ import ProfileSidebar from './chat/components/ProfileSidebar';
 import { Virtuoso } from 'react-virtuoso';
 import EmojiPicker from 'emoji-picker-react';
 import './Chat.css';
+import './Chat.Markdown.css';
 
 // ─── Highly strict dynamic time formatter
 const formatTime = (dateStr) => {

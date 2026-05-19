@@ -425,6 +425,22 @@ export default function Books() {
   const sentinelRef = useRef(null);
   const isFetchingRef = useRef(false);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const paramNoteId = params.get('noteId') || params.get('id');
+    if (paramNoteId) {
+      API.get(`/notes/${paramNoteId}`)
+        .then(res => {
+          if (res.data?.data) {
+            setPreviewNote(res.data.data);
+          }
+        })
+        .catch(err => {
+          console.error("Failed to auto-load note:", err);
+        });
+    }
+  }, []);
+
   const buildParams = useCallback((page = 1) => {
     const params = { page, limit: 12, itemType: 'book' };
     if (debouncedSearch) params.search = debouncedSearch;

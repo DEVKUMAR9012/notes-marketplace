@@ -38,7 +38,7 @@ const adminStorage = new CloudinaryStorage({
 const adminBulkUpload = multer({
   storage: adminStorage,
   limits: {
-    fileSize: 100 * 1024 * 1024, // 100MB per file (Admin Superpower)
+    fileSize: 30 * 1024 * 1024, // 30MB per file (Admin Superpower)
     files: 500                   // Up to 500 files in one batch
   },
   fileFilter: (req, file, cb) => {

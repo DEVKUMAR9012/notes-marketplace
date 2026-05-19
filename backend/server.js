@@ -325,7 +325,7 @@ if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
 app.use((err, req, res, next) => {
   if (err instanceof require('multer').MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ success: false, message: 'One or more files exceed the size limit (Max 100MB for Admin, 10MB for Users).' });
+      return res.status(400).json({ success: false, message: 'One or more files exceed the size limit (Max 30MB for Admin, 10MB for Users).' });
     }
     if (err.code === 'LIMIT_FILE_COUNT') {
       return res.status(400).json({ success: false, message: 'Too many files uploaded in one batch (Max 500).' });

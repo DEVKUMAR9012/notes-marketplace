@@ -1,0 +1,435 @@
+/* ─── Markdown Message Container ─── */
+.markdown-message {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.markdown-fallback {
+  color: inherit;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ─── Inline Code ─── */
+.inline-code-block {
+  background: rgba(168, 85, 247, 0.1);
+  color: #c084fc;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Fira Code', monospace;
+  font-size: 0.9em;
+  border: 1px solid rgba(168, 85, 247, 0.2);
+  white-space: nowrap;
+  overflow-x: auto;
+}
+
+/* ─── Code Block Wrapper ─── */
+.code-block-wrapper {
+  margin: 12px 0;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #0b0914;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.code-block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(20, 20, 35, 0.8);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  gap: 8px;
+}
+
+.code-language-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: #a78bfa;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: rgba(168, 85, 247, 0.1);
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(168, 85, 247, 0.2);
+}
+
+.code-copy-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(168, 85, 247, 0.2);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  color: #c084fc;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.code-copy-btn:hover {
+  background: rgba(168, 85, 247, 0.3);
+  border-color: rgba(168, 85, 247, 0.5);
+  color: #e9d5ff;
+}
+
+.code-copy-btn:active {
+  transform: scale(0.95);
+}
+
+.code-copy-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.copy-label {
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .copy-label {
+    display: inline;
+  }
+}
+
+.code-block-content {
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.code-block-content code {
+  background: transparent !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  font-family: 'Fira Code', monospace !important;
+  font-size: 13px !important;
+}
+
+.code-block-fallback {
+  padding: 12px;
+  background: #0b0914;
+  color: #d1d5db;
+  font-family: 'Fira Code', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-x: auto;
+  margin: 0;
+  border-radius: 0 0 8px 8px;
+}
+
+/* ─── Line Numbers Styling ─── */
+.react-syntax-highlighter-line-number {
+  color: #6b7280 !important;
+  user-select: none;
+  margin-right: 12px;
+}
+
+/* ─── Markdown Headings ─── */
+.markdown-h1,
+.markdown-h2,
+.markdown-h3 {
+  margin: 12px 0 8px 0;
+  font-weight: 600;
+  color: #f3e8ff;
+}
+
+.markdown-h1 {
+  font-size: 1.5em;
+  border-bottom: 2px solid rgba(168, 85, 247, 0.2);
+  padding-bottom: 8px;
+}
+
+.markdown-h2 {
+  font-size: 1.3em;
+  border-bottom: 1px solid rgba(168, 85, 247, 0.1);
+  padding-bottom: 6px;
+}
+
+.markdown-h3 {
+  font-size: 1.1em;
+  color: #d8b4fe;
+}
+
+/* ─── Markdown Lists ─── */
+.markdown-ul,
+.markdown-ol {
+  margin: 8px 0;
+  padding-left: 24px;
+  color: #d1d5db;
+}
+
+.markdown-ul {
+  list-style-type: disc;
+}
+
+.markdown-ol {
+  list-style-type: decimal;
+}
+
+.markdown-li {
+  margin-bottom: 4px;
+  line-height: 1.6;
+}
+
+/* ─── Markdown Blockquote ─── */
+.markdown-blockquote {
+  margin: 8px 0;
+  padding-left: 12px;
+  border-left: 3px solid #a78bfa;
+  color: #9ca3af;
+  font-style: italic;
+  opacity: 0.9;
+}
+
+/* ─── Markdown Links ─── */
+.markdown-link {
+  color: #60a5fa;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(96, 165, 250, 0.3);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.markdown-link:hover {
+  color: #93c5fd;
+  border-bottom-color: rgba(96, 165, 250, 0.6);
+}
+
+/* ─── Markdown Table ─── */
+.markdown-table {
+  margin: 12px 0;
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.9em;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.markdown-thead {
+  background: rgba(168, 85, 247, 0.1);
+}
+
+.markdown-th {
+  padding: 8px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #d8b4fe;
+  border-bottom: 1px solid rgba(168, 85, 247, 0.2);
+}
+
+.markdown-td {
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: #d1d5db;
+}
+
+.markdown-tbody tr:last-child .markdown-td {
+  border-bottom: none;
+}
+
+.markdown-tbody tr:hover {
+  background: rgba(168, 85, 247, 0.05);
+}
+
+/* ─── Markdown Paragraph ─── */
+.markdown-p {
+  margin: 8px 0;
+  line-height: 1.6;
+  color: #d1d5db;
+}
+
+/* ─── Markdown HR ─── */
+.markdown-hr {
+  margin: 12px 0;
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* ─── Mobile Responsive ─── */
+@media (max-width: 640px) {
+  .code-block-wrapper {
+    margin: 8px 0;
+    border-radius: 6px;
+  }
+
+  .code-block-header {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .code-block-content {
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  .markdown-h1 {
+    font-size: 1.3em;
+  }
+
+  .markdown-h2 {
+    font-size: 1.15em;
+  }
+
+  .markdown-h3 {
+    font-size: 1em;
+  }
+
+  .markdown-table {
+    font-size: 0.8em;
+    margin: 8px 0;
+  }
+
+  .markdown-th,
+  .markdown-td {
+    padding: 6px 8px;
+  }
+
+  .react-syntax-highlighter-line-number {
+    margin-right: 8px;
+  }
+}
+
+/* ─── Syntax Highlighter Theme Customization ─── */
+.react-syntax-highlighter-line {
+  padding: 0 4px;
+}
+
+/* Atom One Dark Theme Colors */
+.hljs {
+  color: #abb2bf;
+  background: #282c34;
+}
+
+.hljs-attr,
+.hljs-attribute {
+  color: #e06c75;
+}
+
+.hljs-number,
+.hljs-literal {
+  color: #d19a66;
+}
+
+.hljs-string {
+  color: #98c379;
+}
+
+.hljs-title,
+.hljs-section {
+  color: #61afef;
+}
+
+.hljs-name {
+  color: #e06c75;
+}
+
+.hljs-tag {
+  color: #e06c75;
+}
+
+.hljs-built_in,
+.hljs-builtin-name {
+  color: #e06c75;
+}
+
+.hljs-attr {
+  color: #d19a66;
+}
+
+.hljs-variable {
+  color: #e06c75;
+}
+
+.hljs-bullet,
+.hljs-code {
+  color: #98c379;
+}
+
+.hljs-emphasis {
+  color: #c678dd;
+  font-style: italic;
+}
+
+.hljs-strong {
+  color: #d19a66;
+  font-weight: bold;
+}
+
+.hljs-formula {
+  background: rgba(40, 44, 52, 0.8);
+  border: 1px solid rgba(168, 85, 247, 0.2);
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin: 2px 0;
+}
+
+.hljs-keyword {
+  color: #c678dd;
+}
+
+.hljs-selector-tag {
+  color: #e06c75;
+}
+
+.hljs-literal {
+  color: #56b6f2;
+}
+
+.hljs-section {
+  color: #61afef;
+}
+
+.hljs-link {
+  color: #d19a66;
+}
+
+.hljs-subst {
+  color: #abb2bf;
+}
+
+.hljs-symbol {
+  color: #98c379;
+}
+
+.hljs-class,
+.hljs-type {
+  color: #e06c75;
+}
+
+.hljs-params {
+  color: #abb2bf;
+}
+
+.hljs-comment {
+  color: #5c6370;
+  font-style: italic;
+}
+
+.hljs-string {
+  color: #98c379;
+}
+
+.hljs-regexp {
+  color: #98c379;
+}
+
+.hljs-operator {
+  color: #56b6f2;
+}
+
+.hljs-char.escape_ {
+  color: #98c379;
+}
+
+.hljs-meta {
+  color: #56b6f2;
+}
+
+.hljs-meta-string {
+  color: #98c379;
+}
