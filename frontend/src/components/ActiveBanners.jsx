@@ -45,36 +45,38 @@ export default function ActiveBanners() {
   if (visibleBanners.length === 0) return null;
 
   return (
-    <div className="w-full flex flex-col gap-1.5 px-4 md:px-8 pt-4 pb-2 bg-[#050508]">
+    <div className="w-full flex flex-col bg-[#050508]">
       <AnimatePresence>
         {visibleBanners.map((banner) => (
           <motion.div
             key={banner._id}
-            initial={{ opacity: 0, y: -10, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -10, scale: 0.98 }}
-            transition={{ duration: 0.2 }}
-            className="w-full flex items-center justify-between gap-3 px-5 py-3 rounded-2xl bg-gradient-to-r from-violet-600/15 via-indigo-600/10 to-violet-600/15 border border-violet-500/20 shadow-[0_4px_20px_rgba(139,92,246,0.1)] relative overflow-hidden group"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: 'easeInOut' }}
+            className="w-full bg-gradient-to-r from-violet-950/20 via-indigo-950/10 to-violet-950/20 border-b border-white/[0.06] relative overflow-hidden"
           >
-            {/* Visual gradient accent border background line */}
-            <div className="absolute left-0 top-0 bottom-0 w-[4px] bg-gradient-to-b from-violet-500 to-indigo-600" />
+            {/* Elegant bottom highlight line */}
+            <div className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-violet-500/40 via-indigo-500/40 to-violet-500/40" />
             
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="p-1.5 rounded-lg bg-violet-500/10 border border-violet-500/20 text-violet-400 flex-shrink-0 animate-pulse">
-                <FiVolume2 size={15} />
+            <div className="max-w-7xl mx-auto px-4 md:px-8 py-3.5 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="p-1.5 rounded-lg bg-violet-500/10 border border-violet-500/20 text-violet-400 flex-shrink-0 animate-pulse">
+                  <FiVolume2 size={14} />
+                </div>
+                <span className="text-xs md:text-sm font-semibold text-white leading-relaxed tracking-wide">
+                  {banner.text}
+                </span>
               </div>
-              <p className="text-xs md:text-sm font-semibold text-white leading-relaxed break-words pr-2">
-                {banner.text}
-              </p>
-            </div>
 
-            <button
-              onClick={() => handleDismiss(banner._id)}
-              className="p-1 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition flex-shrink-0"
-              aria-label="Dismiss announcement"
-            >
-              <FiX size={15} />
-            </button>
+              <button
+                onClick={() => handleDismiss(banner._id)}
+                className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition flex-shrink-0 flex items-center justify-center"
+                aria-label="Dismiss announcement"
+              >
+                <FiX size={15} />
+              </button>
+            </div>
           </motion.div>
         ))}
       </AnimatePresence>
