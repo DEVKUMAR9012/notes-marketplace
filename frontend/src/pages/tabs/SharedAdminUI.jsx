@@ -18,7 +18,7 @@ export function useCountUp(target, duration = 1200, enabled = true) {
     };
     frameRef.current = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(frameRef.current);
-  }, [target, enabled]);
+  }, [target, enabled, duration]);
   return value;
 }
 

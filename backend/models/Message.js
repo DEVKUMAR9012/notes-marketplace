@@ -16,6 +16,7 @@ const messageSchema = new mongoose.Schema(
     fileType: { type: String, enum: ['image', 'pdf', 'audio', 'poll', 'other', null], default: null },
     fileName: { type: String, default: null },
     fileSize: { type: Number, default: null },
+    fileMimeType: { type: String, default: null },
 
     // Interactive Polls
     poll: {

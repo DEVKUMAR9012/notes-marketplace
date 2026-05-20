@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import API, { warmupServer } from '../utils/api';
 import {
-  FiUser, FiMail, FiLock, FiEye, FiEyeOff, FiUserPlus,
+  FiUser, FiMail, FiLock, FiEye, FiEyeOff,
   FiHome, FiKey, FiArrowLeft, FiPhone, FiGift
 } from 'react-icons/fi';
 import AnimatedLogo from '../components/AnimatedLogo';

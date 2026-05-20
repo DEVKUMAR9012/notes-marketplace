@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import MarkdownMessage from './MarkdownMessage';
 import API from '../../../utils/api';
+import PDFThumbnail from '../../../components/PDFThumbnail';
 import { downloadFile, buildPdfUrl } from '../../../utils/downloadPdf';
 import { useAuth } from '../../../context/AuthContext';
 
@@ -246,6 +247,125 @@ const extractFileName = (fileUrl) => {
   }
 };
 
+const getMessageFileName = (msg) => msg.fileName || extractFileName(msg.fileUrl || msg.localPreviewUrl);
+
+const getFileExtension = (fileName = '', fileUrl = '') => {
+  const source = (fileName || fileUrl || '').split('?')[0];
+  const ext = source.includes('.') ? source.split('.').pop()?.toLowerCase() : '';
+  return ext || '';
+};
+
+const formatFileSize = (bytes) => {
+  if (!bytes || Number.isNaN(Number(bytes))) return '';
+  const size = Number(bytes);
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(size < 10240 ? 1 : 0)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(size < 10 * 1024 * 1024 ? 1 : 0)} MB`;
+};
+
+const getDocumentLabel = (msg) => {
+  const ext = getFileExtension(msg.fileName, msg.fileUrl || msg.localPreviewUrl);
+  const mime = msg.fileMimeType || '';
+
+  if (msg.fileType === 'pdf' || ext === 'pdf') return { label: 'PDF Document', badge: 'PDF', tone: 'pdf' };
+  if (mime.includes('word') || ['doc', 'docx'].includes(ext)) return { label: 'Word Document', badge: ext.toUpperCase() || 'DOC', tone: 'word' };
+  if (mime.includes('presentation') || ['ppt', 'pptx'].includes(ext)) return { label: 'PowerPoint', badge: ext.toUpperCase() || 'PPT', tone: 'slides' };
+  if (mime.includes('sheet') || mime.includes('excel') || ['xls', 'xlsx'].includes(ext)) return { label: 'Spreadsheet', badge: ext.toUpperCase() || 'XLS', tone: 'sheet' };
+  if (mime === 'text/plain' || ext === 'txt') return { label: 'Text Document', badge: 'TXT', tone: 'text' };
+  return { label: 'Document', badge: ext ? ext.toUpperCase() : 'FILE', tone: 'file' };
+};
+
+function DocumentAttachmentCard({ msg, API_BASE_URL }) {
+  const previewUrl = getAttachmentUrl(msg.localPreviewUrl || msg.fileUrl, API_BASE_URL);
+  const downloadUrl = getAttachmentUrl(msg.fileUrl || msg.localPreviewUrl, API_BASE_URL);
+  const fileName = getMessageFileName(msg);
+  const { label, badge, tone } = getDocumentLabel(msg);
+  const fileSize = formatFileSize(msg.fileSize);
+  const uploadProgress = Math.max(0, Math.min(100, Math.round(msg.uploadProgress || 0)));
+
+  const handleOpen = useCallback(() => {
+    if (msg.pending || msg.failed || !downloadUrl) return;
+    window.open(downloadUrl, '_blank', 'noopener,noreferrer');
+  }, [downloadUrl, msg.failed, msg.pending]);
+
+  const handleDownload = useCallback((e) => {
+    e.stopPropagation();
+    if (!downloadUrl) return;
+    downloadFile(downloadUrl, fileName);
+  }, [downloadUrl, fileName]);
+
+  return (
+    <div
+      className={`chat-document-card ${msg.pending ? 'is-uploading' : ''} ${msg.failed ? 'is-failed' : ''}`}
+      onClick={handleOpen}
+      onKeyDown={(e) => {
+        if ((e.key === 'Enter' || e.key === ' ') && !msg.pending && !msg.failed) {
+          e.preventDefault();
+          handleOpen();
+        }
+      }}
+      role={msg.pending || msg.failed ? undefined : 'button'}
+      tabIndex={msg.pending || msg.failed ? -1 : 0}
+      aria-label={msg.pending ? `Uploading ${fileName}` : `Open ${fileName}`}
+      title={msg.pending ? 'Uploading attachment' : fileName}
+    >
+      <div className="chat-document-thumb">
+        <PDFThumbnail
+          pdfUrl={previewUrl}
+          fileName={fileName}
+          title={fileName}
+          compact
+        />
+        {msg.pending && (
+          <div className="chat-document-thumb-overlay">
+            <span>{uploadProgress > 0 ? `${uploadProgress}%` : '...'}</span>
+          </div>
+        )}
+      </div>
+
+      <div className="chat-document-info">
+        <h4 className="chat-document-title" title={fileName}>{fileName}</h4>
+        <div className="chat-document-tags">
+          <span className={`chat-document-badge tone-${tone}`}>{badge}</span>
+          {fileSize && <span className="chat-document-badge tone-neutral">{fileSize}</span>}
+        </div>
+        <div className="chat-document-status-row">
+          <span className={`chat-document-status ${msg.failed ? 'error' : ''}`}>
+            {msg.failed ? 'Upload failed' : msg.pending ? (uploadProgress > 0 ? `Uploading ${uploadProgress}%` : 'Preparing upload...') : label}
+          </span>
+          {!msg.pending && !msg.failed && (
+            <span className="chat-document-open-hint">
+              <FiExternalLink style={{ width: 11, height: 11 }} />
+              Open
+            </span>
+          )}
+        </div>
+        {msg.pending ? (
+          <div className="chat-document-progress-track" aria-hidden="true">
+            <span style={{ width: `${uploadProgress}%` }} />
+          </div>
+        ) : (
+          <div className="chat-document-caption">
+            shared by {msg.sender?.name || 'Member'}
+          </div>
+        )}
+      </div>
+
+      {!msg.pending && !msg.failed && (
+        <button
+          type="button"
+          className="chat-document-download-btn"
+          onClick={handleDownload}
+          title="Download document"
+          aria-label={`Download ${fileName}`}
+        >
+          <FiDownload style={{ width: 14, height: 14 }} />
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ─── Main MessageBubble ───────────────────────────────────────────────────────
 export default memo(function MessageBubble({
   msg, isMine, isFirstInGroup, isLastInGroup,
@@ -404,12 +524,7 @@ export default memo(function MessageBubble({
                     />
                   </div>
                 ) : (
-                  <button
-                    className="msg-pdf"
-                    onClick={() => downloadFile(getAttachmentUrl(msg.fileUrl, API_BASE_URL), extractFileName(msg.fileUrl))}
-                  >
-                    📎 Download Document
-                  </button>
+                  <DocumentAttachmentCard msg={msg} API_BASE_URL={API_BASE_URL} />
                 )
               ) : null}
 

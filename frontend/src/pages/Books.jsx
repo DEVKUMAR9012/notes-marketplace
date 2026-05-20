@@ -1,10 +1,9 @@
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { useState, useEffect, useMemo, useCallback, useRef, forwardRef } from 'react';
 import {
-  FiDownload, FiEye, FiStar, FiUser, FiMapPin,
-  FiSearch, FiFilter, FiX, FiBook, FiTrendingUp,
-  FiZap, FiHeart, FiShoppingCart, FiAward, FiChevronDown,
-  FiChevronRight, FiChevronLeft, FiBookOpen
+  FiDownload, FiEye, FiStar, FiUser,
+  FiSearch, FiX, FiBook, FiTrendingUp,
+  FiZap, FiHeart, FiShoppingCart, FiAward
 } from 'react-icons/fi';
 import API from '../utils/api';
 import { downloadPdf, buildPdfUrl } from '../utils/downloadPdf';
@@ -414,9 +413,7 @@ export default function Books() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [pagination, setPagination] = useState({ page: 1, hasMore: true, total: 0 });
   const [searchInput, setSearchInput] = useState('');
-  const [suggestions, setSuggestions] = useState([]);
-  const [showSug, setShowSug] = useState(false);
-  const [filters, setFilters] = useState({ subject: '', semester: '', priceType: '', minRating: '' });
+  const [filters] = useState({ subject: '', semester: '', priceType: '', minRating: '' });
   const [activeTab, setActiveTab] = useState('all');
   const [previewNote, setPreviewNote] = useState(null);
   const [buyNote, setBuyNote] = useState(null);
@@ -486,14 +483,6 @@ export default function Books() {
     return () => obs.disconnect();
   }, [loadMore]);
 
-  useEffect(() => {
-    if (debouncedSearch.length > 1) {
-      const s = notes.filter(n => n.title?.toLowerCase().includes(debouncedSearch.toLowerCase())).slice(0, 5).map(n => n.title);
-      setSuggestions(s);
-    } else {
-      setSuggestions([]);
-    }
-  }, [debouncedSearch, notes]);
 
   const handlePreview = (note) => { if (note.pdfUrl) setPreviewNote(note); else alert('Preview not available'); };
   const handleBuy = (note) => {
@@ -574,9 +563,7 @@ export default function Books() {
             <div className="relative flex-1" ref={searchRef}>
               <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
               <input value={searchInput}
-                onChange={e => { setSearchInput(e.target.value); setShowSug(true); }}
-                onBlur={() => setTimeout(() => setShowSug(false), 150)}
-                onFocus={() => suggestions.length && setShowSug(true)}
+                onChange={e => setSearchInput(e.target.value)}
                 placeholder="Search books, genres, authors..."
                 className="w-full pl-11 pr-10 py-3.5 bg-white/5 border border-white/10 hover:border-white/20 focus:border-pink-500/60 rounded-xl text-white placeholder-gray-500 text-sm outline-none transition-all" />
               {searchInput && (

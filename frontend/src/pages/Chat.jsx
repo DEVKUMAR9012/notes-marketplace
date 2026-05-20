@@ -17,24 +17,6 @@ import './Chat.css';
 import './Chat.Markdown.css';
 
 // ─── Highly strict dynamic time formatter
-const formatTime = (dateStr) => {
-  if (!dateStr) return '';
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return '';
-  const now = new Date();
-  const diffMs = now - d;
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-
-  if (diffMins < 1) return 'just now';
-  if (diffMins < 60) return `${diffMins} min ago`;
-  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
-  if (diffDays === 1) return 'yesterday';
-  if (diffDays < 7) return `${diffDays} days ago`;
-
-  return d.toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-};
 
 // ─── Centered Date Divider Capsule Formatter
 const isDifferentDay = (d1, d2) => {
@@ -214,6 +196,7 @@ export default function Chat() {
   const toastTimerRef = useRef(null);
   const textInputRef = useRef(null);
   const longPressTimerRef = useRef(null);
+  const attachmentPreviewUrlsRef = useRef(new Set());
 
   const activeChatRef = useRef(null);
   const inputTextRef = useRef(inputText);
@@ -243,9 +226,14 @@ export default function Chat() {
   }, []);
 
   useEffect(() => {
+    const previewUrls = attachmentPreviewUrlsRef.current;
     return () => {
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      previewUrls.forEach((url) => {
+        try { URL.revokeObjectURL(url); } catch { }
+      });
+      previewUrls.clear();
       // Bulletproof audio cleanup — clears src to release media handles
       if (ringtoneRef.current) {
         ringtoneRef.current.pause();
@@ -260,11 +248,98 @@ export default function Chat() {
     };
   }, []);
 
-  const showToast = (msg, type = 'success') => {
+  const showToast = useCallback((msg, type = 'success') => {
     setToast({ msg, type });
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     toastTimerRef.current = setTimeout(() => setToast(null), 3000);
-  };
+  }, []);
+
+  const rememberAttachmentPreviewUrl = useCallback((url) => {
+    if (url?.startsWith('blob:')) {
+      attachmentPreviewUrlsRef.current.add(url);
+    }
+  }, []);
+
+  const getAttachmentType = useCallback((file) => {
+    const lowerName = file?.name?.toLowerCase?.() || '';
+    if (file?.type?.startsWith('image/')) return 'image';
+    if (file?.type === 'application/pdf' || lowerName.endsWith('.pdf')) return 'pdf';
+    if (file?.type?.startsWith('audio/') || /\.(mp3|wav|ogg|webm)$/i.test(lowerName)) return 'audio';
+    return 'other';
+  }, []);
+
+  const handleAttachmentUpload = useCallback(async (file) => {
+    if (!file || !activeChat?._id) return;
+    if (activeChat._id === 'virtual_admin_chat') {
+      showToast('Please send a text first to initialize the admin chat, then attach your document.', 'error');
+      return;
+    }
+
+    const tempId = `upload_${Date.now()}`;
+    const replyTarget = replyingTo;
+    const previewUrl = URL.createObjectURL(file);
+    const fileType = getAttachmentType(file);
+
+    rememberAttachmentPreviewUrl(previewUrl);
+
+    const optimisticMessage = {
+      _id: tempId,
+      tempId,
+      chat: activeChat._id,
+      sender: user,
+      text: '',
+      createdAt: new Date().toISOString(),
+      pending: true,
+      replyTo: replyTarget,
+      fileType,
+      fileName: file.name,
+      fileSize: file.size,
+      fileMimeType: file.type,
+      localPreviewUrl: previewUrl,
+      fileUrl: fileType === 'image' ? previewUrl : null,
+      uploadProgress: 0,
+    };
+
+    setMessages(prev => [...prev, optimisticMessage]);
+    setReplyingTo(null);
+    setUploading(true);
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('tempId', tempId);
+    if (replyTarget?._id) formData.append('replyTo', replyTarget._id);
+
+    try {
+      const res = await API.post(`/chat/${activeChat._id}/upload`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (event) => {
+          const total = event.total || file.size || 0;
+          const progress = total > 0 ? Math.min(99, Math.round((event.loaded / total) * 100)) : 0;
+          setMessages(prev => prev.map(m => (
+            m.tempId === tempId ? { ...m, uploadProgress: progress } : m
+          )));
+        },
+      });
+
+      if (res.data?.message) {
+        setMessages(prev => prev.map(m => (
+          m.tempId === tempId
+            ? { ...m, ...res.data.message, pending: false, failed: false, uploadProgress: 100 }
+            : m
+        )));
+      }
+    } catch (err) {
+      console.error('Attachment upload failed', err);
+      setMessages(prev => prev.map(m => (
+        m.tempId === tempId
+          ? { ...m, pending: false, failed: true }
+          : m
+      )));
+      showToast(err.message || 'Failed to upload attachment', 'error');
+    } finally {
+      setUploading(false);
+    }
+  }, [activeChat, getAttachmentType, rememberAttachmentPreviewUrl, replyingTo, showToast, user]);
 
   // #18: Pooled Audio instance — avoids new Audio() on every notification (prevents memory leaks)
   const notificationAudioRef = useRef(null);
@@ -397,7 +472,7 @@ export default function Chat() {
           if (index !== -1) {
             const updated = [...prev];
             // Merge the real server message, clear pending state
-            updated[index] = { ...msg, pending: false };
+            updated[index] = { ...updated[index], ...msg, pending: false, failed: false, uploadProgress: 100 };
             return updated;
           }
           
@@ -473,7 +548,9 @@ export default function Chat() {
     const onWarning = ({ text, originalText }) => {
       // #2: store the original text separately so force_send sends the real content
       setWarningMsg(text);
-      setPendingForceSend(originalText || inputTextRef.current);
+      const origText = originalText || inputTextRef.current;
+      setPendingForceSend(origText);
+      setInputText(origText); // Restore input text so typing bar is visible and message can be edited!
     };
 
     const onMessagesDelivered = ({ chatId, deliveredTo }) => {
@@ -568,7 +645,7 @@ export default function Chat() {
       socket.off('opponent_location_captured', onOpponentLocationCaptured);
       socket.off('poll_updated', onPollUpdated);
     };
-  }, [socket, user?._id, loadConversations, chatSettings.readReceiptPrivacy, chatSettings.muteAlerts, triggerSoundFeedback]);
+  }, [socket, user?._id, loadConversations, chatSettings.readReceiptPrivacy, chatSettings.muteAlerts, triggerSoundFeedback, showToast]);
 
   // ─── Actions & Live Geolocation Opponent Location Request
   const shareLocation = () => {
@@ -949,27 +1026,7 @@ export default function Chat() {
     }, 5000);
   };
 
-  const handleFileUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file || !activeChat) return;
-    if (file.size > 10 * 1024 * 1024) return showToast("File size must be under 10MB", "error");
 
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      setUploading(true);
-      await API.post(`/chat/${activeChat._id}/upload`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-    } catch (err) {
-      console.error("Upload failed", err);
-      showToast("Failed to upload file", "error");
-    } finally {
-      setUploading(false);
-      e.target.value = null;
-    }
-  };
 
   // Search buffering
   useEffect(() => {
@@ -1070,10 +1127,7 @@ export default function Chat() {
 
   const isGroup = activeChat?.isGroupChat;
   const otherParticipant = !isGroup ? activeChat?.participants?.find(p => String(p._id) !== String(user?._id)) : null;
-  const chatTitle = isGroup ? activeChat.chatName : otherParticipant?.name;
-  const chatStatus = isGroup
-    ? `${activeChat.participants?.length || 0} participants`
-    : (otherParticipant?.isOnline ? 'Online now' : `Last seen: ${otherParticipant?.lastSeen ? formatTime(otherParticipant.lastSeen) : 'N/A'}`);
+
 
   const isCurrentlyBlocked = activeChat?.blockedBy ? true : false;
 
@@ -1093,34 +1147,39 @@ export default function Chat() {
       />
 
       {/* ──────── SIDEBAR UPGRADES ──────── */}
-      <ChatSidebar
-        activeChat={activeChat}
-        setActiveChat={setActiveChat}
-        unreadCounts={unreadCounts}
-        setShowSettingsModal={setShowSettingsModal}
-        showSearch={showSearch}
-        setShowSearch={setShowSearch}
-        sidebarSearchQuery={sidebarSearchQuery}
-        setSidebarSearchQuery={setSidebarSearchQuery}
-        activeFilterTab={activeFilterTab}
-        setActiveFilterTab={setActiveFilterTab}
-        conversations={displayedConversations}
-        user={user}
-        Avatar={Avatar}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        searchResults={searchResults}
-        startChat={startChat}
-        isCreatingGroup={isCreatingGroup}
-        setIsCreatingGroup={setIsCreatingGroup}
-        groupName={groupName}
-        setGroupName={setGroupName}
-        selectedUsers={selectedUsers}
-        handleCreateGroup={handleCreateGroup}
-        toggleUserSelection={toggleUserSelection}
-      />
+      {/* On mobile: sidebar is hidden when a chat is open (main panel z:25 covers it anyway,
+           but we also set display:none so it's not focusable/readable behind the panel) */}
+      <div className={activeChat ? 'sidebar-hidden-on-mobile' : ''}>
+        <ChatSidebar
+          activeChat={activeChat}
+          setActiveChat={setActiveChat}
+          unreadCounts={unreadCounts}
+          setShowSettingsModal={setShowSettingsModal}
+          showSearch={showSearch}
+          setShowSearch={setShowSearch}
+          sidebarSearchQuery={sidebarSearchQuery}
+          setSidebarSearchQuery={setSidebarSearchQuery}
+          activeFilterTab={activeFilterTab}
+          setActiveFilterTab={setActiveFilterTab}
+          conversations={displayedConversations}
+          user={user}
+          Avatar={Avatar}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          searchResults={searchResults}
+          startChat={startChat}
+          isCreatingGroup={isCreatingGroup}
+          setIsCreatingGroup={setIsCreatingGroup}
+          groupName={groupName}
+          setGroupName={setGroupName}
+          selectedUsers={selectedUsers}
+          handleCreateGroup={handleCreateGroup}
+          toggleUserSelection={toggleUserSelection}
+        />
+      </div>
 
       {/* ──────── MAIN PANEL: Chat Header & Messages ──────── */}
+      {/* On mobile: show ONLY when activeChat is set. Hides via .hidden-mobile (display:none) */}
       <main className={`messenger-main-flow ${!activeChat ? 'hidden-mobile' : ''}`}>
         {!activeChat ? (
           <div className="welcome-placeholder-capsule">
@@ -1148,6 +1207,7 @@ export default function Chat() {
               msgSearchQuery={msgSearchQuery}
               setMsgSearchQuery={setMsgSearchQuery}
               onViewProfile={() => setShowProfileSidebar(true)}
+              onBack={() => setActiveChat(null)}
             />
 
             {/* ──────── MESSAGES BUFFER ──────── */}
@@ -1316,14 +1376,6 @@ export default function Chat() {
               </div>
             )}
 
-            {warningMsg && (
-              <div className="warning-banner">
-                <p>⚠️ <strong>Safety Warning:</strong> Sharing phone numbers or UPI IDs is against our policy and can lead to fraud.</p>
-                <button type="button" onClick={handleForceSend}>Send Anyway</button>
-                <button type="button" onClick={() => setWarningMsg(null)}>Cancel</button>
-              </div>
-            )}
-
             {/* ──────── CONDITIONAL CLIENT BLOCKING MUTE OVERLAY ──────── */}
             {isCurrentlyBlocked ? (
               <div className="p-4 bg-[#0d0b1a] border-t border-white/5 text-center flex items-center justify-center gap-2 text-red-400 font-semibold text-xs">
@@ -1334,8 +1386,13 @@ export default function Chat() {
                 inputText={inputText} setInputText={setInputText} handleTyping={handleTyping} handleSend={handleSend}
                 replyingTo={replyingTo} setReplyingTo={setReplyingTo} activeChat={activeChat} uploading={uploading} setUploading={setUploading} showToast={showToast}
                 socket={socket}
+                warningMsg={warningMsg}
+                handleForceSend={handleForceSend}
+                setWarningMsg={setWarningMsg}
+                handleAttachmentUpload={handleAttachmentUpload}
               />
             )}
+
           </>
         )}
       </main>

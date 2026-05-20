@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useReducer } from 'react';
+import React, { useState, useEffect, useReducer, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   FiUsers, FiFileText, FiPackage, FiDollarSign, FiActivity,
@@ -16,7 +16,7 @@ const OverviewTab = ({ onTabChange }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
 
-  const fetchData = async (isRefresh = false) => {
+  const fetchData = useCallback(async (isRefresh = false) => {
     isRefresh ? setRefreshing(true) : setLoading(true);
     setError(null);
     try {
@@ -29,11 +29,11 @@ const OverviewTab = ({ onTabChange }) => {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [setOverviewData, setOverviewLastUpdated]);
 
   useEffect(() => { 
     if (!data) fetchData(); 
-  }, []);
+  }, [data, fetchData]);
 
   const [, forceUpdate] = useReducer(x => x + 1, 0);
   useEffect(() => {

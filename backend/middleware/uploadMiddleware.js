@@ -33,12 +33,25 @@ const ALLOWED_TYPES = {
   'text/plain':                                                                  'txt',
 };
 
+const EXTENSION_TO_MIME = Object.entries(ALLOWED_TYPES).reduce((acc, [mime, ext]) => {
+  acc[ext] = mime;
+  return acc;
+}, {});
+
+const resolveMimeType = (file) => {
+  if (ALLOWED_TYPES[file.mimetype]) return file.mimetype;
+
+  const ext = path.extname(file.originalname || '').replace('.', '').toLowerCase();
+  return EXTENSION_TO_MIME[ext] || null;
+};
+
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: async (req, file) => {
-    const ext = ALLOWED_TYPES[file.mimetype] || path.extname(file.originalname).replace('.', '') || 'bin';
+    const resolvedMimeType = resolveMimeType(file);
+    const ext = ALLOWED_TYPES[resolvedMimeType] || path.extname(file.originalname).replace('.', '') || 'bin';
     // Use 'image' resource_type for images, 'raw' for everything else
-    const resourceType = file.mimetype.startsWith('image/') ? 'image' : 'raw';
+    const resourceType = resolvedMimeType?.startsWith('image/') ? 'image' : 'raw';
     return {
       folder: 'notes-marketplace',
       resource_type: resourceType,
@@ -48,12 +61,14 @@ const storage = new CloudinaryStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-  if (ALLOWED_TYPES[file.mimetype]) {
+  const resolvedMimeType = resolveMimeType(file);
+  if (resolvedMimeType) {
+    file.normalizedMimeType = resolvedMimeType;
     cb(null, true);
   } else {
     cb(
       new Error(
-        `Unsupported file type: ${file.mimetype}. ` +
+        `Unsupported file type: ${file.mimetype || 'unknown'}. ` +
         'Allowed: PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX, JPG, PNG, GIF, WEBP, TXT'
       ),
       false

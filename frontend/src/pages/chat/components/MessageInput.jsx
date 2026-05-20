@@ -7,7 +7,8 @@ const MessageInput = memo(function MessageInput({
   inputText, setInputText, handleTyping, handleSend,
   replyingTo, setReplyingTo,
   activeChat, uploading, setUploading, showToast,
-  socket
+  socket, warningMsg, handleForceSend, setWarningMsg,
+  handleAttachmentUpload
 }) {
   const fileInputRef = useRef(null);
   const textInputRef = useRef(null);
@@ -155,8 +156,11 @@ const MessageInput = memo(function MessageInput({
 
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
-    if (!file || !activeChat) return;
-    if (file.size > 10 * 1024 * 1024) return showToast("File size must be under 10MB", "error");
+    if (!file || !activeChat || !handleAttachmentUpload) return;
+    if (file.size > 10 * 1024 * 1024) {
+      e.target.value = null;
+      return showToast("File size must be under 10MB", "error");
+    }
 
     let finalFile = file;
 
@@ -170,25 +174,23 @@ const MessageInput = memo(function MessageInput({
           maxWidthOrHeight: 1280,
           useWebWorker: true,
         };
-        finalFile = await imageCompression(file, options);
+        const compressed = await imageCompression(file, options);
+        finalFile = compressed instanceof File
+          ? compressed
+          : new File([compressed], file.name, { type: compressed.type || file.type });
       } catch (error) {
         console.error("Compression error:", error);
+      } finally {
+        setUploading(false);
       }
     }
 
-    const formData = new FormData();
-    formData.append('file', finalFile);
-
     try {
-      setUploading(true);
-      await API.post(`/chat/${activeChat._id}/upload`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      await handleAttachmentUpload(finalFile);
     } catch (err) {
       console.error("Upload failed", err);
       showToast("Failed to upload file", "error");
     } finally {
-      setUploading(false);
       e.target.value = null;
     }
   };
@@ -215,6 +217,47 @@ const MessageInput = memo(function MessageInput({
 
   return (
     <div className="chat-input-wrapper-embedded">
+      {warningMsg && (
+        <div className="warning-banner" style={{
+          display: 'flex', flexDirection: 'column', gap: '8px',
+          background: 'rgba(239, 68, 68, 0.12)', borderLeft: '4px solid #ef4444',
+          padding: '10px 14px', borderRadius: '8px', margin: '0 0 10px 0',
+          backdropFilter: 'blur(8px)', border: '1px solid rgba(239, 68, 68, 0.2)'
+        }}>
+          <p style={{ margin: 0, fontSize: '12px', color: '#fca5a5', lineHeight: '1.4', flex: 1 }}>
+            ⚠️ <strong>Safety Warning:</strong> sharing of numbers/UPI keys violates terms. We recommend keeping all interactions secure inside the platform.
+          </p>
+          <div style={{ display: 'flex', gap: '8px', alignSelf: 'flex-end' }}>
+            <button
+              type="button"
+              onClick={handleForceSend}
+              style={{
+                background: '#ef4444', border: 'none', color: '#fff',
+                padding: '4px 10px', borderRadius: '6px', fontSize: '10.5px',
+                fontWeight: 700, cursor: 'pointer', transition: 'opacity 0.2s'
+              }}
+              onMouseEnter={(e) => e.target.style.opacity = '0.9'}
+              onMouseLeave={(e) => e.target.style.opacity = '1'}
+            >
+              Send Anyway
+            </button>
+            <button
+              type="button"
+              onClick={() => setWarningMsg(null)}
+              style={{
+                background: 'rgba(255, 255, 255, 0.08)', border: '1px solid rgba(255, 255, 255, 0.1)',
+                color: '#ccc', padding: '4px 10px', borderRadius: '6px', fontSize: '10.5px',
+                fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s'
+              }}
+              onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.12)'}
+              onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.08)'}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       {replyingTo && (
         <div className="reply-preview">
           <div className="reply-content">
@@ -294,7 +337,7 @@ const MessageInput = memo(function MessageInput({
                 type="file"
                 ref={fileInputRef}
                 onChange={handleFileUpload}
-                accept="image/*,.pdf"
+                accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt"
                 style={{ display: 'none' }}
                 aria-hidden="true"
               />
@@ -302,8 +345,8 @@ const MessageInput = memo(function MessageInput({
                 type="button"
                 className="embedded-tool-btn"
                 onClick={() => fileInputRef.current?.click()}
-                aria-label="Attach image or PDF"
-                title="Attach image or PDF only"
+                aria-label="Attach image or document"
+                title="Attach image, PDF, Word, PowerPoint, Excel, or text file"
                 disabled={uploading}
               >
                 {uploading ? '⏳' : '📎'}

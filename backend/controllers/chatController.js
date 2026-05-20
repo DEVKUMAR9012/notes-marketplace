@@ -1,6 +1,16 @@
 const Chat    = require('../models/Chat');
 const Message = require('../models/Message');
 const User    = require('../models/User');
+const path    = require('path');
+
+const getAttachmentLabel = (fileType, fileName = '') => {
+  if (fileType === 'audio') return '🎙️ Voice Note';
+  if (fileType === 'image') return '🖼️ Image';
+  if (fileType === 'pdf') return '📄 PDF';
+
+  const ext = path.extname(fileName).replace('.', '').toUpperCase();
+  return ext ? `📄 ${ext} Document` : '📄 Document';
+};
 
 // ─── GET /api/chat ────────────────────────────────────────────────────────────
 exports.getConversations = async (req, res) => {
@@ -387,16 +397,18 @@ exports.updateTags = async (req, res) => {
 exports.uploadFile = async (req, res) => {
   try {
     const { chatId } = req.params;
+    const { tempId, caption = '', replyTo = null } = req.body;
     const chat = await Chat.findOne({ _id: chatId, participants: req.user._id });
     if (!chat) return res.status(403).json({ success: false, message: 'Access denied' });
     if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded' });
 
-    const isPdf   = req.file.mimetype === 'application/pdf';
-    const isAudio = req.file.mimetype.startsWith('audio/') || 
-                    req.file.originalname.endsWith('.mp3') || 
-                    req.file.originalname.endsWith('.webm') || 
-                    req.file.originalname.endsWith('.wav') || 
-                    req.file.originalname.endsWith('.ogg');
+    const lowerFileName = (req.file.originalname || '').toLowerCase();
+    const isPdf   = req.file.mimetype === 'application/pdf' || lowerFileName.endsWith('.pdf');
+    const isAudio = req.file.mimetype.startsWith('audio/') ||
+                    lowerFileName.endsWith('.mp3') ||
+                    lowerFileName.endsWith('.webm') ||
+                    lowerFileName.endsWith('.wav') ||
+                    lowerFileName.endsWith('.ogg');
 
     let fileType = 'other';
     if (isPdf) fileType = 'pdf';
@@ -406,16 +418,25 @@ exports.uploadFile = async (req, res) => {
     const msg = await Message.create({
       chat:     chatId,
       sender:   req.user._id,
-      text:     req.body.caption || '',
+      text:     caption,
       fileUrl:  req.file.path,
       fileType,
       fileName: req.file.originalname,
       fileSize: req.file.size,
+      fileMimeType: req.file.mimetype,
+      replyTo,
     });
     await msg.populate('sender', 'name avatar profileImage');
+    if (replyTo) {
+      await msg.populate({
+        path: 'replyTo',
+        select: 'text sender fileUrl fileType isDeleted',
+        populate: { path: 'sender', select: 'name' }
+      });
+    }
 
     // Update chat lastMessage
-    const lastMsgText = fileType === 'pdf' ? '📎 PDF' : fileType === 'audio' ? '🎙️ Voice Note' : '📎 Image';
+    const lastMsgText = getAttachmentLabel(fileType, req.file.originalname);
     chat.lastMessage = { text: lastMsgText, senderId: req.user._id, sentAt: new Date(), type: 'file' };
     chat.participants.forEach(p => {
       if (String(p) !== String(req.user._id)) {
@@ -427,13 +448,15 @@ exports.uploadFile = async (req, res) => {
 
     // Broadcast via socket
     const io = req.app.get('io');
-    io.to(chatId).emit('new_message', msg);
+    const msgObj = msg.toObject();
+    if (tempId) msgObj.tempId = tempId;
+    io.to(chatId).emit('new_message', msgObj);
     chat.participants.forEach(p => {
       if (String(p) !== String(req.user._id))
         io.to(String(p)).emit('conversation_updated', { chatId, lastMessage: chat.lastMessage });
     });
 
-    res.json({ success: true, message: msg });
+    res.json({ success: true, message: msgObj });
   } catch (e) {
     console.error('uploadFile error:', e);
     res.status(500).json({ success: false, message: 'Server error' });

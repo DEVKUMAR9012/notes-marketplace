@@ -11,20 +11,39 @@ cloudinary.config({
 const storage = new CloudinaryStorage({
   cloudinary,
   params: async (req, file) => {
-    const isPdf = file.mimetype === 'application/pdf';
+    const isImage = file.mimetype.startsWith('image/');
+    const isAudio = file.mimetype.startsWith('audio/') || file.originalname.endsWith('.webm') || file.originalname.endsWith('.mp3');
     return {
       folder: 'chat-files',
-      resource_type: isPdf ? 'raw' : 'image',
-      allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf'],
-      transformation: isPdf ? undefined : [{ width: 1200, quality: 'auto' }],
+      resource_type: isImage ? 'image' : (isAudio ? 'video' : 'raw'),
+      allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'txt', 'webm', 'mp3', 'wav', 'ogg', 'mpeg'],
+      transformation: isImage ? [{ width: 1200, quality: 'auto' }] : undefined,
     };
   },
 });
 
 const fileFilter = (req, file, cb) => {
-  const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf'];
-  if (allowed.includes(file.mimetype)) cb(null, true);
-  else cb(new Error('Only images and PDFs are allowed'), false);
+  const allowed = [
+    'image/jpeg',
+    'image/png',
+    'image/gif',
+    'image/webp',
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'text/plain',
+    'audio/webm',
+    'audio/mpeg',
+    'audio/wav',
+    'audio/ogg',
+    'video/webm'
+  ];
+  if (allowed.includes(file.mimetype) || file.mimetype.startsWith('audio/')) cb(null, true);
+  else cb(new Error('Invalid file format. Allowed: Images, Docs, PDFs, and Audio.'), false);
 };
 
 module.exports = multer({

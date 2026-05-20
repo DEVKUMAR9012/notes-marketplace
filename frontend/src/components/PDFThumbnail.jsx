@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 
-const PDFThumbnail = ({ pdfUrl, title, note }) => {
+const PDFThumbnail = ({ pdfUrl, title, note, fileName = '', compact = false }) => {
   const [thumbnail, setThumbnail] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -15,7 +15,8 @@ const PDFThumbnail = ({ pdfUrl, title, note }) => {
   const renderTaskRef = useRef(null);
   const containerRef = useRef(null);
 
-  const ext = pdfUrl?.split('.').pop()?.toLowerCase() || '';
+  const fileHint = fileName || pdfUrl || '';
+  const ext = fileHint.split('?')[0].split('.').pop()?.toLowerCase() || '';
   const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext);
   const isPdf = ext === 'pdf';
   
@@ -164,13 +165,15 @@ const PDFThumbnail = ({ pdfUrl, title, note }) => {
     return (
       <div ref={containerRef} className="w-full h-full relative bg-gray-900 flex flex-col items-center justify-center p-4">
         {canvasEl}
-        <div className="text-3xl mb-2">🐢</div>
-        <div className="text-white/80 font-bold text-xs mb-2">Slow Network ({networkType.toUpperCase()})</div>
+        <div className={`${compact ? 'text-lg mb-1' : 'text-3xl mb-2'}`}>🐢</div>
+        <div className={`text-white/80 font-bold ${compact ? 'text-[9px] mb-1 text-center leading-tight' : 'text-xs mb-2'}`}>
+          {compact ? `Slow ${networkType.toUpperCase()}` : `Slow Network (${networkType.toUpperCase()})`}
+        </div>
         <button 
           onClick={(e) => { e.stopPropagation(); setUserTriggered(true); setLoading(true); }}
-          className="px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white text-[10px] rounded-lg shadow-lg font-semibold"
+          className={`bg-violet-600 hover:bg-violet-700 text-white rounded-lg shadow-lg font-semibold ${compact ? 'px-2 py-1 text-[9px]' : 'px-3 py-1.5 text-[10px]'}`}
         >
-          Load Thumbnail
+          {compact ? 'Load' : 'Load Thumbnail'}
         </button>
       </div>
     );
@@ -182,8 +185,8 @@ const PDFThumbnail = ({ pdfUrl, title, note }) => {
       <div ref={containerRef} className="w-full h-full relative">
         {canvasEl}
         <div className="w-full h-full flex flex-col items-center justify-center bg-black/20">
-          <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-          <div className="text-white/50 text-xs mt-2">{!isVisible ? 'Waiting...' : 'Loading PDF...'}</div>
+          <div className={`${compact ? 'w-5 h-5 border-[1.5px]' : 'w-8 h-8 border-2'} border-white/30 border-t-white rounded-full animate-spin`} />
+          <div className={`text-white/50 ${compact ? 'text-[9px] mt-1' : 'text-xs mt-2'}`}>{!isVisible ? 'Waiting...' : 'Loading PDF...'}</div>
         </div>
       </div>
     );
@@ -202,10 +205,10 @@ const PDFThumbnail = ({ pdfUrl, title, note }) => {
       <div ref={containerRef} className="w-full h-full relative">
         {canvasEl}
         <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-700 to-gray-800">
-          <div className="text-5xl mb-2">{IconComponent}</div>
-          <div className="text-white/80 font-bold text-sm mb-1">{typeName}</div>
-          <div className="text-white/60 text-xs text-center px-3 line-clamp-2">
-            {title?.slice(0, 30)}
+          <div className={`${compact ? 'text-3xl mb-1' : 'text-5xl mb-2'}`}>{IconComponent}</div>
+          <div className={`text-white/80 font-bold ${compact ? 'text-[10px] mb-0.5 text-center px-2 leading-tight' : 'text-sm mb-1'}`}>{typeName}</div>
+          <div className={`text-white/60 text-center px-3 line-clamp-2 ${compact ? 'text-[9px]' : 'text-xs'}`}>
+            {(title || fileName)?.slice(0, compact ? 24 : 30)}
           </div>
         </div>
       </div>

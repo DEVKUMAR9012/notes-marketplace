@@ -167,6 +167,13 @@ exports.createNote = async (req, res) => {
       });
     }
 
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please attach a file before uploading.'
+      });
+    }
+
     // ✅ Duplicate check using fileHash
     if (fileHash) {
       const existing = await Note.findOne({ fileHash });
@@ -187,7 +194,7 @@ exports.createNote = async (req, res) => {
     }
 
     // ✅ Handle uploaded PDF from Cloudinary
-    const pdfUrl = req.file ? req.file.path : '';
+    const pdfUrl = req.file.path;
 
     const note = await Note.create({
       title,

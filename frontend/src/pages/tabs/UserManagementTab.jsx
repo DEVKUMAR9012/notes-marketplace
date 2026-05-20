@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { motion } from 'framer-motion';
 import { List } from 'react-window';
 import {
   FiUsers, FiSearch, FiEye, FiLock, FiUnlock, FiTrash2,

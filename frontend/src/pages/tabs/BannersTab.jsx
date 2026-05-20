@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { FiVolume2, FiTrash2, FiPlus, FiPower, FiCheck, FiMail, FiUsers } from 'react-icons/fi';
 import API from '../../utils/api';
-import { Shimmer, SectionHeader, Btn, Toast, Badge, Input, Select } from './SharedAdminUI';
+import { Shimmer, SectionHeader, Btn, Toast, Badge, Select } from './SharedAdminUI';
 
 export default function BannersTab() {
   const [banners, setBanners] = useState([]);
@@ -139,7 +139,7 @@ export default function BannersTab() {
             >
               <option value="all">All Registered Users</option>
               <option value="new">New Users (Registered last 7 days)</option>
-              <option value="old">Old Users (Registered > 7 days ago)</option>
+              <option value="old">Old Users (Registered &gt; 7 days ago)</option>
               <option value="specific">Specific Targeted Users (By Email)</option>
             </Select>
 

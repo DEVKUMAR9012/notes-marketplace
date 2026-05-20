@@ -306,6 +306,13 @@ const LiveChatButton = () => {
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
+      const updateLastMessage = (text) => {
+        setMessages(prev => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { role: 'assistant', content: text };
+          return updated;
+        });
+      };
       let accumulatedText = '';
 
       while (true) {
@@ -316,11 +323,7 @@ const LiveChatButton = () => {
         accumulatedText += chunk;
 
         // Progressively inject the accumulated streamed token into the UI buffer
-        setMessages(prev => {
-          const updated = [...prev];
-          updated[updated.length - 1] = { role: 'assistant', content: accumulatedText };
-          return updated;
-        });
+        updateLastMessage(accumulatedText);
       }
     } catch (err) {
       if (err.name !== 'AbortError') {

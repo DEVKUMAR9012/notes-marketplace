@@ -91,24 +91,24 @@ export default function Upload() {
     setLoading(true);
     setUploadProgress(0);
 
-    const fileHash = await calculateFileHash(file);
-
-    const uploadData = new FormData();
-    uploadData.append('title', formData.title);
-    uploadData.append('description', formData.description);
-    uploadData.append('subject', formData.subject);
-    if (formData.itemType === 'note') {
-      uploadData.append('college', formData.college);
-      uploadData.append('semester', formData.semester);
-    }
-    uploadData.append('price', formData.price);
-    uploadData.append('itemType', formData.itemType);
-    uploadData.append('fileHash', fileHash);
-    uploadData.append('pdf', file);
-
-    abortControllerRef.current = new AbortController();
-
     try {
+      const fileHash = await calculateFileHash(file);
+
+      const uploadData = new FormData();
+      uploadData.append('title', formData.title);
+      uploadData.append('description', formData.description);
+      uploadData.append('subject', formData.subject);
+      if (formData.itemType === 'note') {
+        uploadData.append('college', formData.college);
+        uploadData.append('semester', formData.semester);
+      }
+      uploadData.append('price', formData.price);
+      uploadData.append('itemType', formData.itemType);
+      uploadData.append('fileHash', fileHash);
+      uploadData.append('pdf', file);
+
+      abortControllerRef.current = new AbortController();
+
       await API.post('/notes', uploadData, {
         headers: {
           'Content-Type': 'multipart/form-data',
@@ -116,7 +116,8 @@ export default function Upload() {
         signal: abortControllerRef.current.signal,
         // ✅ Real-Time Upload Progress Bar Tracking
         onUploadProgress: (progressEvent) => {
-          const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          const total = progressEvent.total || file.size || 0;
+          const percent = total > 0 ? Math.round((progressEvent.loaded * 100) / total) : 0;
           setUploadProgress(percent);
         }
       });
@@ -128,14 +129,15 @@ export default function Upload() {
         return; // Handled by cancelUpload
       }
       console.error(err);
-      const message = err.response?.data?.message || 'Upload failed. Please try again.';
+      const message = err.message || err.response?.data?.message || 'Upload failed. Please try again.';
       setError(message);
-      showToast('Upload failed', 'error');
+      showToast(message, 'error');
       setUploadProgress(0);
     } finally {
       if (abortControllerRef.current && !abortControllerRef.current.signal.aborted) {
         setLoading(false);
       }
+      abortControllerRef.current = null;
     }
   };
 

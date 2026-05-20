@@ -27,7 +27,7 @@ export const CartProvider = ({ children }) => {
 
   useEffect(() => {
     fetchCart();
-  }, [user]);
+  }, [fetchCart]);
 
   const toggleCartItem = useCallback(async (noteId) => {
     try {
@@ -50,7 +50,7 @@ export const CartProvider = ({ children }) => {
     return cart.some(item => item._id === noteId);
   }, [cart]);
 
-  const clearCart = () => setCart([]);
+  const clearCart = useCallback(() => setCart([]), []);
 
   return (
     <CartContext.Provider value={{ cart, loading, toggleCartItem, isInCart, fetchCart, clearCart }}>

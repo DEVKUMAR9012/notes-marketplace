@@ -17,6 +17,23 @@ export const ALLOWED_MIME_TYPES = [
   'text/plain'
 ];
 
+export const ALLOWED_EXTENSIONS = [
+  'pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx',
+  'jpg', 'jpeg', 'png', 'gif', 'webp', 'txt'
+];
+
+const getFileExtension = (file) => {
+  const parts = file?.name?.toLowerCase()?.split('.') || [];
+  return parts.length > 1 ? parts.pop() : '';
+};
+
+const isAcceptedFileType = (file) => {
+  const mimeType = file?.type || '';
+  const extension = getFileExtension(file);
+
+  return ALLOWED_MIME_TYPES.includes(mimeType) || ALLOWED_EXTENSIONS.includes(extension);
+};
+
 export const validateFile = (file) => {
   if (!file) return 'Please select a file to upload.';
 
@@ -24,12 +41,12 @@ export const validateFile = (file) => {
     return `File size too large (Max ${(MAX_FILE_SIZE / 1024 / 1024).toFixed(0)}MB). Please compress the file and try again.`;
   }
 
-  if (!ALLOWED_MIME_TYPES.includes(file.type)) {
-    return 'Invalid file type. Executables and unsupported formats are blocked for security.';
+  if (!isAcceptedFileType(file)) {
+    return 'Invalid file type. Allowed: PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX, JPG, PNG, GIF, WEBP, TXT.';
   }
 
   // Double extension check (e.g., malicious.pdf.exe)
-  const parts = file.name.split('.');
+  const parts = file.name.toLowerCase().split('.');
   if (parts.length > 2 && parts[parts.length - 1] === 'exe') {
     return 'Malicious file pattern detected.';
   }

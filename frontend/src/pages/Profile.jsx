@@ -110,6 +110,7 @@ export default function Profile() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user: authUser } = useAuth();
+  const authUserId = authUser?._id;
   
   const isOwnProfile = !id || id === authUser?._id;
 
@@ -155,15 +156,15 @@ export default function Profile() {
           linkedin: u.socialLinks?.linkedin || '',
         }
       });
-      if (authUser) {
-        setIsFollowing(u.followers?.includes(authUser._id));
+      if (authUserId) {
+        setIsFollowing(u.followers?.includes(authUserId));
       }
     } catch (err) {
       console.error('Profile fetch error:', err);
     } finally {
       setLoading(false);
     }
-  }, [id, isOwnProfile, authUser?._id]);
+  }, [id, isOwnProfile, authUserId]);
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
 

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiDownload, FiCheck, FiShoppingCart } from 'react-icons/fi';
 import API from '../utils/api';
-import { downloadPdf, buildPdfUrl } from '../utils/downloadPdf';
+import { downloadPdf } from '../utils/downloadPdf';
 
 // Load Razorpay script
 const loadRazorpay = () =>

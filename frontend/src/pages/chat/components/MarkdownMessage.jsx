@@ -19,7 +19,7 @@ const MarkdownMessage = memo(function MarkdownMessage({ content, className = '' 
   }
 
   // Check if content looks like markdown (has markdown patterns)
-  const hasMarkdown = /[*_`#\[\]()!]|```|---|\n\s*[-*+]|^\s*\d+\.|> /.test(content);
+  const hasMarkdown = /[*_`#[\]()!]|```|---|\n\s*[-*+]|^\s*\d+\.|> /.test(content);
 
   // If no markdown patterns, render as plain text for performance
   if (!hasMarkdown) {
@@ -34,10 +34,9 @@ const MarkdownMessage = memo(function MarkdownMessage({ content, className = '' 
           rehypePlugins={[rehypeSanitize]}
           components={{
             code: CodeBlock,
-            // Custom style heading
-            h1: ({ node, ...props }) => <h1 className="markdown-h1" {...props} />,
-            h2: ({ node, ...props }) => <h2 className="markdown-h2" {...props} />,
-            h3: ({ node, ...props }) => <h3 className="markdown-h3" {...props} />,
+            h1: ({ node, children, ...props }) => <h1 className="markdown-h1" {...props}>{children}</h1>,
+            h2: ({ node, children, ...props }) => <h2 className="markdown-h2" {...props}>{children}</h2>,
+            h3: ({ node, children, ...props }) => <h3 className="markdown-h3" {...props}>{children}</h3>,
             // Custom style lists
             ul: ({ node, ...props }) => <ul className="markdown-ul" {...props} />,
             ol: ({ node, ...props }) => <ol className="markdown-ol" {...props} />,
@@ -45,7 +44,7 @@ const MarkdownMessage = memo(function MarkdownMessage({ content, className = '' 
             // Custom style blockquote
             blockquote: ({ node, ...props }) => <blockquote className="markdown-blockquote" {...props} />,
             // Custom style links (no target=_blank for security)
-            a: ({ node, href, ...props }) => (
+            a: ({ node, href, children, ...props }) => (
               <a 
                 href={href} 
                 className="markdown-link"
@@ -57,7 +56,9 @@ const MarkdownMessage = memo(function MarkdownMessage({ content, className = '' 
                   }
                 }}
                 {...props} 
-              />
+              >
+                {children}
+              </a>
             ),
             // Custom style tables
             table: ({ node, ...props }) => <table className="markdown-table" {...props} />,
