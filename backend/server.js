@@ -70,13 +70,19 @@ io.on('connection', async (socket) => {
   socket.on('leave_chat', (chatId) => socket.leave(chatId));
 
   // ── Send message
-  socket.on('send_message', async ({ chatId, text, quickReply, replyTo, tempId }) => {
+  socket.on('send_message', async ({ chatId, text, quickReply, replyTo, tempId }, ack) => {
     try {
       if (!text?.trim() && !quickReply) return;
 
       const chat = await Chat.findOne({ _id: chatId, participants: socket.user._id });
-      if (!chat) return socket.emit('error', { message: 'Access denied' });
-      if (chat.blockedBy) return socket.emit('error', { message: 'Chat is blocked' });
+      if (!chat) {
+        ack?.({ success: false, message: 'Access denied' });
+        return socket.emit('error', { message: 'Access denied' });
+      }
+      if (chat.blockedBy) {
+        ack?.({ success: false, message: 'Chat is blocked' });
+        return socket.emit('error', { message: 'Chat is blocked' });
+      }
 
       // Personal info warning — detect phone / UPI before saving
       const phoneRegex = /(?:^|\s)(\+91|0)?[6-9]\d{9}(?:\s|$)/;
@@ -184,13 +190,25 @@ io.on('connection', async (socket) => {
   });
 
   // ── Interactive Group Chat Polls
-  socket.on('create_poll', async ({ chatId, question, options, tempId }) => {
+  socket.on('create_poll', async ({ chatId, question, options, tempId }, ack) => {
     try {
-      if (!question?.trim() || !options || options.length < 2) return;
+      const cleanQuestion = question?.trim();
+      const cleanOptions = Array.isArray(options)
+        ? options.map((option) => option?.trim()).filter(Boolean)
+        : [];
+
+      if (!cleanQuestion) return ack?.({ success: false, message: 'Poll question is required.' });
+      if (cleanOptions.length < 2) return ack?.({ success: false, message: 'At least 2 poll options are required.' });
 
       const chat = await Chat.findOne({ _id: chatId, participants: socket.user._id });
-      if (!chat) return socket.emit('error', { message: 'Access denied' });
-      if (chat.blockedBy) return socket.emit('error', { message: 'Chat is blocked' });
+      if (!chat) {
+        ack?.({ success: false, message: 'Access denied' });
+        return socket.emit('error', { message: 'Access denied' });
+      }
+      if (chat.blockedBy) {
+        ack?.({ success: false, message: 'Chat is blocked' });
+        return socket.emit('error', { message: 'Chat is blocked' });
+      }
 
       const msgData = {
         chat: chatId,
@@ -198,8 +216,8 @@ io.on('connection', async (socket) => {
         text: `📊 Poll: ${question.trim()}`,
         fileType: 'poll',
         poll: {
-          question: question.trim(),
-          options: options.filter(opt => opt.trim()).map(opt => ({ optionText: opt.trim(), votes: [] }))
+          question: cleanQuestion,
+          options: cleanOptions.map((optionText) => ({ optionText, votes: [] }))
         }
       };
 
@@ -230,8 +248,10 @@ io.on('connection', async (socket) => {
           });
         }
       });
+      ack?.({ success: true, message: msgObj });
     } catch (err) {
       console.error('create_poll error:', err);
+      ack?.({ success: false, message: 'Failed to create poll.' });
     }
   });
 

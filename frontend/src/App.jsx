@@ -24,6 +24,7 @@ const Cart          = lazy(() => import('./pages/Cart'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const Contact       = lazy(() => import('./pages/Contact'));
 const Chat          = lazy(() => import('./pages/Chat'));
+const AI            = lazy(() => import('./pages/AI'));
 
 // Inline fallback — zero dependencies, renders instantly from CSS
 const PageLoader = () => (
@@ -104,6 +105,9 @@ function App() {
                     } />
                     <Route path="/chat" element={
                       <ProtectedRoute><LayoutWithNavbar><Chat /></LayoutWithNavbar></ProtectedRoute>
+                    } />
+                    <Route path="/ai" element={
+                      <ProtectedRoute><LayoutWithNavbar><AI /></LayoutWithNavbar></ProtectedRoute>
                     } />
 
                     {/* ── 404 ── */}

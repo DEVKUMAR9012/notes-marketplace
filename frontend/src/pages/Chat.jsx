@@ -268,14 +268,103 @@ export default function Chat() {
     return 'other';
   }, []);
 
+  const resolveOutgoingChat = useCallback(async (requestedChat = activeChat) => {
+    if (!requestedChat?._id) return null;
+    if (requestedChat._id !== 'virtual_admin_chat') return requestedChat;
+
+    setMsgLoading(true);
+    try {
+      let resolvedChat = null;
+      let adminId = null;
+
+      for (const chat of conversations) {
+        const adminPart = chat.participants?.find((participant) => participant.role === 'admin');
+        if (!adminPart) continue;
+
+        adminId = adminPart._id;
+        if (!chat.isGroupChat) {
+          resolvedChat = chat;
+          break;
+        }
+      }
+
+      if (!resolvedChat) {
+        const reloadRes = await API.get('/chat');
+        const serverChats = reloadRes.data.chats || [];
+        setConversations(serverChats);
+
+        resolvedChat = serverChats.find(
+          (chat) => !chat.isGroupChat && chat.participants?.some((participant) => participant.role === 'admin')
+        ) || null;
+
+        if (!adminId) {
+          const adminParticipant = serverChats
+            .flatMap((chat) => chat.participants || [])
+            .find((participant) => participant.role === 'admin');
+          adminId = adminParticipant?._id || null;
+        }
+      }
+
+      if (!resolvedChat && adminId) {
+        const res = await API.post('/chat', { recipientId: adminId });
+        resolvedChat = res.data.chat;
+      }
+
+      if (!resolvedChat) {
+        const searchRes = await API.get('/chat/users/search?q=admin');
+        const foundAdmin = searchRes.data.users?.find((candidate) => candidate.role === 'admin') || searchRes.data.users?.[0];
+        if (!foundAdmin?._id) {
+          throw new Error('Admin chat is unavailable right now.');
+        }
+
+        const res = await API.post('/chat', { recipientId: foundAdmin._id });
+        resolvedChat = res.data.chat;
+      }
+
+      if (!resolvedChat?._id) {
+        throw new Error('Admin chat is unavailable right now.');
+      }
+
+      setActiveChat(resolvedChat);
+      setConversations((prev) => {
+        const cleanList = prev.filter((chat) => chat._id !== 'virtual_admin_chat');
+        const existingIndex = cleanList.findIndex((chat) => chat._id === resolvedChat._id);
+
+        if (existingIndex === -1) {
+          return [resolvedChat, ...cleanList];
+        }
+
+        const updated = [...cleanList];
+        updated[existingIndex] = { ...updated[existingIndex], ...resolvedChat };
+        if (existingIndex > 0) {
+          const [moved] = updated.splice(existingIndex, 1);
+          updated.unshift(moved);
+        }
+        return updated;
+      });
+
+      if (socket) {
+        socket.emit('join_chat', resolvedChat._id);
+      }
+
+      return resolvedChat;
+    } catch (err) {
+      console.error('Failed to initialize real admin chat', err);
+      showToast(err.message || 'Could not connect to Admin database. Try again.', 'error');
+      return null;
+    } finally {
+      setMsgLoading(false);
+    }
+  }, [activeChat, conversations, showToast, socket]);
+
   const handleAttachmentUpload = useCallback(async (file) => {
     if (!file || !activeChat?._id) return;
-    if (activeChat._id === 'virtual_admin_chat') {
-      showToast('Please send a text first to initialize the admin chat, then attach your document.', 'error');
-      return;
-    }
+
+    const targetChat = await resolveOutgoingChat(activeChat);
+    if (!targetChat?._id) return;
 
     const tempId = `upload_${Date.now()}`;
+    const targetChatId = targetChat._id;
     const replyTarget = replyingTo;
     const previewUrl = URL.createObjectURL(file);
     const fileType = getAttachmentType(file);
@@ -285,7 +374,7 @@ export default function Chat() {
     const optimisticMessage = {
       _id: tempId,
       tempId,
-      chat: activeChat._id,
+      chat: targetChatId,
       sender: user,
       text: '',
       createdAt: new Date().toISOString(),
@@ -310,7 +399,7 @@ export default function Chat() {
     if (replyTarget?._id) formData.append('replyTo', replyTarget._id);
 
     try {
-      const res = await API.post(`/chat/${activeChat._id}/upload`, formData, {
+      const res = await API.post(`/chat/${targetChatId}/upload`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         onUploadProgress: (event) => {
           const total = event.total || file.size || 0;
@@ -339,9 +428,82 @@ export default function Chat() {
     } finally {
       setUploading(false);
     }
-  }, [activeChat, getAttachmentType, rememberAttachmentPreviewUrl, replyingTo, showToast, user]);
+  }, [activeChat, getAttachmentType, rememberAttachmentPreviewUrl, replyingTo, resolveOutgoingChat, showToast, user]);
 
   // #18: Pooled Audio instance — avoids new Audio() on every notification (prevents memory leaks)
+  const handlePollCreate = useCallback(async ({ question, options }) => {
+    const cleanQuestion = question?.trim();
+    const validOptions = (options || []).map((option) => option.trim()).filter(Boolean);
+
+    if (!cleanQuestion) {
+      showToast('Enter a poll question', 'error');
+      return false;
+    }
+    if (validOptions.length < 2) {
+      showToast('Provide at least 2 options', 'error');
+      return false;
+    }
+    if (!socket || !activeChat?._id) {
+      showToast('Messenger is offline', 'error');
+      return false;
+    }
+
+    const targetChat = await resolveOutgoingChat(activeChat);
+    if (!targetChat?._id) return false;
+
+    const tempId = `poll_${Date.now()}`;
+    const targetChatId = targetChat._id;
+    const optimisticMessage = {
+      _id: tempId,
+      tempId,
+      chat: targetChatId,
+      sender: user,
+      text: `📊 Poll: ${cleanQuestion}`,
+      createdAt: new Date().toISOString(),
+      pending: true,
+      fileType: 'poll',
+      poll: {
+        question: cleanQuestion,
+        options: validOptions.map((optionText) => ({ optionText, votes: [] })),
+      },
+    };
+
+    setMessages((prev) => [...prev, optimisticMessage]);
+
+    return new Promise((resolve) => {
+      socket.timeout(8000).emit(
+        'create_poll',
+        {
+          chatId: targetChatId,
+          question: cleanQuestion,
+          options: validOptions,
+          tempId,
+        },
+        (err, response) => {
+          if (err || !response?.success) {
+            setMessages((prev) => prev.map((message) => (
+              message.tempId === tempId ? { ...message, pending: false, failed: true } : message
+            )));
+            showToast(response?.message || 'Failed to send poll. Please try again.', 'error');
+            resolve(false);
+            return;
+          }
+
+          if (response.message) {
+            setMessages((prev) => prev.map((message) => (
+              message.tempId === tempId
+                ? { ...message, ...response.message, pending: false, failed: false }
+                : message
+            )));
+          }
+
+          showToast('Live poll sent!', 'success');
+          resolve(true);
+        }
+      );
+    });
+  }, [activeChat, resolveOutgoingChat, showToast, socket, user]);
+
   const notificationAudioRef = useRef(null);
   const currentAssetRef = useRef(null);
   const triggerSoundFeedback = useCallback((asset) => {
@@ -804,7 +966,9 @@ export default function Chat() {
   const handleSend = async () => {
     const text = inputText.trim();
     if (!text || !activeChat || !socket) return;
+    return sendReliableMessage(text);
 
+    /*
     let targetChatId = activeChat._id;
 
     // 🚀 THE CRITICAL FIX: Intercept Virtual Chat & Create/Resolve Real Chat in DB
@@ -899,12 +1063,16 @@ export default function Chat() {
         return m;
       }));
     }, 5000);
+    */
   };
 
-  const handleForceSend = () => {
-    // #2: send pendingForceSend (original input), not the warning string
+  const handleForceSend = async () => {
     if (!pendingForceSend || !activeChat || !socket) return;
-    socket.emit('force_send_message', { chatId: activeChat._id, text: pendingForceSend });
+
+    const targetChat = await resolveOutgoingChat(activeChat);
+    if (!targetChat?._id) return;
+
+    socket.emit('force_send_message', { chatId: targetChat._id, text: pendingForceSend });
     setWarningMsg(null);
     setPendingForceSend('');
     setInputText('');
@@ -931,7 +1099,9 @@ export default function Chat() {
 
   const sendQuickReply = async (text) => {
     if (!text || !activeChat || !socket) return;
+    return sendReliableMessage(text, { quickReply: true });
 
+    /*
     let targetChatId = activeChat._id;
 
     // 🚀 THE CRITICAL FIX: Intercept Virtual Chat & Create/Resolve Real Chat in DB
@@ -1024,9 +1194,55 @@ export default function Chat() {
         return m;
       }));
     }, 5000);
+    */
   };
 
+  const sendReliableMessage = useCallback(async (text, options = {}) => {
+    if (!text || !activeChat || !socket) return;
 
+    const targetChat = await resolveOutgoingChat(activeChat);
+    if (!targetChat?._id) return;
+
+    const tempId = `temp_${Date.now()}`;
+    const targetChatId = targetChat._id;
+    const optimisticMessage = {
+      _id: tempId,
+      tempId,
+      chat: targetChatId,
+      sender: user,
+      text,
+      createdAt: new Date().toISOString(),
+      pending: true,
+      replyTo: replyingTo
+    };
+
+    setMessages(prev => [...prev, optimisticMessage]);
+
+    socket.emit('send_message', {
+      chatId: targetChatId,
+      text,
+      replyTo: replyingTo?._id,
+      tempId,
+      quickReply: options.quickReply ? text : undefined,
+    });
+
+    if (!options.quickReply) {
+      setInputText('');
+    }
+    setReplyingTo(null);
+    isTypingEmittedRef.current = false;
+    clearTimeout(typingTimeoutRef.current);
+    socket.emit('typing_stop', { chatId: targetChatId });
+
+    setTimeout(() => {
+      setMessages(prev => prev.map(m => {
+        if (m.tempId === tempId && m.pending) {
+          return { ...m, pending: false, failed: true };
+        }
+        return m;
+      }));
+    }, 5000);
+  }, [activeChat, replyingTo, resolveOutgoingChat, socket, user]);
 
   // Search buffering
   useEffect(() => {
@@ -1385,11 +1601,11 @@ export default function Chat() {
               <MessageInput 
                 inputText={inputText} setInputText={setInputText} handleTyping={handleTyping} handleSend={handleSend}
                 replyingTo={replyingTo} setReplyingTo={setReplyingTo} activeChat={activeChat} uploading={uploading} setUploading={setUploading} showToast={showToast}
-                socket={socket}
                 warningMsg={warningMsg}
                 handleForceSend={handleForceSend}
                 setWarningMsg={setWarningMsg}
                 handleAttachmentUpload={handleAttachmentUpload}
+                handlePollCreate={handlePollCreate}
               />
             )}
 

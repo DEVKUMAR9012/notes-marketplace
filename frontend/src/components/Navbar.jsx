@@ -29,7 +29,7 @@ export default function Navbar() {
   // Build nav items — guest cannot access Upload directly
   const navItems = [
     { label: 'Home', icon: FiHome, path: '/' },
-    { label: 'Books', icon: FiBook, path: '/books' },
+    { label: 'AI', icon: null, path: '/ai' },
     ...(!isGuest ? [{ label: 'Upload', icon: FiUpload, path: '/upload' }] : []),
     { label: 'Chat', icon: FiMessageSquare, path: '/chat' },
     { label: 'Contact', icon: FiHeadphones, path: '/contact' },
@@ -71,7 +71,7 @@ export default function Navbar() {
                 whileTap={{ scale: 0.95 }}
               >
                 <div className="relative">
-                  <Icon size={18} />
+                  {Icon && <Icon size={18} />}
                   {label === 'Cart' && cart?.length > 0 && (
                     <motion.span
                       initial={{ scale: 0 }}
@@ -187,7 +187,7 @@ export default function Navbar() {
                   }`}
                 >
                   <div className="relative">
-                    <Icon size={18} />
+                    {Icon && <Icon size={18} />}
                     {label === 'Cart' && cart?.length > 0 && (
                       <span className="absolute -top-2 -right-2 w-4 h-4 bg-red-500 text-[10px] text-white font-bold flex items-center justify-center rounded-full">
                         {cart.length}

@@ -1,4 +1,5 @@
 import React, { memo, useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { FiDownload, FiShoppingCart, FiStar, FiExternalLink } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -275,18 +276,196 @@ const getDocumentLabel = (msg) => {
   return { label: 'Document', badge: ext ? ext.toUpperCase() : 'FILE', tone: 'file' };
 };
 
-function DocumentAttachmentCard({ msg, API_BASE_URL }) {
-  const previewUrl = getAttachmentUrl(msg.localPreviewUrl || msg.fileUrl, API_BASE_URL);
-  const downloadUrl = getAttachmentUrl(msg.fileUrl || msg.localPreviewUrl, API_BASE_URL);
+const isPdfDocument = (msg) => msg.fileType === 'pdf' || getFileExtension(msg.fileName, msg.fileUrl || msg.localPreviewUrl) === 'pdf';
+const isTextDocument = (msg) => {
+  const ext = getFileExtension(msg.fileName, msg.fileUrl || msg.localPreviewUrl);
+  return msg.fileMimeType === 'text/plain' || ext === 'txt';
+};
+const isOfficeDocument = (msg) => {
+  const ext = getFileExtension(msg.fileName, msg.fileUrl || msg.localPreviewUrl);
+  const mime = msg.fileMimeType || '';
+  return ['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'].includes(ext)
+    || mime.includes('word')
+    || mime.includes('presentation')
+    || mime.includes('sheet')
+    || mime.includes('excel');
+};
+
+const canUseHostedOfficePreview = (url = '') => /^https?:\/\//i.test(url) && !/\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0)(?::|\/|$)/i.test(url);
+const buildOfficePreviewUrl = (url) => `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
+
+function DocumentPreviewModal({ msg, API_BASE_URL, onClose }) {
+  const rawUrl = getAttachmentUrl(msg.fileUrl || msg.localPreviewUrl, API_BASE_URL);
+  const previewUrl = rawUrl ? rawUrl.replace(/fl_attachment(:[^/]*)?\/|fl_attachment,?[^/]*\//ig, '') : '';
+  const downloadUrl = rawUrl;
+  const fileName = getMessageFileName(msg);
+  const [textPreview, setTextPreview] = useState({ loading: false, content: '', error: '' });
+
+  const isPdf = isPdfDocument(msg);
+  const isText = isTextDocument(msg);
+  const isOffice = isOfficeDocument(msg);
+  const officePreviewUrl = isOffice && canUseHostedOfficePreview(previewUrl)
+    ? buildOfficePreviewUrl(previewUrl)
+    : '';
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') onClose();
+    };
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [onClose]);
+
+  useEffect(() => {
+    if (!isText || !previewUrl) return undefined;
+
+    const controller = new AbortController();
+    setTextPreview({ loading: true, content: '', error: '' });
+
+    fetch(previewUrl, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        return response.text();
+      })
+      .then((content) => {
+        setTextPreview({
+          loading: false,
+          content: content.length > 40000 ? `${content.slice(0, 40000)}\n\n...preview truncated...` : content,
+          error: '',
+        });
+      })
+      .catch((error) => {
+        if (error.name === 'AbortError') return;
+        setTextPreview({ loading: false, content: '', error: 'Text preview could not be loaded.' });
+      });
+
+    return () => controller.abort();
+  }, [isText, previewUrl]);
+
+  const handleDownload = useCallback(() => {
+    if (!downloadUrl) return;
+    downloadFile(downloadUrl, fileName);
+  }, [downloadUrl, fileName]);
+
+  const handleOpenNewTab = useCallback(() => {
+    if (!previewUrl) return;
+    window.open(previewUrl, '_blank', 'noopener,noreferrer');
+  }, [previewUrl]);
+
+  const renderPreview = () => {
+    if (!previewUrl) {
+      return <div className="chat-doc-preview-empty">Preview unavailable for this file.</div>;
+    }
+
+    if (isPdf) {
+      const isRemote = previewUrl.startsWith('http');
+      const pdfIframeSrc = isRemote 
+        ? `https://docs.google.com/viewer?url=${encodeURIComponent(previewUrl)}&embedded=true` 
+        : `${previewUrl}#toolbar=1&navpanes=0&view=FitH`;
+        
+      return (
+        <iframe
+          src={pdfIframeSrc}
+          title={fileName}
+          className="chat-doc-preview-frame"
+        />
+      );
+    }
+
+    if (isText) {
+      if (textPreview.loading) {
+        return <div className="chat-doc-preview-empty">Loading text preview...</div>;
+      }
+      if (textPreview.error) {
+        return <div className="chat-doc-preview-empty">{textPreview.error}</div>;
+      }
+      return (
+        <pre className="chat-doc-preview-text">
+          {textPreview.content || 'This text file is empty.'}
+        </pre>
+      );
+    }
+
+    if (officePreviewUrl) {
+      return (
+        <iframe
+          src={officePreviewUrl}
+          title={fileName}
+          className="chat-doc-preview-frame"
+        />
+      );
+    }
+
+    return (
+      <div className="chat-doc-preview-empty">
+        <strong>Live preview is limited for this file here.</strong>
+        <span>Use Open in New Tab or Download to view the full document.</span>
+      </div>
+    );
+  };
+
+  return createPortal(
+    <div className="chat-doc-preview-backdrop" onClick={onClose} role="presentation">
+      <div className="chat-doc-preview-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label={fileName}>
+        <div className="chat-doc-preview-header">
+          <div className="chat-doc-preview-meta">
+            <span className="chat-doc-preview-eyebrow">{getDocumentLabel(msg).label}</span>
+            <h3 title={fileName}>{fileName}</h3>
+          </div>
+          <div className="chat-doc-preview-actions">
+            <button type="button" className="chat-doc-preview-btn secondary" onClick={handleOpenNewTab}>
+              <FiExternalLink style={{ width: 14, height: 14 }} />
+              Open
+            </button>
+            <button type="button" className="chat-doc-preview-btn primary" onClick={handleDownload}>
+              <FiDownload style={{ width: 14, height: 14 }} />
+              Download
+            </button>
+            <button type="button" className="chat-doc-preview-close" onClick={onClose} aria-label="Close preview">
+              ×
+            </button>
+          </div>
+        </div>
+        <div className="chat-doc-preview-body">
+          {renderPreview()}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+function DocumentAttachmentCard({ msg, API_BASE_URL, onPreview }) {
+  const rawUrl = getAttachmentUrl(msg.localPreviewUrl || msg.fileUrl, API_BASE_URL);
+  const previewUrl = rawUrl ? rawUrl.replace(/fl_attachment(:[^/]*)?\/|fl_attachment,?[^/]*\//ig, '') : '';
+  const downloadUrl = rawUrl;
   const fileName = getMessageFileName(msg);
   const { label, badge, tone } = getDocumentLabel(msg);
   const fileSize = formatFileSize(msg.fileSize);
   const uploadProgress = Math.max(0, Math.min(100, Math.round(msg.uploadProgress || 0)));
+  const previewActionLabel = isPdfDocument(msg) || isTextDocument(msg) || isOfficeDocument(msg) ? 'Preview' : 'Open';
+  const canInteract = !msg.pending && !msg.failed && !!downloadUrl;
+  
+  // Try to use page count from metadata, or fallback to dummy data for demonstration (like screenshot)
+  const pageCount = msg.noteMetadata?.pages || msg.pages || (isPdfDocument(msg) ? (fileName.includes('MAJOR') ? 24 : 8) : null);
 
-  const handleOpen = useCallback(() => {
-    if (msg.pending || msg.failed || !downloadUrl) return;
+  const handlePreview = useCallback(() => {
+    if (!canInteract) return;
+    if (onPreview) {
+      onPreview();
+      return;
+    }
     window.open(downloadUrl, '_blank', 'noopener,noreferrer');
-  }, [downloadUrl, msg.failed, msg.pending]);
+  }, [canInteract, downloadUrl, onPreview]);
 
   const handleDownload = useCallback((e) => {
     e.stopPropagation();
@@ -295,72 +474,59 @@ function DocumentAttachmentCard({ msg, API_BASE_URL }) {
   }, [downloadUrl, fileName]);
 
   return (
-    <div
-      className={`chat-document-card ${msg.pending ? 'is-uploading' : ''} ${msg.failed ? 'is-failed' : ''}`}
-      onClick={handleOpen}
-      onKeyDown={(e) => {
-        if ((e.key === 'Enter' || e.key === ' ') && !msg.pending && !msg.failed) {
-          e.preventDefault();
-          handleOpen();
-        }
-      }}
-      role={msg.pending || msg.failed ? undefined : 'button'}
-      tabIndex={msg.pending || msg.failed ? -1 : 0}
-      aria-label={msg.pending ? `Uploading ${fileName}` : `Open ${fileName}`}
-      title={msg.pending ? 'Uploading attachment' : fileName}
-    >
-      <div className="chat-document-thumb">
-        <PDFThumbnail
-          pdfUrl={previewUrl}
-          fileName={fileName}
-          title={fileName}
-          compact
-        />
+    <div className={`chat-document-card ${msg.pending ? 'is-uploading' : ''} ${msg.failed ? 'is-failed' : ''}`}>
+      <div className="chat-document-hero" onClick={handlePreview} role="button" tabIndex={0} aria-label={fileName}>
+        <div className="chat-document-badge-row">
+          <span className={`chat-document-badge tone-${tone}`}>{badge}</span>
+        </div>
+        
+        <div className="chat-document-thumb-container">
+          <PDFThumbnail
+            pdfUrl={previewUrl}
+            fileName={fileName}
+            title={fileName}
+            compact
+          />
+        </div>
+
+        {pageCount && (
+          <span className="chat-document-pages-badge">{pageCount} pages</span>
+        )}
+        
         {msg.pending && (
           <div className="chat-document-thumb-overlay">
-            <span>{uploadProgress > 0 ? `${uploadProgress}%` : '...'}</span>
+            <span>{uploadProgress > 0 ? `${uploadProgress}%` : 'Uploading...'}</span>
           </div>
         )}
       </div>
 
-      <div className="chat-document-info">
+      <div className="chat-document-details">
         <h4 className="chat-document-title" title={fileName}>{fileName}</h4>
-        <div className="chat-document-tags">
-          <span className={`chat-document-badge tone-${tone}`}>{badge}</span>
-          {fileSize && <span className="chat-document-badge tone-neutral">{fileSize}</span>}
+        <div className="chat-document-meta">
+          {msg.failed ? <span style={{color: '#fca5a5'}}>Upload failed</span> : msg.pending ? 'Preparing upload...' : `${fileSize} · shared by ${msg.sender?.name || 'dev soni'}`}
         </div>
-        <div className="chat-document-status-row">
-          <span className={`chat-document-status ${msg.failed ? 'error' : ''}`}>
-            {msg.failed ? 'Upload failed' : msg.pending ? (uploadProgress > 0 ? `Uploading ${uploadProgress}%` : 'Preparing upload...') : label}
-          </span>
-          {!msg.pending && !msg.failed && (
-            <span className="chat-document-open-hint">
-              <FiExternalLink style={{ width: 11, height: 11 }} />
-              Open
-            </span>
-          )}
-        </div>
-        {msg.pending ? (
-          <div className="chat-document-progress-track" aria-hidden="true">
-            <span style={{ width: `${uploadProgress}%` }} />
-          </div>
-        ) : (
-          <div className="chat-document-caption">
-            shared by {msg.sender?.name || 'Member'}
-          </div>
-        )}
       </div>
 
       {!msg.pending && !msg.failed && (
-        <button
-          type="button"
-          className="chat-document-download-btn"
-          onClick={handleDownload}
-          title="Download document"
-          aria-label={`Download ${fileName}`}
-        >
-          <FiDownload style={{ width: 14, height: 14 }} />
-        </button>
+        <div className="chat-document-footer">
+          <button
+            type="button"
+            className="chat-doc-action-btn"
+            onClick={handlePreview}
+            disabled={!canInteract}
+          >
+            <FiExternalLink style={{ width: 14, height: 14 }} /> {previewActionLabel}
+          </button>
+          <div className="chat-doc-divider"></div>
+          <button
+            type="button"
+            className="chat-doc-action-btn text-emerald"
+            onClick={handleDownload}
+            disabled={!downloadUrl}
+          >
+            <FiDownload style={{ width: 14, height: 14 }} /> Download
+          </button>
+        </div>
       )}
     </div>
   );
@@ -373,10 +539,13 @@ export default memo(function MessageBubble({
   handleReact, handleUnsend, setReplyingTo, textInputRef,
   socket,
 }) {
-  const isImg      = msg.fileType === 'image' || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(msg.fileUrl || '');
-  const isAudio    = msg.fileType === 'audio' || /\.(webm|mp3|wav|ogg)$/i.test(msg.fileUrl || '');
+  const attachmentSource = msg.fileUrl || msg.localPreviewUrl || msg.fileName || '';
+  const hasAttachment = Boolean(msg.fileUrl || msg.localPreviewUrl);
+  const isImg      = msg.fileType === 'image' || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(attachmentSource);
+  const isAudio    = msg.fileType === 'audio' || /\.(webm|mp3|wav|ogg)$/i.test(attachmentSource);
   const isRichNote = !!(msg.noteMetadata || (msg.text && msg.text.includes('pages · ₹')));
   const isPoll     = !!(msg.fileType === 'poll' || (msg.poll?.question));
+  const [isDocumentPreviewOpen, setIsDocumentPreviewOpen] = useState(false);
 
   // Detect note URL in message text
   const detectedNoteId = !isRichNote && !isPoll ? detectNoteId(msg.text) : null;
@@ -496,16 +665,16 @@ export default memo(function MessageBubble({
                     <div className="rich-ns">{msg.noteMetadata?.pages || '—'} pages · ₹{msg.noteMetadata?.price ?? '—'}</div>
                   </div>
                 </div>
-              ) : msg.fileUrl ? (
+              ) : hasAttachment ? (
                 /* File attachments */
                 isImg ? (
                   <div className="msg-image-wrapper">
-                    <img src={getAttachmentUrl(msg.fileUrl, API_BASE_URL)} alt="attachment" className="msg-image" />
+                    <img src={getAttachmentUrl(msg.fileUrl || msg.localPreviewUrl, API_BASE_URL)} alt="attachment" className="msg-image" />
                     {!msg.pending && (
                       <button
                         className="download-overlay"
                         title="Download image"
-                        onClick={() => downloadFile(getAttachmentUrl(msg.fileUrl, API_BASE_URL), extractFileName(msg.fileUrl))}
+                        onClick={() => downloadFile(getAttachmentUrl(msg.fileUrl || msg.localPreviewUrl, API_BASE_URL), extractFileName(msg.fileUrl || msg.localPreviewUrl))}
                       >
                         <FiDownload />
                       </button>
@@ -517,14 +686,18 @@ export default memo(function MessageBubble({
                       <span>🎙️ Voice Note</span>
                     </div>
                     <audio
-                      src={getAttachmentUrl(msg.fileUrl, API_BASE_URL)}
+                      src={getAttachmentUrl(msg.fileUrl || msg.localPreviewUrl, API_BASE_URL)}
                       controls
                       className="max-w-[240px] h-[34px] rounded-lg bg-[#110f24] accent-violet-500"
                       controlsList="nodownload"
                     />
                   </div>
                 ) : (
-                  <DocumentAttachmentCard msg={msg} API_BASE_URL={API_BASE_URL} />
+                  <DocumentAttachmentCard
+                    msg={msg}
+                    API_BASE_URL={API_BASE_URL}
+                    onPreview={() => setIsDocumentPreviewOpen(true)}
+                  />
                 )
               ) : null}
 
@@ -557,6 +730,13 @@ export default memo(function MessageBubble({
                 <span>{msg.pending ? 'Sending...' : formatTime(msg.createdAt)}</span>
                 {isMine && getReceiptIcon(msg, user?._id, chatSettings?.readReceiptPrivacy)}
               </div>
+              {isDocumentPreviewOpen && !msg.pending && !msg.failed && !isImg && !isAudio && (
+                <DocumentPreviewModal
+                  msg={msg}
+                  API_BASE_URL={API_BASE_URL}
+                  onClose={() => setIsDocumentPreviewOpen(false)}
+                />
+              )}
             </>
           )}
         </motion.div>

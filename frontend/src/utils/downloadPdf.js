@@ -8,46 +8,66 @@
  */
 export async function downloadFile(url, nameHint = 'file') {
   try {
-    // ── 1. Extract extension from the URL itself (most reliable source) ──────
-    const urlPath = url.split('?')[0]; // strip query params
-    const urlExt  = urlPath.split('.').pop()?.toLowerCase() || '';
+    // ── 1. Determine extension ────────────────────────────────────────────────
+    // First try the nameHint (most reliable — user's original filename)
     const knownExts = ['pdf', 'jpg', 'jpeg', 'png', 'webp', 'gif', 'svg',
                        'mp3', 'wav', 'ogg', 'webm', 'mp4', 'doc', 'docx',
                        'xls', 'xlsx', 'ppt', 'pptx', 'zip', 'txt'];
-    const ext = knownExts.includes(urlExt) ? urlExt : 'pdf'; // fallback to pdf
 
-    // ── 2. Sanitise the name hint into a safe base segment ───────────────────
-    // If nameHint already ends with the extension, strip it
+    const hintExtMatch = nameHint.match(/\.([a-z0-9]+)$/i);
+    const hintExt = hintExtMatch ? hintExtMatch[1].toLowerCase() : '';
+
+    const urlPath = url.split('?')[0];
+    const urlExt  = urlPath.split('.').pop()?.toLowerCase() || '';
+
+    const ext = knownExts.includes(hintExt)
+      ? hintExt
+      : knownExts.includes(urlExt)
+        ? urlExt
+        : 'pdf'; // fallback
+
+    // ── 2. Build safe filename ────────────────────────────────────────────────
     const hintBase = nameHint.replace(new RegExp(`\\.${ext}$`, 'i'), '');
     const safeName = hintBase
-      .replace(/[^\w\s-]/g, '')   // strip special chars (keep word chars, spaces, dashes)
+      .replace(/[^\w\s-]/g, '')
       .trim()
-      .replace(/\s+/g, '_')       // spaces → underscores
-      .substring(0, 80)           // cap length
+      .replace(/\s+/g, '_')
+      .substring(0, 80)
       || 'file';
 
-    const fileName = `${safeName}_noteshere.${ext}`;
+    const fileName = `${safeName} - noteshere.site.${ext}`;
 
-    // ── 3. Fetch as blob and trigger download ────────────────────────────────
+    // ── 3. Cloudinary raw files: proxy through our backend to bypass CORS ────
+    if (url.includes('res.cloudinary.com')) {
+      const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+      const proxyUrl = `${API_BASE}/chat/download-proxy?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(fileName)}`;
+      const a = document.createElement('a');
+      a.href = proxyUrl;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => document.body.removeChild(a), 500);
+      return;
+    }
+
+    // ── 4. All other URLs: fetch as blob ──────────────────────────────────────
     const response = await fetch(url, { mode: 'cors' });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-    const blob   = await response.blob();
+    const blob    = await response.blob();
     const blobUrl = URL.createObjectURL(blob);
-
     const a = document.createElement('a');
     a.href     = blobUrl;
     a.download = fileName;
     document.body.appendChild(a);
     a.click();
-
     setTimeout(() => {
       URL.revokeObjectURL(blobUrl);
       document.body.removeChild(a);
     }, 1000);
+
   } catch (err) {
     console.error('downloadFile failed, falling back to new tab:', err);
-    // Graceful fallback — open in new tab if blob/CORS fails
     window.open(url, '_blank');
   }
 }

@@ -1,14 +1,13 @@
 import React, { useRef, useState, useEffect, memo } from 'react';
 import { FiSend } from 'react-icons/fi';
 import imageCompression from 'browser-image-compression';
-import API from '../../../utils/api';
 
 const MessageInput = memo(function MessageInput({
   inputText, setInputText, handleTyping, handleSend,
   replyingTo, setReplyingTo,
   activeChat, uploading, setUploading, showToast,
-  socket, warningMsg, handleForceSend, setWarningMsg,
-  handleAttachmentUpload
+  warningMsg, handleForceSend, setWarningMsg,
+  handleAttachmentUpload, handlePollCreate
 }) {
   const fileInputRef = useRef(null);
   const textInputRef = useRef(null);
@@ -64,21 +63,18 @@ const MessageInput = memo(function MessageInput({
         stream.getTracks().forEach(track => track.stop());
 
         if (audioBlob.size > 0) {
-          const formData = new FormData();
           const audioFile = new File([audioBlob], `voice_note_${Date.now()}.webm`, { type: 'audio/webm' });
-          formData.append('file', audioFile);
 
           try {
-            setUploading(true);
+            if (!handleAttachmentUpload) {
+              throw new Error('Voice note upload is unavailable right now.');
+            }
+
             showToast("Sending Voice Note...", "success");
-            await API.post(`/chat/${activeChat._id}/upload`, formData, {
-              headers: { 'Content-Type': 'multipart/form-data' }
-            });
+            await handleAttachmentUpload(audioFile);
           } catch (err) {
             console.error("Upload failed", err);
             showToast("Failed to send Voice Note", "error");
-          } finally {
-            setUploading(false);
           }
         }
       };
@@ -195,24 +191,22 @@ const MessageInput = memo(function MessageInput({
     }
   };
 
-  const submitPoll = () => {
-    if (!pollQuestion.trim()) return showToast("Enter a poll question", "error");
-    const validOptions = pollOptions.filter(opt => opt.trim());
-    if (validOptions.length < 2) return showToast("Provide at least 2 options", "error");
-    if (!socket) return showToast("Messenger is offline", "error");
+  const submitPoll = async () => {
+    if (!handlePollCreate) {
+      showToast("Polls are unavailable right now", "error");
+      return;
+    }
 
-    socket.emit('create_poll', {
-      chatId: activeChat._id,
-      question: pollQuestion.trim(),
-      options: validOptions,
-      tempId: `temp_${Date.now()}`
+    const success = await handlePollCreate({
+      question: pollQuestion,
+      options: pollOptions,
     });
 
-    // Reset State
+    if (!success) return;
+
     setPollQuestion('');
     setPollOptions(['', '']);
     setShowPollCreator(false);
-    showToast("Live Group Poll Created!", "success");
   };
 
   return (
