@@ -10,6 +10,32 @@ const {
   updateTags, uploadFile,
 } = require('../controllers/chatController');
 
+// ── File Download Proxy (bypasses Cloudinary CORS for raw files)
+// Moved above protect middleware because browser direct downloads via <a> tag don't send auth headers
+router.get('/download-proxy', async (req, res) => {
+  const { url, filename } = req.query;
+  if (!url || !url.startsWith('https://res.cloudinary.com')) {
+    return res.status(400).json({ error: 'Invalid URL' });
+  }
+  try {
+    const https = require('https');
+    const safeFilename = (filename || 'file').replace(/[^\w.\-\s]/g, '_');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"`);
+    res.setHeader('Cache-Control', 'no-cache');
+    https.get(url, (cloudRes) => {
+      const contentType = cloudRes.headers['content-type'] || 'application/octet-stream';
+      res.setHeader('Content-Type', contentType);
+      cloudRes.pipe(res);
+    }).on('error', (err) => {
+      console.error('Proxy download error:', err);
+      res.status(500).json({ error: 'Download failed' });
+    });
+  } catch (err) {
+    console.error('Proxy download error:', err);
+    res.status(500).json({ error: 'Download failed' });
+  }
+});
+
 router.use(protect);
 
 // ── User search & suggestions
@@ -42,29 +68,6 @@ router.put(   '/messages/:msgId',       editMessage);
 router.delete('/messages/:msgId',       deleteMessage);
 router.post(  '/messages/:msgId/react', reactToMessage);
 
-// ── File Download Proxy (bypasses Cloudinary CORS for raw files)
-router.get('/download-proxy', async (req, res) => {
-  const { url, filename } = req.query;
-  if (!url || !url.startsWith('https://res.cloudinary.com')) {
-    return res.status(400).json({ error: 'Invalid URL' });
-  }
-  try {
-    const https = require('https');
-    const safeFilename = (filename || 'file').replace(/[^\w.\-\s]/g, '_');
-    res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"`);
-    res.setHeader('Cache-Control', 'no-cache');
-    https.get(url, (cloudRes) => {
-      const contentType = cloudRes.headers['content-type'] || 'application/octet-stream';
-      res.setHeader('Content-Type', contentType);
-      cloudRes.pipe(res);
-    }).on('error', (err) => {
-      console.error('Proxy download error:', err);
-      res.status(500).json({ error: 'Download failed' });
-    });
-  } catch (err) {
-    console.error('Proxy download error:', err);
-    res.status(500).json({ error: 'Download failed' });
-  }
-});
+
 
 module.exports = router;
