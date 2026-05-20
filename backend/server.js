@@ -305,11 +305,12 @@ app.get('/api/health', (req, res) =>
   res.json({ status: 'OK', message: 'Backend running', timestamp: new Date().toISOString() }));
 
 // ========== MONGODB ==========
+// Connect to MongoDB Atlas (Mongoose buffers queries until connection is established)
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
-    console.log('✅ MongoDB Connected');
+    console.log('✅ MongoDB Connected Successfully');
   })
-  .catch(err => console.error('MongoDB error:', err));
+  .catch(err => console.error('MongoDB connection error:', err));
 
 // Sync indexes only after the connection is fully open and stable
 mongoose.connection.once('open', () => {

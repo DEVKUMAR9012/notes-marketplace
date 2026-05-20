@@ -8,6 +8,44 @@ const { generateAISummary } = require('../utils/aiSummary');
 const sendEmail = require('../utils/sendEmail');
 const templates = require('../utils/emailTemplates');
 
+// @desc    Public platform stats (no auth) — used by home page stats bar
+// @route   GET /api/notes/stats
+// @access  Public
+exports.getPublicStats = async (req, res) => {
+  try {
+    const [totalNotes, totalStudents, downloadsAgg, ratingAgg] = await Promise.all([
+      // Approved notes count
+      Note.countDocuments({ status: 'approved' }),
+      // Real students (exclude admin & guest)
+      User.countDocuments({ role: { $nin: ['admin'] }, isGuest: { $ne: true } }),
+      // Sum of all downloads across all notes
+      Note.aggregate([{ $group: { _id: null, total: { $sum: '$downloads' } } }]),
+      // Average rating across all rated notes
+      Note.aggregate([
+        { $match: { rating: { $gt: 0 } } },
+        { $group: { _id: null, avg: { $avg: '$rating' } } }
+      ])
+    ]);
+
+    const totalDownloads = downloadsAgg[0]?.total || 0;
+    const avgRating      = ratingAgg[0]?.avg ? parseFloat(ratingAgg[0].avg.toFixed(1)) : 4.8;
+
+    res.json({
+      success: true,
+      stats: {
+        totalNotes,
+        totalStudents,
+        totalDownloads,
+        avgRating
+      }
+    });
+  } catch (error) {
+    console.error('Public Stats Error:', error);
+    res.status(500).json({ success: false, message: 'Could not fetch stats' });
+  }
+};
+
+
 // @desc    Get notes with filters + server-side pagination
 // @route   GET /api/notes?page=1&limit=12&search=&semester=&subject=&priceType=&itemType=
 // @access  Public

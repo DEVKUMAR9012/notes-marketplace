@@ -7,6 +7,7 @@ import {
   FiChevronRight, FiChevronLeft, FiBookOpen
 } from 'react-icons/fi';
 import API from '../utils/api';
+import { downloadPdf, buildPdfUrl } from '../utils/downloadPdf';
 import { useAuth } from '../context/AuthContext';
 import PDFThumbnail from '../components/PDFThumbnail';
 import PaymentButton from '../components/PaymentButton';
@@ -163,10 +164,11 @@ const PreviewModal = ({ note, onClose, onBuy }) => {
           </div>
           <div className="flex items-center gap-2">
             {canViewFull && (
-              <a href={note.pdfUrl?.startsWith('http') ? note.pdfUrl : `${process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL.replace(/\/api$/, '') : 'http://localhost:5000'}${note.pdfUrl}`} target="_blank" rel="noopener noreferrer"
+              <button
+                onClick={() => downloadPdf(buildPdfUrl(note.pdfUrl), note.title)}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-700 rounded-lg text-xs text-white font-medium transition">
                 <FiDownload /> {isPaid ? 'Download' : 'Open Full'}
-              </a>
+              </button>
             )}
             <button onClick={onClose}
               className="p-1.5 hover:bg-white/10 rounded-lg transition text-gray-400 hover:text-white">
@@ -496,7 +498,7 @@ export default function Books() {
   const handlePreview = (note) => { if (note.pdfUrl) setPreviewNote(note); else alert('Preview not available'); };
   const handleBuy = (note) => {
     if (note.price === 0 && note.pdfUrl) {
-      window.open(note.pdfUrl?.startsWith('http') ? note.pdfUrl : `${process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL.replace(/\/api$/, '') : 'http://localhost:5000'}${note.pdfUrl}`, '_blank');
+      downloadPdf(buildPdfUrl(note.pdfUrl), note.title);
     } else {
       setBuyNote(note);
     }

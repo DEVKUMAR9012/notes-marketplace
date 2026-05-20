@@ -14,7 +14,8 @@ const {
   addQuestion,
   getQuestions,
   answerQuestion,
-  bulkGenerateAISummaries
+  bulkGenerateAISummaries,
+  getPublicStats
 } = require('../controllers/noteController');
 const { protect } = require('../middleware/authMiddleware');
 const upload = require('../middleware/uploadMiddleware');
@@ -24,6 +25,7 @@ const upload = require('../middleware/uploadMiddleware');
 
 // 1️⃣ SPECIFIC/PROTECTED ROUTES FIRST
 router.get('/my-notes', protect, getMyNotes);
+router.get('/stats', getPublicStats);            // ← public stats for home page
 router.post('/', protect, upload.single('pdf'), createNote);
 router.post('/generate-summaries', bulkGenerateAISummaries); // AI bulk summarizer
 

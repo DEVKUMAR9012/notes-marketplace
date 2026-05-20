@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiDownload, FiCheck, FiShoppingCart } from 'react-icons/fi';
 import API from '../utils/api';
+import { downloadPdf, buildPdfUrl } from '../utils/downloadPdf';
 
 // Load Razorpay script
 const loadRazorpay = () =>
@@ -35,14 +36,15 @@ const SuccessOverlay = ({ note, onClose }) => (
         <span className="text-white font-medium">{note?.title}</span> has been unlocked for you!
       </p>
       <div className="flex flex-col gap-3">
-        <a
-          href={note?.pdfUrl?.startsWith('http') ? note.pdfUrl : `${API.defaults.baseURL.replace('/api', '')}${note?.pdfUrl}`}
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          onClick={() => downloadPdf(
+            note?.pdfUrl?.startsWith('http') ? note.pdfUrl : `${API.defaults.baseURL.replace('/api', '')}${note?.pdfUrl}`,
+            note?.title
+          )}
           className="flex items-center justify-center gap-2 w-full py-3 bg-emerald-600 hover:bg-emerald-700 rounded-xl text-white font-semibold transition"
         >
           <FiDownload /> Download Now
-        </a>
+        </button>
         <button onClick={onClose} className="text-gray-500 hover:text-gray-300 text-sm transition">
           Close
         </button>
@@ -59,16 +61,17 @@ export default function PaymentButton({ note, noteIds, user, onSuccess, classNam
   // Free note
   if (!note || note.price === 0) {
     return (
-      <motion.a
-        whileHover={{ scale: 1.03 }}
-        whileTap={{ scale: 0.97 }}
-        href={note?.pdfUrl?.startsWith('http') ? note.pdfUrl : `${API.defaults.baseURL.replace('/api', '')}${note?.pdfUrl}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={`flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 rounded-xl text-white text-sm font-semibold transition-all shadow-lg ${className}`}
-      >
-        <FiDownload /> Get Free
-      </motion.a>
+    <motion.button
+      whileHover={{ scale: 1.03 }}
+      whileTap={{ scale: 0.97 }}
+      onClick={() => downloadPdf(
+        note?.pdfUrl?.startsWith('http') ? note.pdfUrl : `${API.defaults.baseURL.replace('/api', '')}${note?.pdfUrl}`,
+        note?.title
+      )}
+      className={`flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 rounded-xl text-white text-sm font-semibold transition-all shadow-lg ${className}`}
+    >
+      <FiDownload /> Get Free
+    </motion.button>
     );
   }
 
@@ -134,17 +137,17 @@ export default function PaymentButton({ note, noteIds, user, onSuccess, classNam
 
   if (isPurchased) {
     return (
-      <motion.a
-        whileHover={{ scale: 1.03 }}
-        whileTap={{ scale: 0.97 }}
-        // ✅ BUG FIXED: Removed localhost, added dynamic URL checking
-        href={successData?.pdfUrl?.startsWith('http') ? successData.pdfUrl : `${API.defaults.baseURL.replace('/api', '')}${successData?.pdfUrl}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={`flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-green-500 rounded-xl text-white text-sm font-semibold ${className}`}
-      >
-        <FiCheck /> Download
-      </motion.a>
+    <motion.button
+      whileHover={{ scale: 1.03 }}
+      whileTap={{ scale: 0.97 }}
+      onClick={() => downloadPdf(
+        successData?.pdfUrl?.startsWith('http') ? successData.pdfUrl : `${API.defaults.baseURL.replace('/api', '')}${successData?.pdfUrl}`,
+        successData?.title
+      )}
+      className={`flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-green-500 rounded-xl text-white text-sm font-semibold ${className}`}
+    >
+      <FiCheck /> Download
+    </motion.button>
     );
   }
 
