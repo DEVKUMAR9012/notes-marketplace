@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiLogOut, FiHome, FiUpload, FiUser, FiMenu, FiX, FiShoppingCart, FiBook, FiHeadphones, FiMessageSquare, FiShield, FiUserPlus } from 'react-icons/fi';
+import { BsStars } from 'react-icons/bs';
 import { useState } from 'react';
 import AnimatedLogo from './AnimatedLogo';
 
@@ -26,10 +27,10 @@ export default function Navbar() {
     }
   };
 
-  // Build nav items — guest cannot access Upload directly
+  // Build nav items — AI handled separately as special pill button on desktop
   const navItems = [
     { label: 'Home', icon: FiHome, path: '/' },
-    { label: 'AI', icon: null, path: '/ai' },
+    { label: '✦ AI', icon: null, path: '/ai', isAI: true },
     ...(!isGuest ? [{ label: 'Upload', icon: FiUpload, path: '/upload' }] : []),
     { label: 'Chat', icon: FiMessageSquare, path: '/chat' },
     { label: 'Contact', icon: FiHeadphones, path: '/contact' },
@@ -85,6 +86,36 @@ export default function Navbar() {
                 <span className="text-sm font-medium">{label}</span>
               </MotionLink>
             ))}
+
+            {/* ✦ AI — special glowing pill button */}
+            <MotionLink
+              to="/ai"
+              whileHover={{ scale: 1.06 }}
+              whileTap={{ scale: 0.95 }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '7px 18px',
+                borderRadius: '50px',
+                background: isActive('/ai')
+                  ? 'linear-gradient(135deg, #e040a0, #8b5cf6)'
+                  : 'linear-gradient(135deg, #d63090, #7c3aed)',
+                color: '#fff',
+                fontWeight: 700,
+                fontSize: '14px',
+                letterSpacing: '0.02em',
+                boxShadow: isActive('/ai')
+                  ? '0 0 20px rgba(168,85,247,0.6), 0 4px 16px rgba(214,48,144,0.5)'
+                  : '0 0 14px rgba(168,85,247,0.4), 0 4px 12px rgba(214,48,144,0.35)',
+                border: '1.5px solid rgba(255,255,255,0.15)',
+                textDecoration: 'none',
+                transition: 'box-shadow 0.2s',
+              }}
+            >
+              <BsStars size={14} />
+              AI
+            </MotionLink>
 
             {/* Profile / Claim Profile */}
             {!isGuest ? (
@@ -175,19 +206,27 @@ export default function Navbar() {
               transition={{ duration: 0.2 }}
               className="md:hidden mt-4 space-y-2 overflow-hidden"
             >
-              {navItems.map(({ label, icon: Icon, path }) => (
+              {navItems.map(({ label, icon: Icon, path, isAI }) => (
                 <MotionLink
                   key={path}
                   to={path}
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
-                    isActive(path)
-                      ? 'bg-violet-600/30 text-violet-300 border border-violet-500/50'
-                      : 'text-gray-300 hover:text-white hover:bg-white/5'
-                  }`}
+                  className={isAI
+                    ? 'w-full flex items-center gap-3 px-4 py-3 rounded-lg font-semibold'
+                    : `w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                        isActive(path)
+                          ? 'bg-violet-600/30 text-violet-300 border border-violet-500/50'
+                          : 'text-gray-300 hover:text-white hover:bg-white/5'
+                      }`
+                  }
+                  style={isAI ? {
+                    background: 'linear-gradient(135deg, rgba(214,48,144,0.15), rgba(124,58,237,0.15))',
+                    border: '1px solid rgba(168,85,247,0.35)',
+                    color: '#e87fd0',
+                  } : {}}
                 >
                   <div className="relative">
-                    {Icon && <Icon size={18} />}
+                    {isAI ? <BsStars size={16} /> : Icon && <Icon size={18} />}
                     {label === 'Cart' && cart?.length > 0 && (
                       <span className="absolute -top-2 -right-2 w-4 h-4 bg-red-500 text-[10px] text-white font-bold flex items-center justify-center rounded-full">
                         {cart.length}
