@@ -44,6 +44,7 @@ export default function NativeSocialLogins() {
         cancel_on_tap_outside: false,
         // context tells Google what UI copy to show
         context: 'signin',
+        use_fedcm_for_prompt: false
       });
 
       // Show the native One-Tap dialog in the top-right corner
