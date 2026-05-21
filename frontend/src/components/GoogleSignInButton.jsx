@@ -16,9 +16,14 @@ import { useAuth } from '../context/AuthContext';
 import API, { syncToken } from '../utils/api';
 
 const CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
+
+// Debug log so we can see what value is being read
+console.log('[GoogleSignInButton] CLIENT_ID:', CLIENT_ID);
+
 const isConfigured =
   typeof CLIENT_ID === 'string' &&
-  CLIENT_ID.endsWith('.apps.googleusercontent.com');
+  CLIENT_ID.trim().length > 10 &&
+  CLIENT_ID.includes('.apps.googleusercontent.com');
 
 export default function GoogleSignInButton({ redirectTo = '/', label = 'Continue with Google' }) {
   const { login, user, isGuest } = useAuth();
@@ -81,19 +86,19 @@ export default function GoogleSignInButton({ redirectTo = '/', label = 'Continue
       return;
     }
     setError('');
-    // Re-initialize with latest callback (captures fresh closure)
+    
+    // Direct account picker - no One-Tap modal, straight to Google account selection
     window.google.accounts.id.initialize({
       client_id: CLIENT_ID,
       callback: handleCredential,
-      cancel_on_tap_outside: true,
+      cancel_on_tap_outside: false,
       context: 'signin',
     });
+    
+    // Show prompt directly - forces immediate account selection
     window.google.accounts.id.prompt((notification) => {
       if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-        // One-tap was blocked/dismissed — fall back to popup
-        if (!window.google.accounts.oauth2 || !window.google.accounts.oauth2.initTokenClient) {
-          console.log('One-Tap not available, reason:', notification.getNotDisplayedReason?.() || notification.getSkippedReason?.());
-        }
+        console.log('Google account selection reason:', notification.getNotDisplayedReason?.() || notification.getSkippedReason?.());
       }
     });
   };
