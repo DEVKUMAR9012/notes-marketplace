@@ -8,6 +8,8 @@ import {
   FiHome, FiKey, FiArrowLeft, FiPhone, FiGift
 } from 'react-icons/fi';
 import AnimatedLogo from '../components/AnimatedLogo';
+import GoogleSignInButton from '../components/GoogleSignInButton';
+import NativeSocialLogins from '../components/NativeSocialLogins';
 
 export default function Register() {
   const [authMethod, setAuthMethod] = useState('email'); // 'email' or 'phone'
@@ -218,6 +220,19 @@ export default function Register() {
               </button>
             </div>
           )}
+
+          {/* ── Google Sign-Up/In (always visible on step 1) ── */}
+          {step === 1 && (
+            <div className="mb-5">
+              <GoogleSignInButton label="Sign up with Google" redirectTo="/profile" />
+              <div className="flex items-center gap-3 mt-5 mb-1">
+                <div className="flex-1 h-px bg-white/8" />
+                <span className="text-xs text-gray-600 font-medium tracking-widest uppercase">Or sign up with email/phone</span>
+                <div className="flex-1 h-px bg-white/8" />
+              </div>
+            </div>
+          )}
+          <NativeSocialLogins />
 
           {/* Error */}
           {error && (
