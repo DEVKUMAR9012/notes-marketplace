@@ -91,9 +91,9 @@ export default function GoogleSignInButton({ redirectTo = '/', label = 'Continue
     window.google.accounts.id.prompt((notification) => {
       if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
         // One-tap was blocked/dismissed — fall back to popup
-        window.google.accounts.oauth2 && window.google.accounts.oauth2.initTokenClient
-          ? null
-          : console.log('One-Tap not available, reason:', notification.getNotDisplayedReason?.() || notification.getSkippedReason?.());
+        if (!window.google.accounts.oauth2 || !window.google.accounts.oauth2.initTokenClient) {
+          console.log('One-Tap not available, reason:', notification.getNotDisplayedReason?.() || notification.getSkippedReason?.());
+        }
       }
     });
   };
