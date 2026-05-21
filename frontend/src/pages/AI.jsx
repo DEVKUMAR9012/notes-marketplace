@@ -1,9 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  FiFileText, FiCpu, FiBook, FiCode,
-  FiCalendar, FiMic, FiZap, FiArrowLeft,
-  FiSend, FiPaperclip, FiX, FiMessageSquare,
+  FiFileText, FiMessageSquare, FiCheckSquare, FiZap,
+  FiCode, FiMap, FiMic, FiArrowRight,
 } from 'react-icons/fi';
 import '../styles/AIHub.css';
 import NoteSummarizer from '../components/AI/NoteSummarizer';
@@ -11,127 +10,192 @@ import PDFChat from '../components/AI/PDFChat';
 import QuizGenerator from '../components/AI/QuizGenerator';
 import AskAI from '../components/AI/AskAI';
 
-// ── Quick-action chips ─────────────────────────────────────────────────────────
+// ── Tools config ───────────────────────────────────────────────────────────────
 const TOOLS = [
-  { id: 'summarizer',   label: 'Summarize Notes', icon: FiFileText, color: '#3b82f6', desc: 'Upload notes & get smart summaries with key points', component: NoteSummarizer, available: true },
-  { id: 'pdf-chat',     label: 'PDF Chat',         icon: FiCpu,      color: '#a855f7', desc: 'Ask questions directly from your uploaded PDFs', component: PDFChat, available: true },
-  { id: 'quiz',         label: 'Generate Quiz',    icon: FiBook,     color: '#10b981', desc: 'Auto-generate MCQs, flashcards & practice tests', component: QuizGenerator, available: true },
-  { id: 'doubt-solver', label: 'Ask AI',           icon: FiZap,      color: '#06b6d4', desc: 'Get answers to any concept or doubt', component: AskAI, available: true },
-  { id: 'code',         label: 'Code Explainer',   icon: FiCode,     color: '#f97316', desc: 'Paste code → Get line-by-line explanation', component: null, available: false },
-  { id: 'roadmap',      label: 'Roadmap',          icon: FiCalendar, color: '#8b5cf6', desc: 'AI-generated study roadmaps for any topic', component: null, available: false },
-  { id: 'interview',   label: 'Interview Prep',    icon: FiMic,      color: '#ef4444', desc: 'Mock interviews & viva preparation', component: null, available: false },
+  {
+    id: 'summarizer',
+    label: 'Summarize Notes',
+    icon: FiFileText,
+    desc: 'Upload notes & get smart summaries with key concepts highlighted',
+    colorClass: 'blue',
+    badge: 'popular',
+    featured: true,
+    component: NoteSummarizer,
+  },
+  {
+    id: 'pdf-chat',
+    label: 'PDF Chat',
+    icon: FiMessageSquare,
+    desc: 'Ask questions from your uploaded PDFs',
+    colorClass: 'purple',
+    component: PDFChat,
+  },
+  {
+    id: 'quiz',
+    label: 'Generate Quiz',
+    icon: FiCheckSquare,
+    desc: 'MCQs, flashcards & practice tests',
+    colorClass: 'green',
+    component: QuizGenerator,
+  },
+  {
+    id: 'doubt-solver',
+    label: 'Ask AI',
+    icon: FiZap,
+    desc: 'Get answers to any concept or doubt',
+    colorClass: 'cyan',
+    component: AskAI,
+  },
+  {
+    id: 'code',
+    label: 'Code Explainer',
+    icon: FiCode,
+    desc: 'Paste code → line-by-line explanation',
+    colorClass: 'orange',
+    soon: true,
+  },
+  {
+    id: 'roadmap',
+    label: 'Roadmap',
+    icon: FiMap,
+    desc: 'AI-generated study roadmaps for any topic',
+    colorClass: 'rose',
+    soon: true,
+  },
+  {
+    id: 'interview',
+    label: 'Interview Prep',
+    icon: FiMic,
+    desc: 'Mock interviews & viva preparation',
+    colorClass: 'indigo',
+    soon: true,
+  },
 ];
 
-// ── Greeting time logic ────────────────────────────────────────────────────────
 function getGreeting() {
   const h = new Date().getHours();
-  if (h < 12) return 'Good morning';
-  if (h < 17) return 'Good afternoon';
-  return 'Good evening';
+  if (h < 12) return ['Good morning', '☀'];
+  if (h < 17) return ['Good afternoon', '⛅'];
+  return ['Good evening', '🌙'];
 }
 
-// ── ComingSoon placeholder ─────────────────────────────────────────────────────
 function ComingSoon({ tool }) {
+  const Icon = tool.icon;
   return (
     <div className="ai-coming-soon">
-      <div className="ai-cs-icon" style={{ background: tool.color + '22', border: `1.5px solid ${tool.color}55` }}>
-        <tool.icon size={32} style={{ color: tool.color }} />
+      <div className={`ai-cs-icon ai-cs-icon--${tool.colorClass}`}>
+        <Icon size={30} />
       </div>
       <h3>{tool.label}</h3>
       <p>{tool.desc}</p>
-      <span className="ai-cs-badge">🚀 Coming Soon</span>
+      <span className="badge-soon">🚀 Coming Soon</span>
     </div>
   );
 }
 
-// ── Main Hub ──────────────────────────────────────────────────────────────────
 export default function AIHub() {
-  const [activeTool, setActiveTool] = useState(null);
-
+  const [activeTool, setActiveTool] = React.useState(null);
+  const [greeting, emoji] = getGreeting();
   const tool = activeTool ? TOOLS.find(t => t.id === activeTool) : null;
 
   return (
     <div className="ai-root">
       <AnimatePresence mode="wait">
-        {!activeTool ? (
-          // ── HOME SCREEN ──
+
+        {/* ── HOME ──────────────────────────────────────────────── */}
+        {!activeTool && (
           <motion.div
             key="home"
             className="ai-home"
-            initial={{ opacity: 0, y: 12 }}
+            initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.25 }}
+            transition={{ duration: 0.22 }}
           >
-            {/* Greeting */}
-            <div className="ai-greeting">
-              <span className="ai-greeting-sub">{getGreeting()} 👋</span>
-              <h1 className="ai-greeting-title">What can I help you with?</h1>
-              <p className="ai-greeting-desc">
-                Your AI-powered study companion — summarize notes, solve doubts, generate quizzes and more.
+            {/* Glow orbs */}
+            <div className="glow-orb orb1" />
+            <div className="glow-orb orb2" />
+            <div className="glow-orb orb3" />
+
+            {/* Header */}
+            <div className="ai-header">
+              <div className="ai-greeting">
+                {greeting} <span>{emoji}</span>
+              </div>
+              <h1 className="ai-headline">
+                What can I help<br />you with?
+              </h1>
+              <p className="ai-sub">
+                Your AI-powered study companion — summarize notes, solve doubts,
+                generate quizzes and more.
               </p>
             </div>
 
-            {/* Tool chips */}
-            <div className="ai-tools-grid">
-              {TOOLS.map((t, i) => (
-                <motion.button
-                  key={t.id}
-                  className={`ai-tool-chip ${!t.available ? 'ai-tool-chip--dim' : ''}`}
-                  style={{ '--chip-color': t.color }}
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                  whileHover={t.available ? { scale: 1.02, y: -2 } : {}}
-                  whileTap={t.available ? { scale: 0.97 } : {}}
-                  onClick={() => setActiveTool(t.id)}
-                >
-                  <span className="ai-chip-icon" style={{ background: t.color + '22' }}>
-                    <t.icon size={18} style={{ color: t.color }} />
-                  </span>
-                  <span className="ai-chip-text">
-                    <span className="ai-chip-label">{t.label}</span>
-                    <span className="ai-chip-desc">{t.desc}</span>
-                  </span>
-                  {!t.available && <span className="ai-chip-soon">Soon</span>}
-                </motion.button>
-              ))}
+            {/* Grid */}
+            <div className="ai-grid">
+              {TOOLS.map((t, i) => {
+                const Icon = t.icon;
+                return (
+                  <motion.div
+                    key={t.id}
+                    className={`ai-card ${t.colorClass}${t.featured ? ' featured' : ''}${t.soon ? ' soon' : ''}`}
+                    initial={{ opacity: 0, y: 18 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.055 }}
+                    onClick={() => !t.soon && setActiveTool(t.id)}
+                    role="button"
+                    tabIndex={t.soon ? -1 : 0}
+                    onKeyDown={e => e.key === 'Enter' && !t.soon && setActiveTool(t.id)}
+                  >
+                    <div className="ai-icon-wrap">
+                      <Icon size={t.featured ? 22 : 18} />
+                    </div>
+                    <div className="ai-card-text">
+                      <div className="ai-card-title">{t.label}</div>
+                      <div className="ai-card-desc">{t.desc}</div>
+                    </div>
+                    {t.badge === 'popular' && (
+                      <span className="badge-popular">Popular</span>
+                    )}
+                    {t.soon && <span className="badge-soon">Soon</span>}
+                    {!t.soon && (
+                      <FiArrowRight className="ai-arrow" size={16} />
+                    )}
+                  </motion.div>
+                );
+              })}
             </div>
           </motion.div>
-        ) : (
-          // ── TOOL SCREEN ──
+        )}
+
+        {/* ── TOOL VIEW ─────────────────────────────────────────── */}
+        {activeTool && (
           <motion.div
             key={activeTool}
             className="ai-tool-view"
-            initial={{ opacity: 0, x: 20 }}
+            initial={{ opacity: 0, x: 24 }}
             animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
+            exit={{ opacity: 0, x: -18 }}
             transition={{ duration: 0.22 }}
           >
             {/* Top bar */}
             <div className="ai-tool-topbar">
               <button className="ai-back-btn" onClick={() => setActiveTool(null)}>
-                <FiArrowLeft size={18} />
-                <span>Back</span>
+                ← Back
               </button>
-              <div className="ai-tool-label">
-                <span className="ai-tool-badge" style={{ background: tool?.color + '22', borderColor: tool?.color + '55' }}>
-                  {tool && <tool.icon size={14} style={{ color: tool.color }} />}
-                  <span style={{ color: tool?.color }}>{tool?.label}</span>
-                </span>
-              </div>
+              <span className={`ai-tool-badge ${tool?.colorClass}`}>
+                {tool && <tool.icon size={13} />}
+                {tool?.label}
+              </span>
             </div>
 
-            {/* Component area */}
+            {/* Component */}
             <div className="ai-tool-body">
-              {tool?.component ? (
-                <tool.component />
-              ) : (
-                <ComingSoon tool={tool} />
-              )}
+              {tool?.component ? <tool.component /> : <ComingSoon tool={tool} />}
             </div>
           </motion.div>
         )}
+
       </AnimatePresence>
     </div>
   );
