@@ -422,7 +422,7 @@ function DocumentPreviewModal({ msg, API_BASE_URL, onClose }) {
             <h3 title={fileName}>{fileName}</h3>
           </div>
           <div className="chat-doc-preview-actions">
-            <button type="button" className="chat-doc-preview-btn secondary" onClick={handleOpenNewTab}>
+            <button type="button" className="chat-doc-preview-btn secondary mobile-only" onClick={handleOpenNewTab}>
               <FiExternalLink style={{ width: 14, height: 14 }} />
               Open
             </button>

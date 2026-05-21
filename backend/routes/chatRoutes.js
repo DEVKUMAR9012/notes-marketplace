@@ -17,22 +17,32 @@ router.get('/download-proxy', async (req, res) => {
   if (!url || !url.startsWith('https://res.cloudinary.com')) {
     return res.status(400).json({ error: 'Invalid URL' });
   }
-  try {
-    const https = require('https');
-    const safeFilename = (filename || 'file').replace(/[^\w.\-\s]/g, '_');
-    res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"`);
-    res.setHeader('Cache-Control', 'no-cache');
-    https.get(url, (cloudRes) => {
+  
+  const https = require('https');
+  const safeFilename = (filename || 'file').replace(/[^\w.\-\s]/g, '_');
+  res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"`);
+  res.setHeader('Cache-Control', 'no-cache');
+
+  const fetchFile = (fetchUrl) => {
+    https.get(fetchUrl, (cloudRes) => {
+      // Follow redirects (Cloudinary sometimes issues 301/302 for fl_attachment or raw files)
+      if (cloudRes.statusCode >= 300 && cloudRes.statusCode < 400 && cloudRes.headers.location) {
+        return fetchFile(cloudRes.headers.location);
+      }
       const contentType = cloudRes.headers['content-type'] || 'application/octet-stream';
       res.setHeader('Content-Type', contentType);
       cloudRes.pipe(res);
     }).on('error', (err) => {
       console.error('Proxy download error:', err);
-      res.status(500).json({ error: 'Download failed' });
+      if (!res.headersSent) res.status(500).json({ error: 'Download failed' });
     });
+  };
+
+  try {
+    fetchFile(url);
   } catch (err) {
     console.error('Proxy download error:', err);
-    res.status(500).json({ error: 'Download failed' });
+    if (!res.headersSent) res.status(500).json({ error: 'Download failed' });
   }
 });
 
