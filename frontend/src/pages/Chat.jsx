@@ -109,7 +109,7 @@ const Avatar = ({ user, size = 38, isOnline }) => {
 
 // ─── Animated Typing Dots
 const TypingBubble = ({ name }) => (
-  <div className="message-row theirs">
+  <div className="message-row recv">
     <div className="message-bubble typing-bubble">
       <div className="typing-indicator">
         <span /><span /><span />
@@ -197,6 +197,9 @@ export default function Chat() {
   const textInputRef = useRef(null);
   const longPressTimerRef = useRef(null);
   const attachmentPreviewUrlsRef = useRef(new Set());
+  // Hoisted: used in the cleanup useEffect which runs before the original declaration at line ~507
+  const notificationAudioRef = useRef(null);
+  const currentAssetRef = useRef(null);
 
   const activeChatRef = useRef(null);
   const inputTextRef = useRef(inputText);
@@ -504,8 +507,6 @@ export default function Chat() {
     });
   }, [activeChat, resolveOutgoingChat, showToast, socket, user]);
 
-  const notificationAudioRef = useRef(null);
-  const currentAssetRef = useRef(null);
   const triggerSoundFeedback = useCallback((asset) => {
     if (chatSettings.muteAlerts) return;
     try {
@@ -1487,6 +1488,8 @@ export default function Chat() {
                         }}
                         onTouchEnd={(e) => {
                           clearTimeout(longPressTimerRef.current);
+                          // Remove touch-active so the action bar doesn't stay stuck
+                          e.currentTarget.classList.remove('touch-active');
                         }}
                       >
                         {!isMine && isLastInGroup && (
@@ -1546,7 +1549,7 @@ export default function Chat() {
                                       searchDisabled={true}
                                       skinTonesDisabled={true}
                                       // 🚀 MOBILE RESPONSIVE WIDTH & HEIGHT
-                                      width={window.innerWidth < 768 ? '74vw' : 280} 
+                                      width={window.innerWidth < 768 ? Math.min(window.innerWidth * 0.74, 320) : 280}
                                       height={window.innerWidth < 768 ? 300 : 350}
                                       onEmojiClick={(emojiObj) => {
                                         handleReact(msg._id, emojiObj.emoji);

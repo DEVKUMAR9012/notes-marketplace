@@ -1,6 +1,7 @@
 import { motion, useInView, animate } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
+import { FiArrowRight } from 'react-icons/fi';
 import API from '../utils/api';
 
 // ─── Animated Count-Up Hook ───────────────────────────────────────────────────
@@ -56,9 +57,13 @@ const FEATURED_CATEGORIES = [
   { id: 'du',         title: 'Delhi University', subtitle: 'Official DU Syllabus',      icon: '🏫', color: 'from-red-500 to-amber-500',     filterTarget: 'college', filterValue: 'Delhi University' },
   { id: 'jnu',        title: 'JNU New Delhi',   subtitle: 'Official JNU Resources',    icon: '🏛️', color: 'from-indigo-500 to-purple-500',  filterTarget: 'college', filterValue: 'JNU' },
   { id: 'btech',      title: 'B.Tech / Engg',   subtitle: 'All Engineering Notes',     icon: '⚙️', color: 'from-violet-600 to-fuchsia-500', filterTarget: 'search', filterValue: 'B.Tech' },
+  { id: '9th',        title: '9th Class',        subtitle: 'CBSE & State Board Notes',  icon: '📚', color: 'from-rose-500 to-orange-500',    filterTarget: 'search', filterValue: '9th' },
+  { id: '10th',       title: '10th Class',       subtitle: 'Board Exam Prep',           icon: '✏️', color: 'from-amber-500 to-yellow-500',  filterTarget: 'search', filterValue: '10th' },
+  { id: '11th',       title: '11th Class',       subtitle: 'Science & Commerce',        icon: '📖', color: 'from-emerald-500 to-green-500',   filterTarget: 'search', filterValue: '11th' },
+  { id: '12th',       title: '12th Class',       subtitle: 'JEE/NEET & Boards',        icon: '🎯', color: 'from-cyan-500 to-blue-500',     filterTarget: 'search', filterValue: '12th' },
   { id: 'cs',         title: 'Computer Science', subtitle: 'Programming & DB',          icon: '💻', color: 'from-orange-500 to-rose-500',    filterTarget: 'search', filterValue: 'Computer' },
   { id: 'gaming',     title: 'Gaming Tech',     subtitle: 'Design, Dev & E-Sports',    icon: '🎮', color: 'from-yellow-400 via-pink-500 to-purple-600', filterTarget: 'search', filterValue: 'Gaming' },
-  { id: 'first_year', title: 'First Year',       subtitle: 'Sem 1 & Sem 2 Common',     icon: '🌱', color: 'from-emerald-500 to-teal-400',   filterTarget: 'search', filterValue: 'First Year' },
+  { id: 'first_year', title: 'First Year',       subtitle: 'Sem 1 & Sem 2 Common',     icon: '🌱', color: 'from-teal-500 to-emerald-400',   filterTarget: 'search', filterValue: 'First Year' },
 ];
 
 // ─── Home Page ────────────────────────────────────────────────────────────────
@@ -204,11 +209,3 @@ export default function Home() {
   );
 }
 
-// Helper icon
-const FiArrowRight = () => (
-  <svg stroke="currentColor" fill="none" strokeWidth="2" viewBox="0 0 24 24"
-    strokeLinecap="round" strokeLinejoin="round" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
-    <line x1="5" y1="12" x2="19" y2="12" />
-    <polyline points="12 5 19 12 12 19" />
-  </svg>
-);

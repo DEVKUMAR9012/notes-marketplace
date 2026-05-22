@@ -31,7 +31,7 @@ export default function Navbar() {
   const navItems = [
     { label: 'Home', icon: FiHome, path: '/' },
     ...(!isGuest ? [{ label: 'Upload', icon: FiUpload, path: '/upload' }] : []),
-    { label: 'AI', icon: BsStars, path: '/ai', isAI: true },
+    { label: 'AI', icon: BsStars, path: '/ai' },
     { label: 'Chat', icon: FiMessageSquare, path: '/chat' },
     { label: 'Contact', icon: FiHeadphones, path: '/contact' },
     { label: 'Cart', icon: FiShoppingCart, path: '/cart' },
@@ -59,66 +59,34 @@ export default function Navbar() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-5">
-            {navItems.map(({ label, icon: Icon, path, isAI }) =>
-              isAI ? (
-                // ✦ AI — glowing pill button
-                <MotionLink
-                  key={path}
-                  to={path}
-                  whileHover={{ scale: 1.06 }}
-                  whileTap={{ scale: 0.95 }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '7px 18px',
-                    borderRadius: '50px',
-                    background: isActive('/ai')
-                      ? 'linear-gradient(135deg, #e040a0, #8b5cf6)'
-                      : 'linear-gradient(135deg, #d63090, #7c3aed)',
-                    color: '#fff',
-                    fontWeight: 700,
-                    fontSize: '14px',
-                    letterSpacing: '0.02em',
-                    boxShadow: isActive('/ai')
-                      ? '0 0 20px rgba(168,85,247,0.6), 0 4px 16px rgba(214,48,144,0.5)'
-                      : '0 0 14px rgba(168,85,247,0.4), 0 4px 12px rgba(214,48,144,0.35)',
-                    border: '1.5px solid rgba(255,255,255,0.15)',
-                    textDecoration: 'none',
-                  }}
-                >
-                  <Icon size={13} />
-                  AI
-                </MotionLink>
-              ) : (
-                // Regular nav link
-                <MotionLink
-                  key={path}
-                  to={path}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
-                    isActive(path)
-                      ? 'bg-violet-600/30 text-violet-300 border border-violet-500/50'
-                      : 'text-gray-300 hover:text-white hover:bg-white/5'
-                  }`}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <div className="relative">
-                    {Icon && <Icon size={18} />}
-                    {label === 'Cart' && cart?.length > 0 && (
-                      <motion.span
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        className="absolute -top-2 -right-2 w-4 h-4 bg-red-500 text-[10px] text-white font-bold flex items-center justify-center rounded-full shadow-lg shadow-red-500/40"
-                      >
-                        {cart.length}
-                      </motion.span>
-                    )}
-                  </div>
-                  <span className="text-sm font-medium">{label}</span>
-                </MotionLink>
-              )
-            )}
+            {navItems.map(({ label, icon: Icon, path }) => (
+              // Regular nav link
+              <MotionLink
+                key={path}
+                to={path}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
+                  isActive(path)
+                    ? 'bg-violet-600/30 text-violet-300 border border-violet-500/50'
+                    : 'text-gray-300 hover:text-white hover:bg-white/5'
+                }`}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <div className="relative">
+                  {Icon && <Icon size={18} />}
+                  {label === 'Cart' && cart?.length > 0 && (
+                    <motion.span
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="absolute -top-2 -right-2 w-4 h-4 bg-red-500 text-[10px] text-white font-bold flex items-center justify-center rounded-full shadow-lg shadow-red-500/40"
+                    >
+                      {cart.length}
+                    </motion.span>
+                  )}
+                </div>
+                <span className="text-sm font-medium">{label}</span>
+              </MotionLink>
+            ))}
 
             {/* Profile / Claim Profile */}
             {!isGuest ? (
@@ -209,29 +177,6 @@ export default function Navbar() {
               transition={{ duration: 0.2 }}
               className="md:hidden mt-4 space-y-2 overflow-hidden"
             >
-              {/* ✦ AI — glowing pill in mobile menu */}
-              <MotionLink
-                to="/ai"
-                onClick={() => setMobileMenuOpen(false)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  padding: '12px 18px',
-                  borderRadius: '12px',
-                  background: isActive('/ai')
-                    ? 'linear-gradient(135deg, rgba(214,48,144,0.25), rgba(124,58,237,0.25))'
-                    : 'linear-gradient(135deg, rgba(214,48,144,0.15), rgba(124,58,237,0.15))',
-                  border: `1px solid ${isActive('/ai') ? 'rgba(168,85,247,0.6)' : 'rgba(168,85,247,0.3)'}`,
-                  color: '#e87fd0',
-                  fontWeight: 700,
-                  textDecoration: 'none',
-                }}
-              >
-                <BsStars size={16} />
-                <span>✦ AI Study Assistant</span>
-              </MotionLink>
-
               {navItems.map(({ label, icon: Icon, path }) => (
                 <MotionLink
                   key={path}

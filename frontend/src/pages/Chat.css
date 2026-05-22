@@ -547,7 +547,9 @@
 /* Messages Loop */
 .chat-messages-scroll-area {
   flex: 1;
-  overflow-y: auto;
+  /* overflow must be visible so the emoji-picker popup (position:absolute, bottom:100%)
+     is not clipped. Virtuoso manages its own internal scroll container. */
+  overflow: visible;
   padding: 16px 20px;
   display: flex;
   flex-direction: column;
@@ -577,10 +579,6 @@
   justify-content: flex-end;
 }
 
-.message-row.last {
-  margin-bottom: 4px;
-}
-
 /* Inline Received Avatar */
 .inline-message-avatar {
   flex-shrink: 0;
@@ -608,12 +606,34 @@
 }
 
 .recv .message-bubble {
-  background: rgba(255, 255, 255, 0.08);
+  /* More opaque than original rgba(255,255,255,0.08) — easier to read */
+  background: #1e1b38;
   border-bottom-left-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-/* Consecutive mapping */
+/* WhatsApp-style tail on the last bubble in each group */
+.message-row.sent.last .message-bubble::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: -7px;
+  border-width: 0 0 10px 10px;
+  border-style: solid;
+  border-color: transparent transparent #7c3aed transparent;
+}
+
+.message-row.recv.last .message-bubble::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: -7px;
+  border-width: 0 10px 10px 0;
+  border-style: solid;
+  border-color: transparent #1e1b38 transparent transparent;
+}
+
+/* Consecutive grouping — round corners for middle bubbles */
 .message-row.sent:not(.last) .message-bubble {
   border-bottom-right-radius: 16px;
 }
@@ -632,8 +652,8 @@
 
 .message-bubble p {
   margin: 0;
-  font-size: 13px;
-  line-height: 1.3;
+  font-size: 13.5px;
+  line-height: 1.45;
   color: #fff;
 }
 
@@ -1119,6 +1139,7 @@
     white-space: normal;
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
@@ -1166,7 +1187,7 @@
   margin-left: 2px;
 }
 
-.receipt.sent {
+.receipt.sent-status {
   color: rgba(255, 255, 255, 0.3);
 }
 
@@ -1178,15 +1199,12 @@
   color: #38bdf8;
 }
 
-/* Hover Reaction Bar */
+/* Hover Reaction Bar — flex sibling, not absolute, so it sits beside the bubble */
 .msg-actions {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
   display: flex;
   align-items: center;
   gap: 4px;
-  background: rgba(11, 9, 20, 0.9);
+  background: rgba(11, 9, 20, 0.92);
   backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   padding: 4px 8px;
@@ -1195,23 +1213,31 @@
   opacity: 0;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   transition: opacity 0.2s ease;
+  flex-shrink: 0;
+  /* Vertically center beside the bubble via align-self */
+  align-self: center;
+  pointer-events: none;
 }
 
 .message-row:hover .msg-actions {
   opacity: 1;
+  pointer-events: auto;
 }
 
 /* Touch: long-press reveals actions via JS .touch-active class */
 .message-row.touch-active .msg-actions {
   opacity: 1;
+  pointer-events: auto;
 }
 
+/* Sent: action bar is BEFORE the bubble in DOM order → appears on left */
 .mine-actions {
-  right: calc(100% + 8px);
+  order: -1;
 }
 
+/* Received: action bar is AFTER the bubble → appears on right */
 .theirs-actions {
-  left: calc(100% + 8px);
+  order: 10;
 }
 
 .emoji-reaction-bar {
@@ -1241,17 +1267,24 @@
 
 .reactions-display {
   position: absolute;
-  bottom: -8px;
-  right: 12px;
-  background: #110f24;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  bottom: -12px;
+  right: 10px;
+  background: #1a1730;
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 10px;
-  padding: 1px 6px;
+  padding: 2px 6px;
   display: flex;
   align-items: center;
   gap: 2px;
-  font-size: 11px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  font-size: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  z-index: 5;
+  white-space: nowrap;
+}
+
+/* Extra bottom space on last-in-group rows that have reactions */
+.message-row.last {
+  margin-bottom: 16px;
 }
 
 .react-count {
@@ -1262,7 +1295,7 @@
 
 .recv .reactions-display {
   right: auto;
-  left: 12px;
+  left: 10px;
 }
 
 /* Quoted Messages */

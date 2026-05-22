@@ -1,15 +1,6 @@
 /**
  * GoogleSignInButton.jsx
- *
- * Uses Google's official `onGoogleLibraryLoad` callback (dispatched as a DOM
- * event from index.html) so the button renders the INSTANT the GSI script is
- * ready — no polling, no delay, no jump on refresh.
- *
- * Setup:
- *   1. frontend/.env  → REACT_APP_GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com
- *   2. backend/.env   → GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com
- *   3. Google Cloud Console → OAuth → Authorized JS origins:
- *        http://localhost:3000  |  https://yourdomain.com
+ * 🔥 Spinning gradient border (purple→pink→coral) + pulsing inner glow
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -23,7 +14,7 @@ const isConfigured =
   CLIENT_ID.trim().length > 10 &&
   CLIENT_ID.includes('.apps.googleusercontent.com');
 
-export default function GoogleSignInButton({ redirectTo = '/', label = 'Continue with Google' }) {
+export default function GoogleSignInButton({ redirectTo = '/', label = 'Sign in with Google' }) {
   const { login, user, isGuest } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -52,18 +43,14 @@ export default function GoogleSignInButton({ redirectTo = '/', label = 'Continue
     }
   }, [login, navigate, isGuest, user, redirectTo]);
 
-  // ── Render the Google button widget ──────────────────────────────────────
+  // ── Render the official Google widget ────────────────────────────────────
   const renderGoogleButton = useCallback(() => {
     if (!isConfigured || !buttonRef.current || !window.google?.accounts?.id) return;
-
-    // 1️⃣  initialize() MUST come first — attaches the credential callback
     window.google.accounts.id.initialize({
       client_id: CLIENT_ID,
       callback: handleCredential,
       use_fedcm_for_prompt: false,
     });
-
-    // 2️⃣  renderButton() after — now the rendered button has a handler
     buttonRef.current.innerHTML = '';
     window.google.accounts.id.renderButton(buttonRef.current, {
       type: 'standard',
@@ -71,94 +58,64 @@ export default function GoogleSignInButton({ redirectTo = '/', label = 'Continue
       size: 'large',
       text: label,
       logo_alignment: 'left',
-      width: '400',
+      width: '360',
     });
   }, [handleCredential, label]);
 
-  // ── Wait for GSI library via official event, then render ─────────────────
+  // ── Event-driven: fires the instant index.html's onGoogleLibraryLoad runs ─
   useEffect(() => {
     if (!isConfigured) return;
-
-    // Case A: library already loaded (e.g. hard refresh where script was cached)
-    if (window.google?.accounts?.id) {
-      setGsiReady(true);
-      return;
-    }
-
-    // Case B: library not yet loaded — listen for the event fired by index.html
+    if (window.google?.accounts?.id) { setGsiReady(true); return; }
     const onReady = () => setGsiReady(true);
     window.addEventListener('google-gsi-ready', onReady);
     return () => window.removeEventListener('google-gsi-ready', onReady);
   }, []);
 
-  // ── Re-render button whenever gsiReady flips true or label/callback changes
   useEffect(() => {
     if (gsiReady) renderGoogleButton();
   }, [gsiReady, renderGoogleButton]);
 
-  // ── Not configured ────────────────────────────────────────────────────────
+  // ── Not configured fallback ───────────────────────────────────────────────
   if (!isConfigured) {
     return (
-      <button
-        type="button"
-        disabled
-        style={{
-          width: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '10px',
-          padding: '13px 20px',
-          background: 'rgba(255,255,255,0.03)',
-          border: '1px solid rgba(255,255,255,0.08)',
-          borderRadius: '14px',
-          cursor: 'not-allowed',
-          opacity: 0.5,
-        }}
-      >
-        <GoogleIconSvg />
-        <span style={{ fontSize: 14, fontWeight: 600, color: '#6b7280' }}>
-          Google Sign-In not configured
-        </span>
+      <button type="button" disabled style={styles.notConfigured}>
+        <GoogleG />
+        <span style={{ fontSize: 14, fontWeight: 600, color: '#4b5563' }}>Google Sign-In not configured</span>
       </button>
     );
   }
 
   return (
     <div>
-      {/* Skeleton shown while GSI library loads — same height as Google's button */}
+      {/* ── Shimmer skeleton while GSI loads ────────────────────────────── */}
       {!gsiReady && (
-        <div style={{
-          width: '100%',
-          height: '44px',
-          borderRadius: '14px',
-          background: 'linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%)',
-          backgroundSize: '200% 100%',
-          animation: 'shimmer 1.4s infinite',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '10px',
-          border: '1px solid rgba(255,255,255,0.08)',
-        }}>
-          <GoogleIconSvg opacity={0.35} />
-          <span style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,0.25)' }}>
-            {label}
-          </span>
+        <div style={styles.skeleton}>
+          <GoogleG opacity={0.4} />
+          <span style={styles.auroraText}>{label}</span>
         </div>
       )}
 
-      {/* Google's own button widget — rendered into this div */}
-      <div
-        ref={buttonRef}
-        style={{
-          width: '100%',
-          display: gsiReady ? 'flex' : 'none',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '44px',
-        }}
-      />
+      {/* ── 🔥 Spinning gradient border wrapper ─────────────────────────── */}
+      <div style={{ display: gsiReady ? 'block' : 'none' }}>
+        {/* Outer glow aura */}
+        <div style={styles.outerGlow}>
+          {/* Overflow clip container */}
+          <div style={styles.spinnerClip}>
+            {/* Rotating conic gradient — oversized so it fills all corners */}
+            <div className="gsb-spinner" style={styles.conicSpinner} />
+            {/* Inner dark surface */}
+            <div style={styles.innerSurface}>
+              {/* Pulsing radial inner glow */}
+              <div className="gsb-inner-glow" style={styles.innerGlow} />
+              {/* Google's actual button */}
+              <div
+                ref={buttonRef}
+                style={styles.buttonHost}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
 
       {error && (
         <p style={{ marginTop: 8, fontSize: 12, color: '#f87171', textAlign: 'center' }}>
@@ -167,17 +124,82 @@ export default function GoogleSignInButton({ redirectTo = '/', label = 'Continue
       )}
 
       <style>{`
-        @keyframes shimmer {
+        @keyframes gsb-spin       { to { transform: rotate(360deg); } }
+        @keyframes gsb-aura-pulse {
+          0%,100% { box-shadow: 0 0 18px rgba(139,92,246,0.45), 0 0 40px rgba(139,92,246,0.18); }
+          50%      { box-shadow: 0 0 28px rgba(236,72,153,0.55), 0 0 60px rgba(236,72,153,0.22); }
+        }
+        @keyframes gsb-glow-pulse {
+          0%,100% { opacity: 0.5; }
+          50%      { opacity: 1; }
+        }
+        @keyframes gsb-aurora {
+          0%   { background-position: 0% 50%; }
+          100% { background-position: 200% 50%; }
+        }
+        @keyframes gsb-shimmer {
           0%   { background-position: 200% 0; }
           100% { background-position: -200% 0; }
         }
+        .gsb-spinner    { animation: gsb-spin 2.8s linear infinite; }
+        .gsb-inner-glow { animation: gsb-glow-pulse 2s ease-in-out infinite; }
       `}</style>
     </div>
   );
 }
 
-// Inline Google 'G' icon — avoids an extra icon library dependency
-function GoogleIconSvg({ opacity = 1 }) {
+// ── Inline styles (keeps JSX clean) ─────────────────────────────────────────
+const styles = {
+  notConfigured: {
+    width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+    gap: '10px', padding: '13px 20px',
+    background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)',
+    borderRadius: '14px', cursor: 'not-allowed', opacity: 0.5,
+  },
+  skeleton: {
+    width: '100%', height: '46px', borderRadius: '14px',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
+    background: 'linear-gradient(90deg,rgba(255,255,255,0.04) 25%,rgba(255,255,255,0.09) 50%,rgba(255,255,255,0.04) 75%)',
+    backgroundSize: '200% 100%', animation: 'gsb-shimmer 1.5s infinite',
+    border: '1px solid rgba(255,255,255,0.07)',
+  },
+  auroraText: {
+    fontSize: 14, fontWeight: 600,
+    background: 'linear-gradient(90deg,#a78bfa,#f472b6,#fb923c,#a78bfa)',
+    backgroundSize: '200% auto',
+    WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+    animation: 'gsb-aurora 2s linear infinite',
+  },
+  outerGlow: {
+    borderRadius: '16px',
+    animation: 'gsb-aura-pulse 2.5s ease-in-out infinite',
+  },
+  spinnerClip: {
+    position: 'relative', borderRadius: '16px',
+    padding: '2px', overflow: 'hidden',
+  },
+  conicSpinner: {
+    position: 'absolute', inset: '-60px',
+    background: 'conic-gradient(from 0deg,#8b5cf6,#ec4899,#fb923c,#fbbf24,#8b5cf6)',
+    transformOrigin: '50% 50%',
+  },
+  innerSurface: {
+    position: 'relative', borderRadius: '14px',
+    background: 'linear-gradient(135deg,#0d0d1e 0%,#110e1e 100%)',
+    overflow: 'hidden',
+  },
+  innerGlow: {
+    position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 0,
+    background: 'radial-gradient(ellipse at 50% 120%,rgba(139,92,246,0.18) 0%,transparent 65%)',
+  },
+  buttonHost: {
+    position: 'relative', zIndex: 1,
+    display: 'flex', justifyContent: 'center', minHeight: '44px',
+  },
+};
+
+// Inline Google 'G' logo
+function GoogleG({ opacity = 1 }) {
   return (
     <svg width="18" height="18" viewBox="0 0 48 48" style={{ opacity, flexShrink: 0 }}>
       <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
