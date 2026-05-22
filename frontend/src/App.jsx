@@ -16,6 +16,7 @@ const Home          = lazy(() => import('./pages/Home'));
 const Explorer      = lazy(() => import('./pages/Explorer'));
 const LoginSocialOnly = lazy(() => import('./pages/LoginSocialOnly'));
 const RegisterSocialOnly = lazy(() => import('./pages/RegisterSocialOnly'));
+const GitHubCallback   = lazy(() => import('./pages/GitHubCallback'));
 const VerifyOTP     = lazy(() => import('./pages/VerifyOTP'));
 const Books         = lazy(() => import('./pages/Books'));
 const Upload        = lazy(() => import('./pages/Upload'));
@@ -71,9 +72,10 @@ function App() {
                 <Suspense fallback={<PageLoader />}>
                   <Routes>
                     {/* ── PUBLIC ROUTES ── */}
-                    <Route path="/login"      element={<LoginSocialOnly />} />
-                    <Route path="/register"   element={<RegisterSocialOnly />} />
-                    <Route path="/verify-otp" element={<VerifyOTP />} />
+                    <Route path="/login"                  element={<LoginSocialOnly />} />
+                    <Route path="/register"               element={<RegisterSocialOnly />} />
+                    <Route path="/verify-otp"             element={<VerifyOTP />} />
+                    <Route path="/auth/github/callback"   element={<GitHubCallback />} />
 
                     {/* ── PROTECTED ROUTES ── */}
                     <Route path="/" element={

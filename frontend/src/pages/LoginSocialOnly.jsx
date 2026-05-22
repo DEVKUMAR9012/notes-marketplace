@@ -10,7 +10,7 @@ import API from '../utils/api';
 
 export default function LoginSocialOnly() {
   const navigate = useNavigate();
-  const { user, guestInit } = useAuth();
+  const { user, login } = useAuth();
   const [guestLoading, setGuestLoading] = useState(false);
 
   // If already logged in, redirect home
@@ -24,7 +24,7 @@ export default function LoginSocialOnly() {
     setGuestLoading(true);
     try {
       const { data } = await API.post('/auth/guest-init');
-      guestInit(data);
+      login(data);
       navigate('/', { replace: true });
     } catch (err) {
       console.error('Guest init failed:', err);

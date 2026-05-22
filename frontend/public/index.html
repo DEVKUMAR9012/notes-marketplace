@@ -36,7 +36,12 @@
     <!-- Canonical URL -->
     <link rel="canonical" href="https://www.noteshere.site">
 
-    <!-- Google Identity Services (One-Tap) -->
+    <!-- Google Identity Services — official load callback fires the instant GSI is ready -->
+    <script>
+      window.onGoogleLibraryLoad = function () {
+        window.dispatchEvent(new Event('google-gsi-ready'));
+      };
+    </script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 
     <!-- JSON-LD Structured Data: WebSite + Organization (Rich Snippets) -->
