@@ -14,8 +14,8 @@ import ActiveBanners from './components/ActiveBanners';
 // This means the browser only downloads code for the page the user is on.
 const Home          = lazy(() => import('./pages/Home'));
 const Explorer      = lazy(() => import('./pages/Explorer'));
-const Login         = lazy(() => import('./pages/Login'));
-const Register      = lazy(() => import('./pages/Register'));
+const LoginSocialOnly = lazy(() => import('./pages/LoginSocialOnly'));
+const RegisterSocialOnly = lazy(() => import('./pages/RegisterSocialOnly'));
 const VerifyOTP     = lazy(() => import('./pages/VerifyOTP'));
 const Books         = lazy(() => import('./pages/Books'));
 const Upload        = lazy(() => import('./pages/Upload'));
@@ -71,8 +71,8 @@ function App() {
                 <Suspense fallback={<PageLoader />}>
                   <Routes>
                     {/* ── PUBLIC ROUTES ── */}
-                    <Route path="/login"      element={<Login />} />
-                    <Route path="/register"   element={<Register />} />
+                    <Route path="/login"      element={<LoginSocialOnly />} />
+                    <Route path="/register"   element={<RegisterSocialOnly />} />
                     <Route path="/verify-otp" element={<VerifyOTP />} />
 
                     {/* ── PROTECTED ROUTES ── */}

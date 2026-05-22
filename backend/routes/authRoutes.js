@@ -17,6 +17,8 @@ const {
     convertGuestToUser,
     resumeGuestSession,
     googleOneTapLogin,
+    appleLogin,
+    githubCallback,
 } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
 
@@ -56,6 +58,8 @@ router.post('/convert-guest', convertGuestToUser); // Upgrade guest → permanen
 
 // ── Social Auth ──────────────────────────────────────────────────────────────
 router.post('/google-one-tap', loginLimiter, googleOneTapLogin); // Google One-Tap
+router.post('/apple', loginLimiter, appleLogin);                  // Apple Sign-In
+router.post('/github/callback', loginLimiter, githubCallback);    // GitHub OAuth
 
 // ── Protected ────────────────────────────────────────────────────────────────
 router.get('/me', protect, getMe);

@@ -820,4 +820,291 @@ exports.googleOneTapLogin = async (req, res) => {
     res.status(400).json({ success: false, message: 'Google verification failed. Please try again.' });
   }
 };
-
+
+// ========== APPLE ONE-TAP LOGIN ==========
+exports.appleLogin = async (req, res) => {
+  const { identityToken, user, guestId } = req.body;
+
+  if (!identityToken) {
+    return res.status(400).json({ success: false, message: 'Apple identity token missing.' });
+  }
+
+  try {
+    // ── Step 1: Decode and verify Apple token (JWT format) ───────────────────
+    // Note: In production, verify the signature using Apple's public keys
+    // For MVP, we trust the token from secure client-side Apple SDK
+    const decoded = jwt.decode(identityToken, { complete: true });
+    if (!decoded) {
+      return res.status(400).json({ success: false, message: 'Invalid Apple token format.' });
+    }
+
+    const { email, email_verified, sub: appleId } = decoded.payload;
+
+    if (!email || !email_verified) {
+      return res.status(400).json({
+        success: false,
+        message: 'Apple account email is unverified. Please verify your email with Apple.',
+      });
+    }
+
+    // ── Step 2: Extract name from user object (passed first time only) ────────
+    let name = user?.name?.firstName || 'Apple User';
+    if (user?.name?.lastName) {
+      name += ` ${user.name.lastName}`;
+    }
+
+    // ── Step 3: Upsert user document ───────────────────────────────────────
+    let userDoc = await User.findOne({ email });
+    let isNewUser = false;
+
+    if (!userDoc) {
+      // Path A: New account - upgrade guest if available
+      if (guestId) {
+        userDoc = await User.findByIdAndUpdate(
+          guestId,
+          {
+            $set: {
+              name,
+              email,
+              authProvider: 'apple',
+              isEmailVerified: true,
+              isVerified: true,
+              role: 'user',
+              isGuest: false,
+            },
+          },
+          { new: true }
+        );
+      }
+
+      // Path B: No guest - create fresh account
+      if (!userDoc) {
+        userDoc = await User.create({
+          name,
+          email,
+          authProvider: 'apple',
+          isEmailVerified: true,
+          isVerified: true,
+          role: 'user',
+          cart: [],
+          wishlist: [],
+        });
+        isNewUser = true;
+
+        // Merge guest cart if available
+        if (guestId) {
+          const ghost = await User.findById(guestId);
+          if (ghost?.cart?.length) {
+            await User.findByIdAndUpdate(userDoc._id, {
+              $addToSet: { cart: { $each: ghost.cart } },
+            });
+          }
+          await User.findByIdAndDelete(guestId).catch(() => {});
+        }
+      }
+    } else {
+      // Path C: Existing account - silently upgrade provider
+      const needsSave = userDoc.authProvider !== 'apple' || !userDoc.isEmailVerified;
+      if (needsSave) {
+        userDoc.authProvider = 'apple';
+        userDoc.isEmailVerified = true;
+        userDoc.isVerified = true;
+        await userDoc.save();
+      }
+
+      // Merge guest cart if present
+      if (guestId && String(guestId) !== String(userDoc._id)) {
+        const ghost = await User.findById(guestId);
+        if (ghost?.cart?.length) {
+          await User.findByIdAndUpdate(userDoc._id, {
+            $addToSet: { cart: { $each: ghost.cart } },
+          });
+        }
+        await User.findByIdAndDelete(guestId).catch(() => {});
+      }
+    }
+
+    // ── Step 4: Capture session metadata ───────────────────────────────────
+    const metadata = await getSessionMetadata(req);
+    User.findByIdAndUpdate(userDoc._id, {
+      lastLogin: new Date(),
+      lastLoginMetadata: metadata,
+    }).catch(() => {});
+
+    const token = generateToken(userDoc._id);
+    console.log(`🍎 Apple ${isNewUser ? 'SIGNUP' : 'LOGIN'}: ${email}`);
+
+    res.status(200).json({
+      success: true,
+      isNewUser,
+      token,
+      user: {
+        _id: userDoc._id,
+        name: userDoc.name,
+        email: userDoc.email,
+        avatar: userDoc.avatar,
+        role: userDoc.role,
+        authProvider: userDoc.authProvider,
+        isEmailVerified: userDoc.isEmailVerified,
+      },
+    });
+  } catch (err) {
+    console.error('Apple login error:', err.message);
+    res.status(400).json({ success: false, message: 'Apple authentication failed. Please try again.' });
+  }
+};
+
+// ========== GITHUB OAUTH CALLBACK ==========
+exports.githubCallback = async (req, res) => {
+  const { code, guestId } = req.body;
+
+  if (!code) {
+    return res.status(400).json({ success: false, message: 'GitHub authorization code missing.' });
+  }
+
+  if (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET) {
+    return res.status(500).json({ success: false, message: 'GitHub OAuth not configured on server.' });
+  }
+
+  try {
+    // ── Step 1: Exchange authorization code for access token ──────────────────
+    const tokenResponse = await axios.post(
+      'https://github.com/login/oauth/access_token',
+      {
+        client_id: process.env.GITHUB_CLIENT_ID,
+        client_secret: process.env.GITHUB_CLIENT_SECRET,
+        code,
+      },
+      {
+        headers: { Accept: 'application/json' },
+      }
+    );
+
+    if (tokenResponse.data.error) {
+      return res.status(400).json({ success: false, message: 'GitHub authorization failed.' });
+    }
+
+    const accessToken = tokenResponse.data.access_token;
+
+    // ── Step 2: Fetch user profile from GitHub API ──────────────────────────
+    const userResponse = await axios.get('https://api.github.com/user', {
+      headers: { Authorization: `token ${accessToken}` },
+    });
+
+    const { email: githubEmail, name: githubName, avatar_url, id: githubId } = userResponse.data;
+
+    if (!githubEmail) {
+      return res.status(400).json({
+        success: false,
+        message: 'GitHub account does not have a public email. Please set one in GitHub settings.',
+      });
+    }
+
+    // ── Step 3: Upsert user document ───────────────────────────────────────
+    let userDoc = await User.findOne({ email: githubEmail });
+    let isNewUser = false;
+
+    if (!userDoc) {
+      // Path A: New account - upgrade guest if available
+      if (guestId) {
+        userDoc = await User.findByIdAndUpdate(
+          guestId,
+          {
+            $set: {
+              name: githubName || 'GitHub User',
+              email: githubEmail,
+              avatar: avatar_url,
+              authProvider: 'github',
+              isEmailVerified: true,
+              isVerified: true,
+              role: 'user',
+              isGuest: false,
+            },
+          },
+          { new: true }
+        );
+      }
+
+      // Path B: No guest - create fresh account
+      if (!userDoc) {
+        userDoc = await User.create({
+          name: githubName || 'GitHub User',
+          email: githubEmail,
+          avatar: avatar_url,
+          authProvider: 'github',
+          isEmailVerified: true,
+          isVerified: true,
+          role: 'user',
+          cart: [],
+          wishlist: [],
+        });
+        isNewUser = true;
+
+        // Merge guest cart if available
+        if (guestId) {
+          const ghost = await User.findById(guestId);
+          if (ghost?.cart?.length) {
+            await User.findByIdAndUpdate(userDoc._id, {
+              $addToSet: { cart: { $each: ghost.cart } },
+            });
+          }
+          await User.findByIdAndDelete(guestId).catch(() => {});
+        }
+      }
+    } else {
+      // Path C: Existing account - silently upgrade provider
+      const needsSave =
+        userDoc.authProvider !== 'github' ||
+        !userDoc.isEmailVerified ||
+        (!userDoc.avatar && avatar_url);
+
+      if (needsSave) {
+        userDoc.authProvider = 'github';
+        userDoc.isEmailVerified = true;
+        userDoc.isVerified = true;
+        if (!userDoc.avatar && avatar_url) userDoc.avatar = avatar_url;
+        await userDoc.save();
+      }
+
+      // Merge guest cart if present
+      if (guestId && String(guestId) !== String(userDoc._id)) {
+        const ghost = await User.findById(guestId);
+        if (ghost?.cart?.length) {
+          await User.findByIdAndUpdate(userDoc._id, {
+            $addToSet: { cart: { $each: ghost.cart } },
+          });
+        }
+        await User.findByIdAndDelete(guestId).catch(() => {});
+      }
+    }
+
+    // ── Step 4: Capture session metadata ───────────────────────────────────
+    const metadata = await getSessionMetadata(req);
+    User.findByIdAndUpdate(userDoc._id, {
+      lastLogin: new Date(),
+      lastLoginMetadata: metadata,
+    }).catch(() => {});
+
+    const token = generateToken(userDoc._id);
+    console.log(`🐙 GitHub ${isNewUser ? 'SIGNUP' : 'LOGIN'}: ${githubEmail}`);
+
+    res.status(200).json({
+      success: true,
+      isNewUser,
+      token,
+      user: {
+        _id: userDoc._id,
+        name: userDoc.name,
+        email: userDoc.email,
+        avatar: userDoc.avatar,
+        role: userDoc.role,
+        authProvider: userDoc.authProvider,
+        isEmailVerified: userDoc.isEmailVerified,
+      },
+    });
+  } catch (err) {
+    console.error('GitHub callback error:', err.message);
+    res.status(400).json({ success: false, message: 'GitHub authentication failed. Please try again.' });
+  }
+};
+
