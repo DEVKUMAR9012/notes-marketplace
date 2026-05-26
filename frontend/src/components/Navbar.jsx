@@ -36,11 +36,9 @@ export default function Navbar() {
     { label: 'Contact', icon: FiHeadphones, path: '/contact' },
     { label: 'Cart', icon: FiShoppingCart, path: '/cart' },
   ];
-
   if (user?.role === 'admin') {
     navItems.push({ label: 'Admin', icon: FiShield, path: '/admin/dashboard' });
   }
-
   const isActive = (path) => location.pathname === path;
 
   return (

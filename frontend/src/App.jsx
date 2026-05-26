@@ -1,5 +1,6 @@
 import { useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { SocketProvider } from './context/SocketContext';
@@ -26,6 +27,7 @@ const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const Contact       = lazy(() => import('./pages/Contact'));
 const Chat          = lazy(() => import('./pages/Chat'));
 const AI            = lazy(() => import('./pages/AI'));
+const NotePreviewPage = lazy(() => import('./pages/NotePreviewPage'));
 
 // Inline fallback — zero dependencies, renders instantly from CSS
 const PageLoader = () => (
@@ -63,6 +65,7 @@ function App() {
 
   return (
     <ErrorBoundary>
+      <Toaster position="top-right" />
       <AuthProvider>
         <SocketProvider>
           <CartProvider>
@@ -95,6 +98,9 @@ function App() {
                     } />
                     <Route path="/profile/:id" element={
                       <ProtectedRoute><LayoutWithNavbar><Profile /></LayoutWithNavbar></ProtectedRoute>
+                    } />
+                    <Route path="/note/:id/preview" element={
+                      <ProtectedRoute><NotePreviewPage /></ProtectedRoute>
                     } />
                     <Route path="/cart" element={
                       <ProtectedRoute><LayoutWithNavbar><Cart /></LayoutWithNavbar></ProtectedRoute>

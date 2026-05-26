@@ -1,5 +1,6 @@
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { useState, useEffect, useMemo, useCallback, useRef, forwardRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   FiDownload, FiEye, FiStar, FiUser,
   FiSearch, FiX, FiBook, FiTrendingUp,
@@ -419,6 +420,7 @@ export default function Books() {
   const [buyNote, setBuyNote] = useState(null);
   const { wishlist, toggle: toggleWishlist } = useWishlist();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const debouncedSearch = useDebounce(searchInput, 400);
   const searchRef = useRef(null);
   const sentinelRef = useRef(null);
@@ -484,7 +486,10 @@ export default function Books() {
   }, [loadMore]);
 
 
-  const handlePreview = (note) => { if (note.pdfUrl) setPreviewNote(note); else alert('Preview not available'); };
+  const handlePreview = (note) => {
+    if (note.pdfUrl) navigate(`/note/${note._id}/preview`);
+    else alert('Preview not available');
+  };
   const handleBuy = (note) => {
     if (note.price === 0 && note.pdfUrl) {
       downloadPdf(buildPdfUrl(note.pdfUrl), note.title);
@@ -633,9 +638,7 @@ export default function Books() {
         )}
       </div>
 
-      <AnimatePresence>
-        {previewNote && <PreviewModal note={previewNote} onClose={() => setPreviewNote(null)} onBuy={handleBuy} />}
-      </AnimatePresence>
+
       <AnimatePresence>
         {buyNote && (
           <motion.div

@@ -1,4 +1,4 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { callGeminiWithFallback } = require('./geminiKeyManager');
 const fs = require('fs');
 
 /**
@@ -7,13 +7,6 @@ const fs = require('fs');
  */
 const generateAISummary = async (pdfFilePath, title, subject, itemType = 'note') => {
   try {
-    if (!process.env.GEMINI_API_KEY) {
-      console.log('⚠️ GEMINI_API_KEY not set, skipping AI summary');
-      return null;
-    }
-
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     let prompt;
 
@@ -60,33 +53,13 @@ ${pdfText}`;
       prompt = `Write a 2-sentence description (under 40 words) for a student ${itemType} titled "${title}" about the subject "${subject}" sold on an academic marketplace. Be helpful and specific about who should buy it.`;
     }
 
-    // Helper: retry with exponential backoff for transient 429/503 errors
-    const retryGenerateContent = async (model, prompt, attempts = 3, baseDelay = 1000) => {
-      let lastErr;
-      for (let i = 0; i < attempts; i++) {
-        try {
-          return await model.generateContent(prompt);
-        } catch (err) {
-          lastErr = err;
-          const msg = err?.message || '';
-          const status = err?.response?.status || err?.status || null;
-          const isTransient = status === 429 || status === 503 || /high demand|Service Unavailable|429|503/i.test(msg);
-          if (i < attempts - 1 && isTransient) {
-            const delay = baseDelay * Math.pow(2, i);
-            console.warn(`AI generate attempt ${i + 1} failed (${msg}). Retrying in ${delay}ms...`);
-            await new Promise((r) => setTimeout(r, delay));
-            continue;
-          }
-          throw err;
-        }
-      }
-      throw lastErr;
-    };
-
-    // Try with retries and fall back to a simple heuristic summary if generation still fails
+    // Use multi-key fallback manager — handles retries + key rotation automatically
     let result;
     try {
-      result = await retryGenerateContent(model, prompt, 3, 1000);
+      result = await callGeminiWithFallback(async (genAI) => {
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+        return await model.generateContent(prompt);
+      });
     } catch (err) {
       console.error('AI generation failed after retries:', err?.message || err);
       // Lightweight fallback summary if AI is unavailable

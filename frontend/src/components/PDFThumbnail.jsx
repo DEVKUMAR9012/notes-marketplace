@@ -9,7 +9,7 @@ const PDFThumbnail = ({ pdfUrl, title, note, fileName = '', compact = false }) =
   const [userTriggered, setUserTriggered] = useState(false); // For 3G users to manually load
   const [isMobile, setIsMobile] = useState(false);
 
-  const [useCloudinaryTrick, setUseCloudinaryTrick] = useState(true);
+  const [useCloudinaryTrick, setUseCloudinaryTrick] = useState(false);
   
   const canvasRef = useRef(null);
   const renderTaskRef = useRef(null);

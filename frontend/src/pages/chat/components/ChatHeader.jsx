@@ -54,11 +54,11 @@ const ChatHeader = memo(function ChatHeader({
 
         <div 
           className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
-          onClick={onViewProfile}
+          onClick={() => onViewProfile?.()}
           title="View profile details"
         >
           <div className="header-avatar-frame">
-            <Avatar user={otherParticipant || { name: chatTitle }} size={36} isOnline={otherParticipant?.isOnline} />
+            <Avatar user={otherParticipant || { name: chatTitle }} size={36} isOnline={otherParticipant?.isOnline ?? false} />
           </div>
 
           <div className="header-member-details">
@@ -151,7 +151,7 @@ const ChatHeader = memo(function ChatHeader({
           </AnimatePresence>
         </div>
       </div>
-    </div>
+      </div>
 
       <AnimatePresence>
         {showMsgSearch && (

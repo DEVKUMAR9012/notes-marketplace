@@ -1,15 +1,17 @@
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, forwardRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   FiDownload, FiEye, FiStar, FiUser, FiMapPin,
-  FiSearch, FiFilter, FiX, FiHeart, FiShoppingCart, FiChevronDown, FiArrowLeft
+  FiSearch, FiFilter, FiX, FiHeart, FiShoppingCart, FiChevronDown, FiArrowLeft, FiMessageCircle
 } from 'react-icons/fi';
 import API from '../utils/api';
 import { downloadPdf, buildPdfUrl } from '../utils/downloadPdf';
 import { useAuth } from '../context/AuthContext';
 import PDFThumbnail from '../components/PDFThumbnail';
-import PaymentButton from '../components/PaymentButton';
+import BuyModal from '../components/BuyModal';
+import { showToast } from '../components/Toast';
+import { usePdfPreview } from '../hooks/usePdfPreview';
 
 // ─── WISHLIST HOOK (persisted in localStorage) ───────────────────────────────
 const useWishlist = () => {
@@ -58,113 +60,59 @@ const SkeletonCard = () => (
 
 // ─── PREVIEW MODAL ────────────────────────────────────────────────────────────
 const PreviewModal = ({ note, onClose, onBuy }) => {
-  const [purchaseStatus, setPurchaseStatus] = useState(null); // null=checking, true/false
-  const [pages, setPages] = useState([]);
-  const [pagesLoading, setPagesLoading] = useState(true);
-  const abortControllerRef = useRef(null);
+  const modalRef = useRef(null);
+  const [purchaseStatus, setPurchaseStatus] = useState(null);
 
-  const isPaid = note.price > 0;
+  const isPaid      = note.price > 0;
   const canViewFull = !isPaid || purchaseStatus === true;
 
+  // ── Scroll lock ──────────────────────────────────────────────────────────
   useEffect(() => {
-    const handler = (e) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', handler);
+    const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    return () => {
-      document.removeEventListener('keydown', handler);
-      document.body.style.overflow = '';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
+  // ── Focus trap + Escape (combined, no duplicate handlers) ────────────────
+  useEffect(() => {
+    if (!modalRef.current) return;
+    const focusable = modalRef.current.querySelectorAll(
+      'button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])'
+    );
+    const first = focusable[0];
+    const last  = focusable[focusable.length - 1];
+    const handleKey = (e) => {
+      if (e.key === 'Escape') { onClose(); return; }
+      if (e.key !== 'Tab') return;
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last?.focus(); }
+      } else {
+        if (document.activeElement === last)  { e.preventDefault(); first?.focus(); }
+      }
     };
+    document.addEventListener('keydown', handleKey);
+    first?.focus();
+    return () => document.removeEventListener('keydown', handleKey);
   }, [onClose]);
 
+  // ── Purchase check (AbortController – no deprecated CancelToken) ─────────
   useEffect(() => {
-    if (!isPaid) {
-      setPurchaseStatus(null);
-      return;
-    }
-    const source = API.CancelToken?.source?.();
-    const checkPurchase = async () => {
-      try {
-        const response = await API.get(`/notes/${note._id}/check-purchase`, { cancelToken: source?.token });
-        setPurchaseStatus(response.data.purchased === true);
-      } catch (err) {
-        if (!API.isCancel?.(err)) {
-          console.warn('Purchase check failed:', err.message);
-          setPurchaseStatus(false);
-        }
-      }
-    };
-    checkPurchase();
-    return () => source?.cancel();
+    if (!isPaid) { setPurchaseStatus(null); return; }
+    const ctrl = new AbortController();
+    API.get(`/notes/${note._id}/check-purchase`)
+      .then(r => { if (!ctrl.signal.aborted) setPurchaseStatus(r.data.purchased === true); })
+      .catch(err => { if (err?.name !== 'AbortError' && !ctrl.signal.aborted) setPurchaseStatus(false); });
+    return () => ctrl.abort();
   }, [note._id, isPaid]);
 
-  useEffect(() => {
-    if (isPaid && purchaseStatus === null) return;
-    if (canViewFull) {
-      setPagesLoading(false);
-      return;
-    }
+  // ── PDF preview pages (shared hook – memory-safe, canvas cleanup) ────────
+  const { pages, loading: pagesLoading } = usePdfPreview(
+    note.pdfUrl,
+    !!(isPaid && purchaseStatus === false),
+    3
+  );
 
-    abortControllerRef.current?.abort();
-    abortControllerRef.current = new AbortController();
-    const { signal } = abortControllerRef.current;
-    let isMounted = true;
-
-    (async () => {
-      setPagesLoading(true);
-      setPages([]);
-      try {
-        const pdfjsLib = await import('pdfjs-dist');
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
-
-        const fullUrl = note.pdfUrl?.startsWith('http')
-          ? note.pdfUrl
-          : `${process.env.REACT_APP_API_URL?.replace(/\/api$/, '') || 'http://localhost:5000'}${note.pdfUrl}`;
-
-        const pdf = await pdfjsLib.getDocument({
-          url: fullUrl,
-          verbosity: 0,
-          useSystemFonts: true,
-          cMapUrl: `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/cmaps/`,
-          cMapPacked: true,
-        }).promise;
-
-        if (signal.aborted || !isMounted) return;
-
-        const numPages = Math.min(3, pdf.numPages);
-        const rendered = [];
-
-        for (let i = 1; i <= numPages; i++) {
-          if (signal.aborted || !isMounted) break;
-          const page = await pdf.getPage(i);
-          const viewport = page.getViewport({ scale: 1.5 });
-          const canvas = document.createElement('canvas');
-          canvas.width = viewport.width;
-          canvas.height = viewport.height;
-          const ctx = canvas.getContext('2d');
-          ctx.fillStyle = '#fff';
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-          await page.render({ canvasContext: ctx, viewport }).promise;
-          rendered.push(canvas.toDataURL('image/jpeg', 0.9));
-          page.cleanup();
-        }
-        if (!signal.aborted && isMounted) setPages(rendered);
-        pdf.destroy();
-      } catch (err) {
-        if (err?.name !== 'AbortError' && !signal.aborted && isMounted) {
-          console.warn('Preview render error:', err.message);
-        }
-      } finally {
-        if (isMounted && !signal.aborted) setPagesLoading(false);
-      }
-    })();
-
-    return () => {
-      isMounted = false;
-      abortControllerRef.current?.abort();
-    };
-  }, [canViewFull, purchaseStatus, note.pdfUrl, isPaid]);
-
-  const getAbsolutePdfUrl = (url) => {
+  const absUrl = (url) => {
     if (!url) return '';
     if (url.startsWith('http')) return url;
     return `${process.env.REACT_APP_API_URL?.replace(/\/api$/, '') || 'http://localhost:5000'}${url}`;
@@ -175,8 +123,10 @@ const PreviewModal = ({ note, onClose, onBuy }) => {
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       onClick={onClose}
       className="fixed inset-0 z-[100] bg-black/85 backdrop-blur-md flex items-center justify-center p-4"
+      aria-hidden="true"
     >
       <motion.div
+        ref={modalRef}
         initial={{ scale: 0.85, opacity: 0, y: 30 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.85, opacity: 0, y: 30 }}
@@ -184,45 +134,53 @@ const PreviewModal = ({ note, onClose, onBuy }) => {
         onClick={e => e.stopPropagation()}
         className="relative w-full max-w-4xl bg-gray-950 border border-white/15 rounded-2xl overflow-hidden shadow-2xl"
         style={{ height: 'clamp(70vh, 85vh, 90vh)' }}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Preview: ${note.title}`}
       >
         <div className="flex items-center justify-between px-5 py-3 border-b border-white/10 bg-gray-900/80">
-          <div>
-            <p className="text-white font-semibold text-sm truncate max-w-xs">{note.title}</p>
+          <div className="truncate pr-4">
+            <p className="text-white font-semibold text-sm truncate">{note.title}</p>
             <p className="text-gray-500 text-xs">
               {note.subject}{note.semester ? ` • Sem ${note.semester}` : ''}
               {isPaid && !canViewFull && <span className="ml-2 text-amber-400 font-medium">🔒 Preview — first 3 pages</span>}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             {canViewFull && (
               <button
-                onClick={() => downloadPdf(getAbsolutePdfUrl(note.pdfUrl), note.title)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-700 rounded-lg text-xs text-white font-medium transition">
-                <FiDownload /> {isPaid ? 'Download' : 'Open Full'}
+                onClick={() => downloadPdf(absUrl(note.pdfUrl), note.title)}
+                aria-label="Download PDF"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-700 rounded-lg text-xs text-white font-medium transition"
+              >
+                <FiDownload aria-hidden="true" /> {isPaid ? 'Download' : 'Open Full'}
               </button>
             )}
-            <button onClick={onClose}
-              className="p-1.5 hover:bg-white/10 rounded-lg transition text-gray-400 hover:text-white">
-              <FiX className="text-lg" />
+            <button
+              onClick={onClose}
+              aria-label="Close preview"
+              className="p-1.5 hover:bg-white/10 rounded-lg transition text-gray-400 hover:text-white"
+            >
+              <FiX className="text-lg" aria-hidden="true" />
             </button>
           </div>
         </div>
 
         {isPaid && purchaseStatus === null ? (
-          <div className="w-full flex items-center justify-center" style={{ height: 'calc(100% - 57px)' }}>
+          <div className="w-full flex items-center justify-center" style={{ height: 'calc(100% - 57px)' }} role="status">
             <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
           </div>
         ) : canViewFull ? (
           <iframe
-            src={`${getAbsolutePdfUrl(note.pdfUrl)}#toolbar=0&navpanes=0`}
+            src={`${absUrl(note.pdfUrl)}#toolbar=0&navpanes=0`}
             className="w-full bg-white"
             style={{ height: 'calc(100% - 57px)' }}
-            title={note.title}
+            title={`PDF: ${note.title}`}
           />
         ) : (
           <div className="overflow-y-auto bg-gray-900 relative" style={{ height: 'calc(100% - 57px)' }}>
             {pagesLoading ? (
-              <div className="flex flex-col items-center justify-center h-64 gap-3">
+              <div className="flex flex-col items-center justify-center h-64 gap-3" role="status">
                 <div className="w-8 h-8 border-2 border-white/30 border-t-violet-400 rounded-full animate-spin" />
                 <p className="text-gray-500 text-sm">Loading preview...</p>
               </div>
@@ -230,21 +188,22 @@ const PreviewModal = ({ note, onClose, onBuy }) => {
               <>
                 {pages.map((src, i) => (
                   <div key={i} className="relative">
-                    <img src={src} alt={`Page ${i + 1}`} className="w-full block" />
+                    <img src={src} alt={`Preview page ${i + 1}`} className="w-full block" />
                     {i === pages.length - 1 && (
-                      <div className="absolute inset-0 pointer-events-none"
+                      <div className="absolute inset-0 pointer-events-none" aria-hidden="true"
                         style={{ background: 'linear-gradient(to bottom, transparent 20%, rgba(7,7,15,0.85) 65%, rgba(7,7,15,1) 100%)' }}
                       />
                     )}
                   </div>
                 ))}
                 <div className="sticky bottom-0 w-full bg-gray-950/95 backdrop-blur-lg border-t border-white/10 p-5 text-center">
-                  <div className="text-3xl mb-2">🔒</div>
+                  <div className="text-3xl mb-2" aria-hidden="true">🔒</div>
                   <p className="text-white font-bold text-base mb-1">Preview ends here</p>
                   <p className="text-gray-400 text-xs mb-4">Purchase to unlock all pages and download</p>
                   <motion.button
                     whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
                     onClick={() => { onClose(); onBuy(note); }}
+                    aria-label={`Buy full access for ₹${note.price}`}
                     className="px-7 py-2.5 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 rounded-xl text-white font-bold text-sm shadow-lg shadow-violet-500/30 transition-all"
                   >
                     Buy ₹{note.price} — Unlock Full Access
@@ -267,6 +226,10 @@ const TiltCard = ({ children, className }) => {
   const rotateX = useTransform(y, [-0.5, 0.5], [6, -6]);
   const rotateY = useTransform(x, [-0.5, 0.5], [-6, 6]);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  // Respect prefers-reduced-motion for users who opt out of animations
+  const [reducedMotion] = useState(
+    () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -274,8 +237,10 @@ const TiltCard = ({ children, className }) => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  const tiltDisabled = isMobile || reducedMotion;
+
   const onMove = (e) => {
-    if (!ref.current || isMobile) return;
+    if (!ref.current || tiltDisabled) return;
     const r = ref.current.getBoundingClientRect();
     x.set((e.clientX - r.left) / r.width - 0.5);
     y.set((e.clientY - r.top) / r.height - 0.5);
@@ -284,7 +249,7 @@ const TiltCard = ({ children, className }) => {
 
   return (
     <motion.div ref={ref} onMouseMove={onMove} onMouseLeave={onLeave}
-      style={isMobile ? {} : { rotateX, rotateY, transformStyle: 'preserve-3d', perspective: 1000 }}
+      style={tiltDisabled ? {} : { rotateX, rotateY, transformStyle: 'preserve-3d', perspective: 1000 }}
       className={className}>
       {children}
     </motion.div>
@@ -292,7 +257,7 @@ const TiltCard = ({ children, className }) => {
 };
 
 // ─── NOTE CARD ────────────────────────────────────────────────────────────────
-const NoteCard = ({ note, onPreview, onBuy, onAddToCart, gradient, isWishlisted, onToggleWishlist }) => {
+const NoteCard = forwardRef(({ note, onPreview, onBuy, onAddToCart, gradient, isWishlisted, onToggleWishlist, onChat }, ref) => {
   const [hovered, setHovered] = useState(false);
   const [wishAnim, setWishAnim] = useState(false);
   const [showAI, setShowAI] = useState(false);
@@ -310,7 +275,7 @@ const NoteCard = ({ note, onPreview, onBuy, onAddToCart, gradient, isWishlisted,
   };
 
   return (
-    <div className="h-full">
+    <div className="h-full" ref={ref}>
       <TiltCard className="group relative h-full">
         <div className="absolute -inset-0.5 bg-gradient-to-r from-violet-600 via-fuchsia-500 to-pink-500 rounded-2xl blur opacity-0 group-hover:opacity-60 transition-all duration-500 pointer-events-none" />
         <motion.div
@@ -354,9 +319,23 @@ const NoteCard = ({ note, onPreview, onBuy, onAddToCart, gradient, isWishlisted,
               {isTopRated && <span className="text-[8px] tracking-widest font-black uppercase bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-2 py-0.5 rounded-full shadow-md shadow-blue-950/50">⭐ Top Rated</span>}
             </div>
 
-            {/* Wishlist Heart on top-right */}
-            <button onClick={handleWish} className="absolute top-2.5 right-2.5 p-2 bg-black/40 backdrop-blur-md rounded-xl text-gray-300 hover:text-pink-500 border border-white/10 hover:border-pink-500/30 transition z-10">
-              <motion.div animate={wishAnim ? { scale: [1, 1.4, 0.9, 1.2, 1] } : {}}>
+            {/* Cart button – always visible so mobile users can add to cart */}
+            <button
+              onClick={(e) => { e.stopPropagation(); onAddToCart(note); }}
+              aria-label="Add to cart"
+              className="absolute top-2.5 right-[52px] p-2 bg-black/40 backdrop-blur-md rounded-xl text-gray-300 hover:text-violet-400 border border-white/10 hover:border-violet-500/30 transition z-10"
+            >
+              <FiShoppingCart className="text-sm" aria-hidden="true" />
+            </button>
+
+            {/* Wishlist heart – always visible */}
+            <button
+              onClick={handleWish}
+              aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+              aria-pressed={isWishlisted}
+              className="absolute top-2.5 right-2.5 p-2 bg-black/40 backdrop-blur-md rounded-xl text-gray-300 hover:text-pink-500 border border-white/10 hover:border-pink-500/30 transition z-10"
+            >
+              <motion.div animate={wishAnim ? { scale: [1, 1.4, 0.9, 1.2, 1] } : {}} aria-hidden="true">
                 <FiHeart className={`text-sm ${isWishlisted ? 'text-pink-500 fill-pink-500' : ''}`} />
               </motion.div>
             </button>
@@ -389,6 +368,16 @@ const NoteCard = ({ note, onPreview, onBuy, onAddToCart, gradient, isWishlisted,
                 <div className="flex items-center gap-1 text-[11px] max-w-[120px]">
                   <FiUser className="text-xs flex-shrink-0" />
                   <span className="truncate">{note.uploadedBy?.name || 'Academic Creator'}</span>
+                  {note.uploadedBy?._id && onChat && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onChat(note.uploadedBy); }}
+                      className="text-violet-400 hover:text-violet-300 ml-1 bg-violet-500/10 hover:bg-violet-500/20 p-1 rounded-full transition-colors flex-shrink-0"
+                      title="Chat with uploader"
+                      aria-label={`Chat with ${note.uploadedBy.name}`}
+                    >
+                      <FiMessageCircle className="text-[10px]" />
+                    </button>
+                  )}
                 </div>
                 <span className="text-[10px]">•</span>
                 <div className="flex items-center gap-1 text-[11px] max-w-[130px]">
@@ -465,17 +454,17 @@ const NoteCard = ({ note, onPreview, onBuy, onAddToCart, gradient, isWishlisted,
       </TiltCard>
     </div>
   );
-};
+});
 
 // ─── GRID SECTION ─────────────────────────────────────────────────────────────
-const Section = ({ notes, onPreview, onBuy, onAddToCart, wishlist, onToggleWishlist, gradients }) => (
+const Section = ({ notes, onPreview, onBuy, onAddToCart, wishlist, onToggleWishlist, gradients, onChat }) => (
   notes.length === 0
     ? null
     : <motion.div layout className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5">
       <AnimatePresence mode="popLayout">
         {notes.map(note => (
           <NoteCard key={note._id} note={note} onPreview={onPreview} onBuy={onBuy} onAddToCart={onAddToCart}
-            gradient={gradients(note._id)} isWishlisted={wishlist.includes(note._id)} onToggleWishlist={onToggleWishlist} />
+            gradient={gradients(note._id)} isWishlisted={wishlist.includes(note._id)} onToggleWishlist={onToggleWishlist} onChat={onChat} />
         ))}
       </AnimatePresence>
     </motion.div>
@@ -506,7 +495,6 @@ export default function Explorer() {
   const [searchInput, setSearchInput] = useState(querySearch);
   const [suggestions, setSuggestions] = useState([]);
   const [showSug, setShowSug] = useState(false);
-  const [activeCategory] = useState('All');
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
     subject: '',
@@ -542,7 +530,7 @@ export default function Explorer() {
     }
   }, [activeTab]);
 
-  // Build query params including all filters, search, category, and sort
+  // Build query params including all filters, search, and sort
   const buildParams = useCallback((page = 1) => {
     const params = { page, limit: 12, ...getSortParams() };
     if (debouncedSearch) params.search = debouncedSearch;
@@ -551,9 +539,8 @@ export default function Explorer() {
     if (filters.college) params.college = filters.college;
     if (filters.priceType) params.priceType = filters.priceType;
     if (filters.minRating) params.minRating = filters.minRating;
-    if (activeCategory !== 'All') params.search = params.search ? `${params.search} ${activeCategory}` : activeCategory;
     return params;
-  }, [debouncedSearch, filters, activeCategory, getSortParams]);
+  }, [debouncedSearch, filters, getSortParams]);
 
   // Fetch notes (resets list when filters/tab changes)
   const fetchNotes = useCallback(async () => {
@@ -582,10 +569,10 @@ export default function Explorer() {
     finally { setLoadingMore(false); isFetchingRef.current = false; }
   }, [pagination, buildParams]);
 
-  // Always fetch on mount, and whenever debouncedSearch, activeTab, filters change
+  // Always fetch on mount, and whenever debouncedSearch, activeTab, or filters change
   useEffect(() => {
     fetchNotes();
-  }, [fetchNotes, debouncedSearch, activeTab, filters.subject, filters.semester, filters.college, filters.priceType, filters.minRating, activeCategory]);
+  }, [fetchNotes, debouncedSearch, activeTab, filters.subject, filters.semester, filters.college, filters.priceType, filters.minRating]);
 
   // Sync state to URL search parameters for consistency & direct links
   useEffect(() => {
@@ -612,7 +599,10 @@ export default function Explorer() {
     } else { setSuggestions([]); setShowSug(false); }
   }, [debouncedSearch, notes]);
 
-  const handlePreview = (note) => { if (note.pdfUrl) setPreviewNote(note); else alert('Preview not available'); };
+  const handlePreview = (note) => {
+    if (note.pdfUrl) navigate(`/note/${note._id}/preview`);
+    else showToast('Preview not available', 'error');
+  };
   const handleBuy = (note) => {
     if (note.price === 0 && note.pdfUrl) {
       downloadPdf(buildPdfUrl(note.pdfUrl), note.title);
@@ -623,13 +613,17 @@ export default function Explorer() {
 
   const handleAddToCart = async (note) => {
     try {
-      if (!user) return alert("Please login first to use cart.");
+      if (!user) return showToast('Please login first to use cart', 'error');
       await API.post('/profile/cart/toggle', { noteId: note._id });
-      alert(`Added ${note.title} to Cart!`);
+      showToast(`Added "${note.title}" to cart`, 'success');
     } catch (e) {
-      alert("Failed to add to cart");
+      showToast('Failed to add to cart', 'error');
     }
   };
+
+  const handleChat = useCallback((uploader) => {
+    navigate('/chat', { state: { startChatWith: uploader } });
+  }, [navigate]);
 
   const subjects = useMemo(() => [...new Set(notes.map(n => n.subject).filter(Boolean))], [notes]);
   const semesters = useMemo(() => [...new Set(notes.map(n => n.semester).filter(Boolean))].sort(), [notes]);
@@ -689,9 +683,10 @@ export default function Explorer() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate('/')}
+              aria-label="Go to home"
               className="p-3 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 hover:border-white/20 transition-all text-gray-300 hover:text-white"
             >
-              <FiArrowLeft className="text-lg" />
+              <FiArrowLeft className="text-lg" aria-hidden="true" />
             </button>
             <div>
               <h1 className="text-2xl font-black text-white tracking-tight">Academic Explorer</h1>
@@ -714,15 +709,24 @@ export default function Explorer() {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
           <div className="flex gap-3 mb-4">
             <div className="relative flex-1" ref={searchRef}>
-              <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input value={searchInput}
+              <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" aria-hidden="true" />
+              <input
+                value={searchInput}
                 onChange={e => { setSearchInput(e.target.value); setShowSug(true); }}
                 onBlur={() => setTimeout(() => setShowSug(false), 150)}
                 onFocus={() => suggestions.length && setShowSug(true)}
                 placeholder="Search notes, subjects, authors..."
-                className="w-full pl-11 pr-10 py-3.5 bg-white/5 border border-white/10 hover:border-white/20 focus:border-violet-500/60 rounded-xl text-white placeholder-gray-500 text-sm outline-none transition-all" />
+                aria-label="Search notes"
+                className="w-full pl-11 pr-10 py-3.5 bg-white/5 border border-white/10 hover:border-white/20 focus:border-violet-500/60 rounded-xl text-white placeholder-gray-500 text-sm outline-none transition-all"
+              />
               {searchInput && (
-                <button onClick={() => { setSearchInput(''); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition"><FiX /></button>
+                <button
+                  onClick={() => setSearchInput('')}
+                  aria-label="Clear search"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition"
+                >
+                  <FiX aria-hidden="true" />
+                </button>
               )}
               <AnimatePresence>
                 {showSug && suggestions.length > 0 && (
@@ -738,13 +742,17 @@ export default function Explorer() {
                 )}
               </AnimatePresence>
             </div>
-            <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+            <motion.button
+              whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
               onClick={() => setShowFilters(v => !v)}
-              className={`relative px-4 py-3 rounded-xl border text-sm font-semibold flex items-center gap-2 transition-all ${showFilters ? 'bg-violet-600/30 border-violet-500/60 text-violet-300' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'}`}>
-              <FiFilter /> <span className="hidden sm:inline">Filters</span>
-              <FiChevronDown className={`transition-transform duration-200 ${showFilters ? 'rotate-180' : ''}`} />
+              aria-label={showFilters ? 'Hide filters' : 'Show filters'}
+              aria-expanded={showFilters}
+              className={`relative px-4 py-3 rounded-xl border text-sm font-semibold flex items-center gap-2 transition-all ${showFilters ? 'bg-violet-600/30 border-violet-500/60 text-violet-300' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'}`}
+            >
+              <FiFilter aria-hidden="true" /> <span className="hidden sm:inline">Filters</span>
+              <FiChevronDown className={`transition-transform duration-200 ${showFilters ? 'rotate-180' : ''}`} aria-hidden="true" />
               {activeFilterCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-fuchsia-500 rounded-full text-[10px] font-bold text-white flex items-center justify-center">{activeFilterCount}</span>
+                <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-fuchsia-500 rounded-full text-[10px] font-bold text-white flex items-center justify-center" aria-label={`${activeFilterCount} active filters`}>{activeFilterCount}</span>
               )}
             </motion.button>
           </div>
@@ -831,7 +839,7 @@ export default function Explorer() {
                 </div>
               ) : (
                 <Section notes={displayedNotes} onPreview={handlePreview} onBuy={handleBuy} onAddToCart={handleAddToCart}
-                  wishlist={wishlist} onToggleWishlist={toggleWishlist} gradients={getGradient} />
+                  wishlist={wishlist} onToggleWishlist={toggleWishlist} gradients={getGradient} onChat={handleChat} />
               )}
             </motion.div>
           </AnimatePresence>
@@ -853,49 +861,16 @@ export default function Explorer() {
         )}
       </div>
 
-      {/* Preview Modal */}
-      <AnimatePresence>
-        {previewNote && <PreviewModal note={previewNote} onClose={() => setPreviewNote(null)} onBuy={handleBuy} />}
-      </AnimatePresence>
 
-      {/* Payment Modal */}
+
+      {/* Payment Modal – shared accessible BuyModal (focus trap + scroll lock) */}
       <AnimatePresence>
         {buyNote && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            onClick={() => setBuyNote(null)}
-            className="fixed inset-0 z-[150] bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4"
-          >
-            <motion.div
-              initial={{ scale: 0.85, opacity: 0, y: 30 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.85, opacity: 0, y: 30 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 26 }}
-              onClick={e => e.stopPropagation()}
-              className="bg-gray-950 border border-white/15 rounded-2xl p-4 sm:p-6 max-w-sm w-full shadow-2xl"
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h3 className="text-white font-bold text-lg leading-snug">{buyNote.title}</h3>
-                  <p className="text-gray-400 text-xs mt-1">{buyNote.subject} {buyNote.semester ? `• Sem ${buyNote.semester}` : ''}</p>
-                </div>
-                <button onClick={() => setBuyNote(null)} className="p-1.5 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg transition ml-3 flex-shrink-0">
-                  <FiX />
-                </button>
-              </div>
-              <div className="flex items-center justify-between bg-white/5 border border-white/10 rounded-xl px-4 py-3 mb-5">
-                <span className="text-gray-400 text-sm">Price</span>
-                <span className="text-2xl font-black text-amber-400">₹{buyNote.price}</span>
-              </div>
-              <p className="text-gray-500 text-xs mb-5 text-center">Secure payment via Razorpay. Instant access after purchase.</p>
-              <PaymentButton
-                note={buyNote}
-                user={user}
-                onSuccess={() => setBuyNote(null)}
-                className="w-full py-3 text-sm font-bold justify-center"
-              />
-            </motion.div>
-          </motion.div>
+          <BuyModal
+            note={buyNote}
+            onClose={() => setBuyNote(null)}
+            onSuccess={() => setBuyNote(null)}
+          />
         )}
       </AnimatePresence>
     </div>

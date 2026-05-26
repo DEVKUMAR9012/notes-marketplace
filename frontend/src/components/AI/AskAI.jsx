@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { FiSend, FiMessageSquare, FiCopy, FiCheck } from 'react-icons/fi';
+import { motion } from 'framer-motion';
+import { FiSend, FiMessageSquare, FiCopy } from 'react-icons/fi';
 import ReactMarkdown from 'react-markdown';
+import { useFetchStream } from '../../hooks/useFetchStream';
 
 const AskAI = () => {
   const [messages, setMessages] = useState([]);
@@ -11,28 +12,34 @@ const AskAI = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const messagesEndRef = useRef(null);
+  const { stream, abort } = useFetchStream();
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Abort ongoing request on unmount
+  useEffect(() => abort, [abort]);
+
   const handleSendQuestion = async (e) => {
     e.preventDefault();
-
     if (!question.trim()) return;
 
-    // Add user message
     const userMsg = { role: 'user', text: question };
-    setMessages((prev) => [...prev, userMsg]);
+    setMessages(prev => [...prev, userMsg]);
     setQuestion('');
     setLoading(true);
     setError('');
 
-    try {
-      let aiResponse = '';
+    // Create placeholder for AI message
+    const aiMsgPlaceholder = { role: 'assistant', text: '' };
+    setMessages(prev => [...prev, aiMsgPlaceholder]);
 
-      // Use fetch for streaming
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/ai/doubt`, {
+    const apiUrl = `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/ai/doubt`;
+
+    await stream(
+      apiUrl,
+      {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -43,51 +50,29 @@ const AskAI = () => {
           context,
           language,
         }),
-      });
-
-      if (!response.ok) throw new Error('Failed to get response');
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let aiMsg = { role: 'assistant', text: '' };
-      setMessages((prev) => [...prev, aiMsg]);
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const dataStr = line.slice(6);
-            if (dataStr === '[DONE]') break;
-            
-            try {
-              const data = JSON.parse(dataStr);
-              if (data.text) {
-                aiResponse += data.text;
-                aiMsg.text = aiResponse;
-                setMessages((prev) => {
-                  const newMsgs = [...prev];
-                  newMsgs[newMsgs.length - 1] = { ...aiMsg };
-                  return newMsgs;
-                });
-              } else if (data.error) {
-                throw new Error(data.error);
-              }
-            } catch (e) {
-              // Ignore parse errors for incomplete chunks
-            }
+      },
+      (chunk) => {
+        // Update the last message (AI response) incrementally
+        setMessages(prev => {
+          const newMsgs = [...prev];
+          const lastMsg = newMsgs[newMsgs.length - 1];
+          if (lastMsg.role === 'assistant') {
+            newMsgs[newMsgs.length - 1] = {
+              ...lastMsg,
+              text: lastMsg.text + chunk,
+            };
           }
-        }
+          return newMsgs;
+        });
+      },
+      (err) => {
+        setError(err.message || 'Failed to get response');
+        // Remove the placeholder message on error
+        setMessages(prev => prev.slice(0, -1));
       }
-    } catch (err) {
-      setError(err.message || 'Failed to process question');
-    } finally {
-      setLoading(false);
-    }
+    );
+
+    setLoading(false);
   };
 
   const handleCopy = (text) => {
@@ -104,12 +89,12 @@ const AskAI = () => {
           </div>
           <span className="font-bold text-white">Ask AI Anything</span>
         </div>
-        
         <div className="flex gap-3">
           <select
             value={context}
             onChange={(e) => setContext(e.target.value)}
             className="px-3 py-1.5 bg-gray-900 border border-gray-600 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-500"
+            aria-label="Select context"
           >
             <option value="general">General</option>
             <option value="programming">Programming/Coding</option>
@@ -121,6 +106,7 @@ const AskAI = () => {
             value={language}
             onChange={(e) => setLanguage(e.target.value)}
             className="px-3 py-1.5 bg-gray-900 border border-gray-600 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-500"
+            aria-label="Select language"
           >
             <option value="english">English</option>
             <option value="hindi">Hindi</option>
@@ -153,16 +139,16 @@ const AskAI = () => {
                     : 'bg-gray-800 border border-gray-700 text-gray-200 rounded-tl-sm'
                 }`}
               >
-                {msg.role === 'assistant' && (
+                {msg.role === 'assistant' && msg.text && (
                   <button
                     onClick={() => handleCopy(msg.text)}
                     className="absolute top-3 right-3 p-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white rounded transition-all"
                     title="Copy response"
+                    aria-label="Copy response"
                   >
                     <FiCopy className="text-xs" />
                   </button>
                 )}
-                
                 {msg.role === 'user' ? (
                   <p className="whitespace-pre-wrap text-sm">{msg.text}</p>
                 ) : (
@@ -181,7 +167,7 @@ const AskAI = () => {
                         ),
                       }}
                     >
-                      {msg.text}
+                      {msg.text || ''}
                     </ReactMarkdown>
                   </div>
                 )}
@@ -204,10 +190,18 @@ const AskAI = () => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Error */}
       {error && (
-        <div className="mx-4 p-3 mb-2 bg-red-500/10 border border-red-500/30 text-red-400 text-sm rounded-lg">
-          {error}
+        <div className="mx-4 p-3 mb-2 bg-red-500/10 border border-red-500/30 text-red-400 text-sm rounded-lg flex justify-between items-center">
+          <span>{error}</span>
+          <button
+            onClick={() => {
+              setError('');
+              handleSendQuestion({ preventDefault: () => {} });
+            }}
+            className="text-xs bg-red-500/20 px-2 py-1 rounded hover:bg-red-500/30"
+          >
+            Retry
+          </button>
         </div>
       )}
 
@@ -221,11 +215,13 @@ const AskAI = () => {
             placeholder="Type your question here..."
             disabled={loading}
             className="flex-1 px-4 py-3 bg-gray-900 border border-gray-600 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all disabled:opacity-50"
+            aria-label="Your question"
           />
           <button
             type="submit"
             disabled={loading || !question.trim()}
             className="px-6 py-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 disabled:opacity-50 text-white rounded-xl font-bold transition-all shadow-lg flex items-center gap-2"
+            aria-label="Send message"
           >
             <FiSend />
             <span className="hidden sm:inline">Ask AI</span>

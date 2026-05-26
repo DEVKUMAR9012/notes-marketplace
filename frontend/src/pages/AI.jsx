@@ -5,10 +5,13 @@ import {
   FiCode, FiMap, FiMic, FiArrowRight,
 } from 'react-icons/fi';
 import '../styles/AIHub.css';
-import NoteSummarizer from '../components/AI/NoteSummarizer';
-import PDFChat from '../components/AI/PDFChat';
-import QuizGenerator from '../components/AI/QuizGenerator';
-import AskAI from '../components/AI/AskAI';
+import NoteSummarizer  from '../components/AI/NoteSummarizer';
+import PDFChat         from '../components/AI/PDFChat';
+import QuizGenerator   from '../components/AI/QuizGenerator';
+import AskAI           from '../components/AI/AskAI';
+import CodeExplainer   from '../components/AI/CodeExplainer';
+import RoadmapGenerator from '../components/AI/RoadmapGenerator';
+import InterviewPrep   from '../components/AI/InterviewPrep';
 
 // ── Tools config ───────────────────────────────────────────────────────────────
 const TOOLS = [
@@ -52,7 +55,8 @@ const TOOLS = [
     icon: FiCode,
     desc: 'Paste code → line-by-line explanation',
     colorClass: 'orange',
-    soon: true,
+    component: CodeExplainer,
+    badge: 'new',
   },
   {
     id: 'roadmap',
@@ -60,7 +64,8 @@ const TOOLS = [
     icon: FiMap,
     desc: 'AI-generated study roadmaps for any topic',
     colorClass: 'rose',
-    soon: true,
+    component: RoadmapGenerator,
+    badge: 'new',
   },
   {
     id: 'interview',
@@ -68,7 +73,8 @@ const TOOLS = [
     icon: FiMic,
     desc: 'Mock interviews & viva preparation',
     colorClass: 'indigo',
-    soon: true,
+    component: InterviewPrep,
+    badge: 'new',
   },
 ];
 
@@ -156,6 +162,9 @@ export default function AIHub() {
                     </div>
                     {t.badge === 'popular' && (
                       <span className="badge-popular">Popular</span>
+                    )}
+                    {t.badge === 'new' && (
+                      <span className="badge-popular" style={{background:'linear-gradient(135deg,#6366f1,#8b5cf6)'}}>New ✨</span>
                     )}
                     {t.soon && <span className="badge-soon">Soon</span>}
                     {!t.soon && (

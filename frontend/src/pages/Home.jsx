@@ -1,8 +1,9 @@
 import { motion, useInView, animate } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
-import { FiArrowRight } from 'react-icons/fi';
+import { FiArrowRight, FiBook, FiBriefcase, FiCompass, FiCpu, FiMonitor, FiPlayCircle, FiBookOpen, FiBox, FiTarget, FiFeather, FiAward } from 'react-icons/fi';
 import API from '../utils/api';
+import UniversitySection from '../components/UniversitySection';
 
 // ─── Animated Count-Up Hook ───────────────────────────────────────────────────
 function useCountUp(target, duration = 1.8, inView = true) {
@@ -20,7 +21,7 @@ function useCountUp(target, duration = 1.8, inView = true) {
 }
 
 // ─── Single Stat Cell ─────────────────────────────────────────────────────────
-function StatCell({ icon, value, suffix = '+', label, color, delay, inView, isRating }) {
+function StatCell({ value, suffix = '+', label, delay, inView, isRating }) {
   const counted = useCountUp(isRating ? Math.round(value * 10) : value, 1.8, inView);
   const display = isRating
     ? (counted / 10).toFixed(1)
@@ -28,42 +29,42 @@ function StatCell({ icon, value, suffix = '+', label, color, delay, inView, isRa
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 24 }}
+      initial={{ opacity: 0, y: 20 }}
       animate={inView ? { opacity: 1, y: 0 } : {}}
       transition={{ delay, duration: 0.55, ease: 'easeOut' }}
-      className="flex flex-col items-center gap-1.5 px-6 py-5 relative group"
+      className="flex flex-col items-start gap-1"
     >
-      {/* Icon glow */}
-      <div className={`text-2xl mb-1 drop-shadow-[0_0_10px_currentColor] ${color}`}>{icon}</div>
-
       {/* Number */}
       <div className="flex items-end gap-0.5 leading-none">
-        <span className={`text-3xl sm:text-4xl font-black tabular-nums ${color}`}>
+        <span className="text-3xl sm:text-4xl font-black tabular-nums tracking-tight text-white">
           {display}
         </span>
-        <span className={`text-xl font-bold mb-0.5 ${color}`}>{suffix}</span>
+        <span className="text-xl font-bold mb-1 text-white">{suffix}</span>
       </div>
 
       {/* Label */}
-      <span className="text-[11px] sm:text-xs text-gray-500 font-semibold uppercase tracking-widest text-center">
+      <span className="text-[9px] sm:text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">
         {label}
       </span>
     </motion.div>
   );
 }
 
-const FEATURED_CATEGORIES = [
-  { id: 'dei',        title: 'DEI Dayalbagh',   subtitle: 'Official College Notes',    icon: '🏛️', color: 'from-blue-600 to-cyan-500',    filterTarget: 'college', filterValue: 'DEI' },
-  { id: 'du',         title: 'Delhi University', subtitle: 'Official DU Syllabus',      icon: '🏫', color: 'from-red-500 to-amber-500',     filterTarget: 'college', filterValue: 'Delhi University' },
-  { id: 'jnu',        title: 'JNU New Delhi',   subtitle: 'Official JNU Resources',    icon: '🏛️', color: 'from-indigo-500 to-purple-500',  filterTarget: 'college', filterValue: 'JNU' },
-  { id: 'btech',      title: 'B.Tech / Engg',   subtitle: 'All Engineering Notes',     icon: '⚙️', color: 'from-violet-600 to-fuchsia-500', filterTarget: 'search', filterValue: 'B.Tech' },
-  { id: '9th',        title: '9th Class',        subtitle: 'CBSE & State Board Notes',  icon: '📚', color: 'from-rose-500 to-orange-500',    filterTarget: 'search', filterValue: '9th' },
-  { id: '10th',       title: '10th Class',       subtitle: 'Board Exam Prep',           icon: '✏️', color: 'from-amber-500 to-yellow-500',  filterTarget: 'search', filterValue: '10th' },
-  { id: '11th',       title: '11th Class',       subtitle: 'Science & Commerce',        icon: '📖', color: 'from-emerald-500 to-green-500',   filterTarget: 'search', filterValue: '11th' },
-  { id: '12th',       title: '12th Class',       subtitle: 'JEE/NEET & Boards',        icon: '🎯', color: 'from-cyan-500 to-blue-500',     filterTarget: 'search', filterValue: '12th' },
-  { id: 'cs',         title: 'Computer Science', subtitle: 'Programming & DB',          icon: '💻', color: 'from-orange-500 to-rose-500',    filterTarget: 'search', filterValue: 'Computer' },
-  { id: 'gaming',     title: 'Gaming Tech',     subtitle: 'Design, Dev & E-Sports',    icon: '🎮', color: 'from-yellow-400 via-pink-500 to-purple-600', filterTarget: 'search', filterValue: 'Gaming' },
-  { id: 'first_year', title: 'First Year',       subtitle: 'Sem 1 & Sem 2 Common',     icon: '🌱', color: 'from-teal-500 to-emerald-400',   filterTarget: 'search', filterValue: 'First Year' },
+const UNIVERSITY_CATEGORIES = [
+  { id: 'dei',        title: 'DEI Dayalbagh',   subtitle: 'Official college notes',    icon: FiBriefcase, iconBg: 'bg-[#1e293b]', iconColor: 'text-blue-400', notesCount: '1.2K', filterTarget: 'college', filterValue: 'DEI' },
+  { id: 'du',         title: 'Delhi University', subtitle: 'Official DU syllabus',      icon: FiBook,      iconBg: 'bg-[#2e1065]', iconColor: 'text-purple-400', notesCount: '3.4K', filterTarget: 'college', filterValue: 'Delhi University' },
+  { id: 'jnu',        title: 'JNU New Delhi',   subtitle: 'Official JNU resources',    icon: FiCompass,   iconBg: 'bg-[#064e3b]', iconColor: 'text-emerald-500', notesCount: '890', filterTarget: 'college', filterValue: 'JNU' },
+  { id: 'btech',      title: 'B.Tech / Engg',   subtitle: 'All engineering notes',     icon: FiCpu,       iconBg: 'bg-[#451a03]', iconColor: 'text-orange-500', notesCount: '5.1K', filterTarget: 'search', filterValue: 'B.Tech' },
+  { id: 'cs',         title: 'Computer Science', subtitle: 'Programming & DB',          icon: FiMonitor,   iconBg: 'bg-[#4c1d95]', iconColor: 'text-violet-400', notesCount: '2.8K', filterTarget: 'search', filterValue: 'Computer' },
+  { id: 'gaming',     title: 'Gaming Tech',     subtitle: 'Design, Dev & E-Sports',    icon: FiPlayCircle,iconBg: 'bg-[#701a75]', iconColor: 'text-fuchsia-400', notesCount: '940', filterTarget: 'search', filterValue: 'Gaming' },
+  { id: 'first_year', title: 'First Year',       subtitle: 'Sem 1 & Sem 2 Common',     icon: FiBookOpen,  iconBg: 'bg-[#134e4a]', iconColor: 'text-teal-400', notesCount: '4.2K', filterTarget: 'search', filterValue: 'First Year' },
+];
+
+const SCHOOL_CATEGORIES = [
+  { id: '9th',        title: '9th Class',        subtitle: 'CBSE & State Board',        imgUrl: '/classes/class_9_icon_1779705473105.png',       iconBg: 'bg-[#450a0a]', iconColor: 'text-red-500', notesCount: '720', filterTarget: 'search', filterValue: '9th' },
+  { id: '10th',       title: '10th Class',       subtitle: 'Board exam prep',           imgUrl: '/classes/class_10_icon_1779705488759.png',    iconBg: 'bg-[#451a03]', iconColor: 'text-amber-500', notesCount: '1.1K', filterTarget: 'search', filterValue: '10th' },
+  { id: '11th',       title: '11th Class',       subtitle: 'Science & Commerce',        imgUrl: '/classes/class_11_icon_1779705504886.png',   iconBg: 'bg-[#14532d]', iconColor: 'text-green-500', notesCount: '980', filterTarget: 'search', filterValue: '11th' },
+  { id: '12th',       title: '12th Class',       subtitle: 'JEE / NEET & Boards',       imgUrl: '/classes/class_12_icon_1779705522501.png',     iconBg: 'bg-[#1e3a8a]', iconColor: 'text-blue-500', notesCount: '2.3K', filterTarget: 'search', filterValue: '12th' },
 ];
 
 // ─── Home Page ────────────────────────────────────────────────────────────────
@@ -98,18 +99,9 @@ export default function Home() {
   };
 
   const statItems = [
-    {
-      icon: '📚', value: stats.totalNotes, suffix: '+', label: 'Notes & Books',
-      color: 'text-violet-400', delay: 0,
-    },
-    {
-      icon: '🎓', value: stats.totalStudents, suffix: '+', label: 'Students',
-      color: 'text-fuchsia-400', delay: 0.12,
-    },
-    {
-      icon: '⬇️', value: stats.totalDownloads, suffix: '+', label: 'Downloads',
-      color: 'text-cyan-400', delay: 0.24,
-    },
+    { value: stats.totalNotes, suffix: '+', label: 'Notes', delay: 0 },
+    { value: stats.totalStudents, suffix: '+', label: 'Students', delay: 0.12 },
+    { value: stats.totalDownloads, suffix: '+', label: 'Downloads', delay: 0.24 },
   ];
 
 
@@ -126,82 +118,71 @@ export default function Home() {
 
 
         {/* ── Live Stats Bar ────────────────────────────────────────────────── */}
-        <div ref={statsRef} className="mb-14">
+        <div ref={statsRef} className="mb-14 mt-6">
           <motion.div
-            initial={{ opacity: 0, scale: 0.97 }}
-            animate={statsInView ? { opacity: 1, scale: 1 } : {}}
+            initial={{ opacity: 0 }}
+            animate={statsInView ? { opacity: 1 } : {}}
             transition={{ duration: 0.5 }}
-            className="relative max-w-3xl mx-auto"
+            className="w-full relative"
           >
-            {/* Outer glow */}
-            <div className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-violet-600/40 via-fuchsia-500/40 to-cyan-500/40 blur-sm" />
-
-            {/* Glass card */}
-            <div className="relative bg-[#0d0d1a]/90 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden">
-              {/* Top shimmer line */}
-              <div className="h-px w-full bg-gradient-to-r from-transparent via-violet-500/60 to-transparent" />
-
-              <div className="flex flex-wrap sm:flex-nowrap items-stretch justify-center divide-y sm:divide-y-0 sm:divide-x divide-white/8">
-                {statItems.map((s, i) => (
-                  <div key={s.label} className={`flex-1 min-w-[140px] sm:min-w-0 ${i < statItems.length - 1 ? '' : ''}`}>
-                    <StatCell
-                      icon={s.icon}
-                      value={statsLoaded ? s.value : 0}
-                      suffix={s.suffix}
-                      label={s.label}
-                      color={s.color}
-                      delay={s.delay}
-                      inView={statsInView && statsLoaded}
-                      isRating={s.isRating}
-                    />
-                  </div>
-                ))}
-              </div>
-
-              {/* Live indicator */}
-              <div className="flex items-center justify-center gap-1 py-1 border-t border-white/[0.04] bg-white/[0.01]">
-                <span className="w-1 h-1 rounded-full bg-emerald-500/80 animate-pulse shadow-[0_0_3px_rgba(52,211,153,0.35)]" />
-                <span className="text-[8px] text-gray-500 font-bold tracking-wider uppercase">
-                  Live Platform Data
-                </span>
-              </div>
+            <div className="flex gap-8 sm:gap-12 md:gap-20 flex-wrap pb-4 border-b border-white/20 w-full">
+              {statItems.map((s, i) => (
+                <StatCell
+                  key={s.label}
+                  value={statsLoaded ? s.value : 0}
+                  suffix={s.suffix}
+                  label={s.label}
+                  delay={s.delay}
+                  inView={statsInView && statsLoaded}
+                  isRating={s.isRating}
+                />
+              ))}
             </div>
+
+
           </motion.div>
         </div>
 
-        {/* ── Category Grid ─────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 max-w-6xl mx-auto">
-          {FEATURED_CATEGORIES.map((cat, i) => (
-            <motion.div
-              key={cat.id}
-              initial={{ opacity: 0, scale: 0.9, y: 30 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              transition={{ delay: i * 0.1, type: 'spring', stiffness: 260, damping: 20 }}
-              whileHover={{ y: -6 }}
-              className="relative group cursor-pointer"
-              onClick={() => handleCategoryClick(cat)}
-            >
-              {/* Glow */}
-              <div className={`absolute -inset-0.5 bg-gradient-to-r ${cat.color} rounded-3xl blur opacity-20 group-hover:opacity-40 transition duration-500`} />
+        {/* ── Universities Section ───────────────────────────────────────────── */}
+        <div className="mb-4 sm:mb-6 relative z-20">
+          <UniversitySection />
+        </div>
 
-              <div className="relative h-full bg-[#0d0d1a] border border-white/10 rounded-3xl p-5 sm:p-8 flex flex-col items-center text-center transition-colors group-hover:border-white/20">
+        {/* ── School Classes Section ──────────────────────────────────────────── */}
+        <div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
+            {SCHOOL_CATEGORIES.map((cat, i) => {
+              return (
                 <motion.div
-                  whileHover={{ rotate: [0, -10, 10, 0] }}
-                  className={`w-14 h-14 sm:w-20 sm:h-20 rounded-2xl sm:rounded-3xl bg-gradient-to-br ${cat.color} flex items-center justify-center text-3xl sm:text-4xl shadow-2xl mb-4 sm:mb-6 relative overflow-hidden`}
+                  key={cat.id}
+                  initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  transition={{ delay: (UNIVERSITY_CATEGORIES.length + i) * 0.05, duration: 0.4 }}
+                  whileHover={{ y: -4 }}
+                  className="group cursor-pointer bg-[#0f111a] border border-white/[0.04] rounded-2xl p-5 flex flex-col hover:border-white/[0.1] hover:shadow-[0_8px_30px_rgb(0,0,0,0.4)] transition-all h-full relative overflow-hidden"
+                  onClick={() => handleCategoryClick(cat)}
                 >
-                  <div className="absolute inset-0 bg-white/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <span className="relative z-10">{cat.icon}</span>
+                  <div className={`absolute top-0 right-0 w-32 h-32 ${cat.iconBg} rounded-full blur-[50px] opacity-20 group-hover:opacity-50 transition-opacity duration-500`} />
+                  
+                  <div className={`w-14 h-14 rounded-xl mb-4 flex items-center justify-center shadow-inner relative z-10 border border-white/[0.05] overflow-hidden`}>
+                    <img src={cat.imgUrl} alt={cat.title} className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500" />
+                  </div>
+                  
+                  <div className="relative z-10">
+                    <h3 className="text-[15px] font-bold text-white mb-1.5 leading-tight">{cat.title}</h3>
+                    <p className="text-[12px] text-[#8b92a5] font-medium mb-4">{cat.subtitle}</p>
+                  </div>
+
+                  <div className="mt-auto pt-3 border-t border-white/[0.04] flex items-center justify-between relative z-10">
+                    <span className="text-[11px] font-bold text-[#6b7280] group-hover:text-[#9ca3af] transition-colors">{cat.notesCount} notes</span>
+                    <div className="w-6 h-6 flex items-center justify-center rounded-md border border-white/[0.05] bg-white/[0.02] text-[#6b7280] group-hover:text-white group-hover:bg-white/[0.1] group-hover:border-white/[0.2] transition-all">
+                      <FiArrowRight size={11} />
+                    </div>
+                  </div>
                 </motion.div>
-
-                <h3 className="text-base sm:text-xl font-bold text-white mb-1 sm:mb-2 group-hover:text-violet-300 transition-colors leading-tight">{cat.title}</h3>
-                <p className="text-xs sm:text-sm text-gray-400 font-medium leading-relaxed">{cat.subtitle}</p>
-
-                <div className="mt-4 sm:mt-8 hidden sm:flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-violet-400 opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0">
-                  Explore Notes <FiArrowRight />
-                </div>
-              </div>
-            </motion.div>
-          ))}
+              );
+            })}
+          </div>
         </div>
 
       </div>

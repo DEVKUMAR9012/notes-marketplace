@@ -6,10 +6,9 @@ const CallOverlay = memo(function CallOverlay({ activeCallPayload, setActiveCall
   if (!activeCallPayload) return null;
 
   const dismiss = () => {
-    if (ringtoneRef.current) {
+    if (ringtoneRef?.current) {
       ringtoneRef.current.pause();
       ringtoneRef.current.src = '';
-      ringtoneRef.current = null;
     }
     setActiveCallPayload(null);
   };
@@ -22,7 +21,7 @@ const CallOverlay = memo(function CallOverlay({ activeCallPayload, setActiveCall
         exit={{ opacity: 0, scale: 0.9, y: -50 }}
         role="dialog"
         aria-modal="true"
-        aria-label={activeCallPayload.incoming ? `Incoming call from ${activeCallPayload.callerName}` : 'Connecting call'}
+        aria-label={activeCallPayload.incoming ? `Incoming call from ${activeCallPayload.callerName || 'Unknown caller'}` : 'Connecting call'}
         className="fixed top-6 left-1/2 transform -translate-x-1/2 bg-[#1b1730] border-2 border-emerald-500/50 rounded-2xl p-5 shadow-2xl z-[200] w-11/12 max-w-md flex flex-col items-center gap-3"
       >
         <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center animate-pulse">
@@ -31,7 +30,7 @@ const CallOverlay = memo(function CallOverlay({ activeCallPayload, setActiveCall
         <div className="text-center">
           <h4 className="text-white font-bold text-base">
             {activeCallPayload.incoming
-              ? `Incoming Call from ${activeCallPayload.callerName}`
+              ? `Incoming Call from ${activeCallPayload.callerName || 'Unknown caller'}`
               : `Connecting with Peer...`}
           </h4>
           <p className="text-xs text-gray-400 mt-1">Establishing secure third-party integration line</p>

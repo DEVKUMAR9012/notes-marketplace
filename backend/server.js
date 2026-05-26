@@ -325,8 +325,17 @@ app.get('/api/health', (req, res) =>
   res.json({ status: 'OK', message: 'Backend running', timestamp: new Date().toISOString() }));
 
 // ========== MONGODB ==========
-// Connect to MongoDB Atlas (Mongoose buffers queries until connection is established)
-mongoose.connect(process.env.MONGO_URI)
+// Connect to MongoDB Atlas with robust options
+mongoose.connect(process.env.MONGO_URI, {
+  serverSelectionTimeoutMS: 30000, // 30 seconds
+  socketTimeoutMS: 45000, // 45 seconds
+  connectTimeoutMS: 30000, // 30 seconds
+  maxPoolSize: 10,
+  ssl: true,
+  authSource: 'admin',
+  retryWrites: true,
+  w: 'majority',
+})
   .then(() => {
     console.log('✅ MongoDB Connected Successfully');
   })
