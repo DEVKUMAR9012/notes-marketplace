@@ -5,20 +5,38 @@
 const { callGeminiWithFallback } = require('./geminiKeyManager');
 
 // ── Reusable helper (non-streaming) ─────────────────────────
-async function safeAIRequest(prompt, fallbackMessage = null) {
+async function safeAIRequest(prompt, fallbackMessage = null, image = null) {
   const result = await callGeminiWithFallback(async (genAI) => {
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-    const response = await model.generateContent(prompt);
+    
+    let parts = [prompt];
+    if (image && image.base64 && image.mimeType) {
+      parts = [
+        { text: prompt },
+        { inlineData: { data: image.base64, mimeType: image.mimeType } }
+      ];
+    }
+    
+    const response = await model.generateContent(parts);
     return response.response.text();
   });
   return result;
 }
 
 // ── Reusable helper (streaming) ──────────────────────────────
-async function safeAIStream(prompt) {
+async function safeAIStream(prompt, image = null) {
   return await callGeminiWithFallback(async (genAI) => {
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-    return await model.generateContentStream(prompt);
+    
+    let parts = [prompt];
+    if (image && image.base64 && image.mimeType) {
+      parts = [
+        { text: prompt },
+        { inlineData: { data: image.base64, mimeType: image.mimeType } }
+      ];
+    }
+    
+    return await model.generateContentStream(parts);
   });
 }
 

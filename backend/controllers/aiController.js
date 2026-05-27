@@ -8,6 +8,7 @@ const pdfParseModule = require('pdf-parse');
 const pdfParse = typeof pdfParseModule === 'function' ? pdfParseModule : (pdfParseModule.default || pdfParseModule);
 const mammoth = require('mammoth');
 const fs       = require('fs');
+const AIChat   = require('../models/AIChat');
 const { safeAIRequest, safeAIStream, prompts } = require('../utils/aiHelpers');
 
 // ── In-memory stores ─────────────────────────────────────────
@@ -27,11 +28,11 @@ setInterval(() => {
 // ═══════════════════════════════════════════════════════════
 exports.summarizeNotes = async (req, res) => {
   try {
-    const { text, type = 'balanced' } = req.body;
-    if (!text || text.trim().length < 50)
-      return res.status(400).json({ success: false, message: 'Please provide at least 50 characters.' });
+    const { text, type = 'balanced', image } = req.body;
+    if (!text && !image)
+      return res.status(400).json({ success: false, message: 'Please provide at least 50 characters or an image.' });
 
-    const summary = await safeAIRequest(prompts.summarize(text, type));
+    const summary = await safeAIRequest(prompts.summarize(text || 'Summarize the attached image', type), null, image);
     res.json({ success: true, summary, type, generatedAt: new Date() });
   } catch (err) {
     console.error('Summarize error:', err.message);
@@ -152,11 +153,11 @@ exports.deletePDF = async (req, res) => {
 // ═══════════════════════════════════════════════════════════
 exports.generateQuiz = async (req, res) => {
   try {
-    const { text, numQuestions = 5, difficulty = 'medium' } = req.body;
-    if (!text || text.trim().length < 100)
-      return res.status(400).json({ success: false, message: 'Please provide at least 100 characters.' });
+    const { text, numQuestions = 5, difficulty = 'medium', image } = req.body;
+    if (!text && !image)
+      return res.status(400).json({ success: false, message: 'Please provide at least 100 characters or an image.' });
 
-    const raw = await safeAIRequest(prompts.quiz(text, numQuestions, difficulty));
+    const raw = await safeAIRequest(prompts.quiz(text || 'Generate quiz from the attached image', numQuestions, difficulty), null, image);
     const jsonMatch = raw.match(/\[[\s\S]*\]/);
     if (!jsonMatch) throw new Error('AI did not return valid quiz JSON');
 
@@ -208,15 +209,15 @@ exports.evaluateQuiz = async (req, res) => {
 // ═══════════════════════════════════════════════════════════
 exports.solveDoubt = async (req, res) => {
   try {
-    const { question, context = 'general', language = 'english' } = req.body;
-    if (!question || question.trim().length < 10)
-      return res.status(400).json({ success: false, message: 'Please provide a valid question (min 10 chars)' });
+    const { question, context = 'general', language = 'english', image } = req.body;
+    if (!question && !image)
+      return res.status(400).json({ success: false, message: 'Please provide a valid question or an image' });
 
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
-    const streamResult = await safeAIStream(prompts.askAI(question, context, language));
+    const streamResult = await safeAIStream(prompts.askAI(question || 'Explain the attached image', context, language), image);
 
     for await (const chunk of streamResult.stream) {
       const text = chunk.candidates?.[0]?.content?.parts?.[0]?.text || '';
@@ -280,6 +281,65 @@ exports.interviewPrep = async (req, res) => {
   } catch (err) {
     console.error('Interview prep error:', err.message);
     res.status(500).json({ success: false, message: 'Failed to generate interview questions. Please try again.', error: err.message });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════
+// 8️⃣  AI CHAT HISTORY
+// ═══════════════════════════════════════════════════════════
+exports.saveAIChat = async (req, res) => {
+  try {
+    const { chatId, mode, messages } = req.body;
+    let chat;
+
+    if (chatId) {
+      chat = await AIChat.findOneAndUpdate(
+        { _id: chatId, user: req.user._id },
+        { messages, updatedAt: Date.now() },
+        { new: true }
+      );
+      if (!chat) return res.status(404).json({ success: false, message: 'Chat not found' });
+    } else {
+      // Create new chat, set title to first 4-5 words of the first message
+      const firstMsgText = messages[0]?.text || 'New Chat';
+      const title = firstMsgText.split(' ').slice(0, 5).join(' ') + (firstMsgText.split(' ').length > 5 ? '...' : '');
+      
+      chat = new AIChat({
+        user: req.user._id,
+        title,
+        mode,
+        messages
+      });
+      await chat.save();
+    }
+
+    res.json({ success: true, chat });
+  } catch (err) {
+    console.error('Save AI chat error:', err.message);
+    res.status(500).json({ success: false, message: 'Failed to save chat', error: err.message });
+  }
+};
+
+exports.getAIChats = async (req, res) => {
+  try {
+    const chats = await AIChat.find({ user: req.user._id })
+      .select('_id title mode updatedAt createdAt')
+      .sort({ updatedAt: -1 });
+    res.json({ success: true, chats });
+  } catch (err) {
+    console.error('Fetch AI chats error:', err.message);
+    res.status(500).json({ success: false, message: 'Failed to fetch chats' });
+  }
+};
+
+exports.getAIChat = async (req, res) => {
+  try {
+    const chat = await AIChat.findOne({ _id: req.params.chatId, user: req.user._id });
+    if (!chat) return res.status(404).json({ success: false, message: 'Chat not found' });
+    res.json({ success: true, chat });
+  } catch (err) {
+    console.error('Fetch AI chat error:', err.message);
+    res.status(500).json({ success: false, message: 'Failed to fetch chat' });
   }
 };
 

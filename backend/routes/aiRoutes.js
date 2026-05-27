@@ -16,6 +16,7 @@ const {
   explainCode,
   generateRoadmap,
   interviewPrep,
+  saveAIChat, getAIChats, getAIChat
 } = require('../controllers/aiController');
 
 // ── All routes require authentication ────────────────────────
@@ -64,5 +65,12 @@ router.post('/roadmap', generateRoadmap);
 // 7️⃣  INTERVIEW PREP
 // ═══════════════════════════════════════════════════════════
 router.post('/interview-prep', interviewPrep);
+
+// ═══════════════════════════════════════════════════════════
+// 8️⃣  AI CHAT HISTORY
+// ═══════════════════════════════════════════════════════════
+router.post('/chats', saveAIChat);
+router.get('/chats', getAIChats);
+router.get('/chats/:chatId', getAIChat);
 
 module.exports = router;

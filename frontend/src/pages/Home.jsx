@@ -75,6 +75,7 @@ export default function Home() {
 
   const [stats, setStats] = useState({ totalNotes: 312, totalStudents: 37, totalDownloads: 120 });
   const [statsLoaded, setStatsLoaded] = useState(false);
+  const [categoryStats, setCategoryStats] = useState(null);
 
   useEffect(() => {
     API.get('/notes/stats')
@@ -87,6 +88,16 @@ export default function Home() {
       .catch(() => {
         // silent fail — fallback numbers stay
         setStatsLoaded(true);
+      });
+      
+    API.get('/notes/category-stats')
+      .then(res => {
+        if (res.data?.success) {
+          setCategoryStats(res.data);
+        }
+      })
+      .catch(() => {
+        // silent fail
       });
   }, []);
 
@@ -145,13 +156,16 @@ export default function Home() {
 
         {/* ── Universities Section ───────────────────────────────────────────── */}
         <div className="mb-4 sm:mb-6 relative z-20">
-          <UniversitySection />
+          <UniversitySection categoryStats={categoryStats} />
         </div>
 
         {/* ── School Classes Section ──────────────────────────────────────────── */}
         <div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
             {SCHOOL_CATEGORIES.map((cat, i) => {
+              const realData = categoryStats?.schoolCategories?.find(s => s.id === cat.id);
+              const notesCount = realData?.notesCount || cat.notesCount;
+              
               return (
                 <motion.div
                   key={cat.id}
@@ -174,7 +188,9 @@ export default function Home() {
                   </div>
 
                   <div className="mt-auto pt-3 border-t border-white/[0.04] flex items-center justify-between relative z-10">
-                    <span className="text-[11px] font-bold text-[#6b7280] group-hover:text-[#9ca3af] transition-colors">{cat.notesCount} notes</span>
+                    <span className="text-[11px] font-bold text-[#6b7280] group-hover:text-[#9ca3af] transition-colors">
+                      {typeof notesCount === 'number' ? (notesCount >= 1000 ? `${(notesCount / 1000).toFixed(1)}K` : notesCount) : notesCount} notes
+                    </span>
                     <div className="w-6 h-6 flex items-center justify-center rounded-md border border-white/[0.05] bg-white/[0.02] text-[#6b7280] group-hover:text-white group-hover:bg-white/[0.1] group-hover:border-white/[0.2] transition-all">
                       <FiArrowRight size={11} />
                     </div>

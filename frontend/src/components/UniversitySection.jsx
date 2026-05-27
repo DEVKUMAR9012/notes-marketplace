@@ -294,7 +294,7 @@ function UniversityCard({ university, index, onClick }) {
 
           {/* Tag pills */}
           <div className="flex flex-wrap gap-1 mt-auto mb-3">
-            {university.tags.map((tag) => (
+            {(university.tags || []).map((tag) => (
               <TagPill key={tag} label={tag} accentColor={university.accentColor} />
             ))}
           </div>
@@ -352,7 +352,7 @@ function UniversityCard({ university, index, onClick }) {
 }
 
 // ─── Root Export ──────────────────────────────────────────────────────────────
-export default function UniversitySection() {
+export default function UniversitySection({ categoryStats }) {
   const navigate = useNavigate();
 
   const handleUniversityClick = (uni) => {
@@ -363,12 +363,22 @@ export default function UniversitySection() {
     }
   };
 
+  const universityData = UNIVERSITIES.map(staticUni => {
+    const realUni = categoryStats?.universityCategories?.find(u => u.id === staticUni.id);
+    return {
+      ...staticUni,
+      notesCount: realUni?.notesCount ?? staticUni.notesCount,
+      subjectsCount: realUni?.subjectsCount ?? staticUni.subjectsCount,
+      contributorsCount: realUni?.contributorsCount ?? staticUni.contributorsCount,
+    };
+  });
+
   return (
     <section className="relative">
       <div className="relative z-10 w-full">
         {/* Responsive card grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-          {UNIVERSITIES.map((uni, idx) => (
+          {universityData.map((uni, idx) => (
             <UniversityCard 
               key={uni.id} 
               university={uni} 

@@ -8,6 +8,131 @@ const { generateAISummary } = require('../utils/aiSummary');
 const sendEmail = require('../utils/sendEmail');
 const templates = require('../utils/emailTemplates');
 
+// @desc    Get category stats for university and school sections
+// @route   GET /api/notes/category-stats
+// @access  Public
+exports.getCategoryStats = async (req, res) => {
+  try {
+    const allApprovedNotes = await Note.find({ status: 'approved' }).populate('uploadedBy', 'name');
+    
+    // Define our categories (match what's on frontend)
+    const universityCategories = [
+      { id: 'dei', filterType: 'college', filterValue: 'DEI Dayalbagh', notesCount: 0, _subjects: new Set(), _contributors: new Set() },
+      { id: 'du', filterType: 'college', filterValue: 'Delhi University', notesCount: 0, _subjects: new Set(), _contributors: new Set() },
+      { id: 'jnu', filterType: 'college', filterValue: 'JNU New Delhi', notesCount: 0, _subjects: new Set(), _contributors: new Set() },
+      { id: 'btech', filterType: 'search', filterValue: 'B.Tech', notesCount: 0, _subjects: new Set(), _contributors: new Set() },
+      { id: 'cs', filterType: 'search', filterValue: 'Computer', notesCount: 0, _subjects: new Set(), _contributors: new Set() },
+      { id: 'gaming', filterType: 'search', filterValue: 'Gaming', notesCount: 0, _subjects: new Set(), _contributors: new Set() },
+      { id: 'first_year', filterType: 'search', filterValue: 'First Year', notesCount: 0, _subjects: new Set(), _contributors: new Set() },
+    ];
+    
+    const schoolCategories = [
+      { id: '9th', filterType: 'search', filterValue: '9th', notesCount: 0, _subjects: new Set(), _contributors: new Set() },
+      { id: '10th', filterType: 'search', filterValue: '10th', notesCount: 0, _subjects: new Set(), _contributors: new Set() },
+      { id: '11th', filterType: 'search', filterValue: '11th', notesCount: 0, _subjects: new Set(), _contributors: new Set() },
+      { id: '12th', filterType: 'search', filterValue: '12th', notesCount: 0, _subjects: new Set(), _contributors: new Set() },
+    ];
+    
+    // Process all notes to count
+    allApprovedNotes.forEach(note => {
+      // Check university categories
+      universityCategories.forEach(cat => {
+        let match = false;
+        const collegeName = note.college?.toLowerCase() || '';
+        const titleText = note.title?.toLowerCase() || '';
+        const subjectText = note.subject?.toLowerCase() || '';
+        
+        if (cat.filterType === 'college') {
+          if (cat.id === 'dei') {
+            match = collegeName.includes('dei') || collegeName.includes('dayalbagh');
+          } else if (cat.id === 'du') {
+            match = collegeName.includes('du') || collegeName.includes('delhi university');
+          } else if (cat.id === 'jnu') {
+            match = collegeName.includes('jnu') || collegeName.includes('jawaharlal');
+          } else {
+            match = collegeName.includes(cat.filterValue.toLowerCase());
+          }
+        } else if (cat.filterType === 'search') {
+          if (cat.id === 'btech') {
+            match = titleText.includes('b.tech') || titleText.includes('btech') ||
+                    subjectText.includes('b.tech') || subjectText.includes('btech') ||
+                    collegeName.includes('b.tech') || collegeName.includes('btech');
+          } else if (cat.id === 'cs') {
+            match = titleText.includes('computer') || titleText.includes('cs') ||
+                    subjectText.includes('computer') || subjectText.includes('cs') ||
+                    collegeName.includes('computer') || collegeName.includes('cs');
+          } else if (cat.id === 'gaming') {
+            match = titleText.includes('gaming') || subjectText.includes('gaming') || collegeName.includes('gaming');
+          } else if (cat.id === 'first_year') {
+            match = titleText.includes('first year') || titleText.includes('1st year') || titleText.includes('sem 1') || titleText.includes('sem 2') ||
+                    subjectText.includes('first year') || subjectText.includes('1st year') || subjectText.includes('sem 1') || subjectText.includes('sem 2') ||
+                    collegeName.includes('first year') || collegeName.includes('1st year');
+          } else {
+            const searchStr = cat.filterValue.toLowerCase();
+            match = titleText.includes(searchStr) || subjectText.includes(searchStr) || collegeName.includes(searchStr);
+          }
+        }
+        
+        if (match) {
+          cat.notesCount++;
+          if (note.subject) cat._subjects.add(note.subject.toLowerCase().trim());
+          if (note.uploadedBy?._id) cat._contributors.add(note.uploadedBy._id.toString());
+        }
+      });
+      
+      // Check school categories
+      schoolCategories.forEach(cat => {
+        const titleText = note.title?.toLowerCase() || '';
+        const subjectText = note.subject?.toLowerCase() || '';
+        const collegeName = note.college?.toLowerCase() || '';
+        
+        let match = false;
+        if (cat.id === '9th') {
+          match = titleText.includes('9th') || titleText.includes('class 9') || subjectText.includes('9th') || collegeName.includes('9th');
+        } else if (cat.id === '10th') {
+          match = titleText.includes('10th') || titleText.includes('class 10') || subjectText.includes('10th') || collegeName.includes('10th');
+        } else if (cat.id === '11th') {
+          match = titleText.includes('11th') || titleText.includes('class 11') || subjectText.includes('11th') || collegeName.includes('11th');
+        } else if (cat.id === '12th') {
+          match = titleText.includes('12th') || titleText.includes('class 12') || subjectText.includes('12th') || collegeName.includes('12th');
+        } else {
+          const searchStr = cat.filterValue.toLowerCase();
+          match = titleText.includes(searchStr) || subjectText.includes(searchStr) || collegeName.includes(searchStr);
+        }
+        
+        if (match) {
+          cat.notesCount++;
+          if (note.subject) cat._subjects.add(note.subject.toLowerCase().trim());
+          if (note.uploadedBy?._id) cat._contributors.add(note.uploadedBy._id.toString());
+        }
+      });
+    });
+    
+    const formattedUniversityCategories = universityCategories.map(cat => ({
+      id: cat.id, filterType: cat.filterType, filterValue: cat.filterValue,
+      notesCount: cat.notesCount,
+      subjectsCount: cat._subjects.size,
+      contributorsCount: cat._contributors.size
+    }));
+    
+    const formattedSchoolCategories = schoolCategories.map(cat => ({
+      id: cat.id, filterType: cat.filterType, filterValue: cat.filterValue,
+      notesCount: cat.notesCount,
+      subjectsCount: cat._subjects.size,
+      contributorsCount: cat._contributors.size
+    }));
+    
+    res.json({
+      success: true,
+      universityCategories: formattedUniversityCategories,
+      schoolCategories: formattedSchoolCategories
+    });
+  } catch (error) {
+    console.error('Category Stats Error:', error);
+    res.status(500).json({ success: false, message: 'Could not fetch category stats' });
+  }
+};
+
 // @desc    Public platform stats (no auth) — used by home page stats bar
 // @route   GET /api/notes/stats
 // @access  Public
@@ -76,7 +201,18 @@ exports.getNotes = async (req, res) => {
 
     if (semester) query.semester = Number(semester);
     if (subject)  query.subject  = { $regex: subject, $options: 'i' };
-    if (college)  query.college  = { $regex: college, $options: 'i' };
+    if (college) {
+      const collegeLower = college.toLowerCase().trim();
+      if (collegeLower === 'dei' || collegeLower === 'dei dayalbagh') {
+        query.college = { $regex: '^(dei|dayalbagh)', $options: 'i' };
+      } else if (collegeLower === 'du' || collegeLower === 'delhi university') {
+        query.college = { $regex: '^(du|delhi university)', $options: 'i' };
+      } else if (collegeLower === 'jnu' || collegeLower === 'jnu new delhi') {
+        query.college = { $regex: '^(jnu|jawaharlal)', $options: 'i' };
+      } else {
+        query.college = { $regex: college, $options: 'i' };
+      }
+    }
 
     if (priceType === 'free')  query.price = 0;
     if (priceType === 'paid')  query.price = { $gt: 0 };

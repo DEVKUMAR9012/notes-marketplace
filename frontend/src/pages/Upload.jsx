@@ -37,7 +37,8 @@ export default function Upload() {
     college: '',
     semester: '',
     price: 0,
-    itemType: 'note'
+    itemType: 'note',
+    category: ''
   });
   const [file, setFile] = useState(null);
 
@@ -70,7 +71,36 @@ export default function Upload() {
   };
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    let updatedData = { ...formData, [name]: value };
+
+    if (name === 'category') {
+      if (value === 'dei') {
+        updatedData.college = 'DEI Dayalbagh';
+      } else if (value === 'du') {
+        updatedData.college = 'Delhi University';
+      } else if (value === 'jnu') {
+        updatedData.college = 'JNU New Delhi';
+      } else if (value === 'btech') {
+        updatedData.college = 'B.Tech';
+      } else if (value === '9th') {
+        updatedData.college = '9th Class';
+        updatedData.semester = '';
+      } else if (value === '10th') {
+        updatedData.college = '10th Class';
+        updatedData.semester = '';
+      } else if (value === '11th') {
+        updatedData.college = '11th Class';
+        updatedData.semester = '';
+      } else if (value === '12th') {
+        updatedData.college = '12th Class';
+        updatedData.semester = '';
+      } else if (value === 'other') {
+        updatedData.college = '';
+      }
+    }
+
+    setFormData(updatedData);
   };
 
   const handleItemTypeChange = (type) => {
