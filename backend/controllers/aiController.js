@@ -285,6 +285,48 @@ exports.interviewPrep = async (req, res) => {
 };
 
 // ═══════════════════════════════════════════════════════════
+// 🎤  STREAMING CHAT (Summarize, Explain, Roadmap)
+// ═══════════════════════════════════════════════════════════
+exports.chatStream = async (req, res) => {
+  try {
+    const { messages, mode = 'summarize', image } = req.body;
+    if (!messages || messages.length === 0) {
+      return res.status(400).json({ success: false, message: 'No messages provided' });
+    }
+
+    const lastMessage = messages[messages.length - 1];
+    const prompt = lastMessage.content || '';
+
+    let finalPrompt = prompt;
+    if (mode === 'summarize') {
+      finalPrompt = `Summarize the following notes:\n${prompt}`;
+    } else if (mode === 'explain') {
+      finalPrompt = `Explain this concept simply:\n${prompt}`;
+    } else if (mode === 'roadmap') {
+      finalPrompt = `Generate a study roadmap for: ${prompt}`;
+    }
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    const streamResult = await safeAIStream(finalPrompt, image);
+
+    for await (const chunk of streamResult.stream) {
+      const text = chunk.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      if (text) res.write(`data: ${JSON.stringify({ text })}\n\n`);
+    }
+    res.write('data: [DONE]\n\n');
+    res.end();
+  } catch (err) {
+    console.error('Chat stream error:', err.message);
+    if (!res.headersSent) res.setHeader('Content-Type', 'text/event-stream');
+    res.write(`data: ${JSON.stringify({ error: 'Failed to process your request. Please try again.' })}\n\n`);
+    res.end();
+  }
+};
+
+// ═══════════════════════════════════════════════════════════
 // 8️⃣  AI CHAT HISTORY
 // ═══════════════════════════════════════════════════════════
 exports.saveAIChat = async (req, res) => {

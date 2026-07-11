@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FiSidebar, FiEdit, FiSearch, FiFileText, 
   FiImage, FiBookOpen, FiArrowUp, FiX, 
-  FiCheckSquare, FiZap, FiMap, FiMessageSquare
+  FiCheckSquare, FiZap, FiMap, FiMessageSquare,
+  FiMic, FiStopCircle
 } from 'react-icons/fi';
 import ReactMarkdown from 'react-markdown';
 import { useFetchStream } from '../hooks/useFetchStream';
@@ -36,14 +37,22 @@ export default function AIHub() {
   const [inputValue, setInputValue] = useState('');
   const [attachments, setAttachments] = useState([]);
   const [mode, setMode] = useState('summarize');
-  const [isTyping, setIsTyping] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [isAwaitingStream, setIsAwaitingStream] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [micPermission, setMicPermission] = useState('unknown'); // 'unknown' | 'granted' | 'denied'
+  const [searchQuery, setSearchQuery] = useState('');
+  const [copiedMessageId, setCopiedMessageId] = useState(null);
+  const currentAiTextRef = useRef('');
   
   const [currentChatId, setCurrentChatId] = useState(null);
   const [chatHistory, setChatHistory] = useState([]);
   
   const chatEndRef = useRef(null);
   const fileInputRef = useRef(null);
+  const textareaRef = useRef(null);
   const { stream, abort } = useFetchStream();
+  const recognitionRef = useRef(null);
 
   const fetchChatHistory = async () => {
     try {
@@ -66,7 +75,130 @@ export default function AIHub() {
     if (chatEndRef.current) {
       chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages, isTyping]);
+  }, [messages, isStreaming]);
+
+  const autoResizeTextarea = () => {
+    if (!textareaRef.current) return;
+    textareaRef.current.style.height = 'auto';
+    textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
+  };
+
+  useEffect(() => {
+    autoResizeTextarea();
+  }, [inputValue]);
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return ['Good morning', '☀️'];
+    if (hour < 18) return ['Good afternoon', '⛅'];
+    return ['Good evening', '🌙'];
+  };
+
+  const speakText = (text) => {
+    try {
+      if (!window.speechSynthesis) return;
+      if (!text || !text.trim()) return;
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = 'en-US';
+      utter.rate = 1;
+      window.speechSynthesis.speak(utter);
+    } catch (err) {
+      console.error('TTS error', err);
+    }
+  };
+
+  const buildApiMessages = (messageList) => {
+    return messageList.map((msg) => ({
+      role: msg.role === 'ai' ? 'assistant' : msg.role,
+      content: msg.text || '',
+    }));
+  };
+
+  const copyAiMessage = async (msg) => {
+    try {
+      await navigator.clipboard.writeText(msg.text || '');
+      setCopiedMessageId(msg.id);
+      setTimeout(() => setCopiedMessageId(null), 2000);
+    } catch (err) {
+      console.error('Copy failed', err);
+    }
+  };
+
+  const startRecognition = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert('Speech Recognition not supported in this browser.');
+      return;
+    }
+
+    // Ensure mic permission is requested via getUserMedia for a reliable browser prompt
+    const requestPermission = async () => {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false;
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // Immediately stop the tracks we only needed to trigger permission
+        stream.getTracks().forEach(t => t.stop());
+        setMicPermission('granted');
+        return true;
+      } catch (err) {
+        console.warn('Microphone permission denied or error', err);
+        setMicPermission('denied');
+        return false;
+      }
+    };
+
+    try {
+      requestPermission().then((allowed) => {
+        if (!allowed) return; // user denied or no getUserMedia
+
+        const rec = new SpeechRecognition();
+        rec.lang = 'en-US';
+        rec.interimResults = true;
+        rec.maxAlternatives = 1;
+
+        rec.onresult = (event) => {
+          let interim = '';
+          let final = '';
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            const res = event.results[i];
+            if (res.isFinal) final += res[0].transcript;
+            else interim += res[0].transcript;
+          }
+          setInputValue(prev => {
+            if (final) return (prev ? prev + ' ' : '') + final;
+            return (prev ? prev + ' ' : '') + interim;
+          });
+        };
+
+        rec.onend = () => {
+          setIsRecording(false);
+          recognitionRef.current = null;
+        };
+        rec.onerror = (e) => {
+          console.error('Speech recognition error', e);
+          setIsRecording(false);
+          recognitionRef.current = null;
+        };
+
+        rec.start();
+        recognitionRef.current = rec;
+        setIsRecording(true);
+      }).catch(e => {
+        console.error('Permission request failed', e);
+      });
+    } catch (err) {
+      console.error('startRecognition error', err);
+    }
+  };
+
+  const stopRecognition = () => {
+    if (recognitionRef.current) {
+      try { recognitionRef.current.stop(); } catch(e) { /* ignore */ }
+      recognitionRef.current = null;
+    }
+    setIsRecording(false);
+  };
 
   const handleAttach = (type) => {
     if (fileInputRef.current) {
@@ -156,9 +288,9 @@ export default function AIHub() {
     setMessages(newMessages);
     setInputValue('');
     setAttachments([]);
-    setIsTyping(true);
+    setIsStreaming(true);
+    setIsAwaitingStream(true);
     
-    // Save user message immediately to get a chatId if it's a new chat
     let activeChatId = currentChatId;
     try {
       const { data } = await API.post('/ai/chats', {
@@ -169,31 +301,38 @@ export default function AIHub() {
       if (!activeChatId && data.chat) {
         activeChatId = data.chat._id;
         setCurrentChatId(activeChatId);
-        fetchChatHistory(); // refresh sidebar for the new chat title
+        fetchChatHistory();
       }
     } catch (err) {
       console.error('Failed to save user message', err);
     }
 
     try {
-      // 1. Prepare payload with extracted text & image
       let promptText = userMsg.text;
       const documentTexts = userMsg.files.filter(f => f.type === 'document').map(f => f.extractedText).join('\n\n');
       if (documentTexts) {
         promptText += `\n\n--- Attached Document Context ---\n${documentTexts}`;
       }
-      
       const imageFile = userMsg.files.find(f => f.type === 'image');
       const imagePayload = imageFile ? { base64: imageFile.base64, mimeType: imageFile.mimeType } : undefined;
+      const aiMsgPlaceholder = { id: (Date.now() + 1).toString(), role: 'ai', text: '' };
+      setMessages(prev => [...prev, aiMsgPlaceholder]);
 
-      if (mode === 'explain' || mode === 'roadmap') {
-        const aiMsgPlaceholder = { id: Date.now() + 1, role: 'ai', text: '' };
-        setMessages(prev => [...prev, aiMsgPlaceholder]);
-        setIsTyping(false);
+      const apiUrl = `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/ai/chat-stream`;
+      let finalPrompt = promptText;
 
-        const finalPrompt = mode === 'roadmap' ? `Generate a study roadmap for: ${promptText}` : promptText;
-        const apiUrl = `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/ai/doubt`;
+      if (mode === 'roadmap') {
+        finalPrompt = `Generate a study roadmap for: ${promptText}`;
+      } else if (mode === 'summarize') {
+        finalPrompt = `Summarize the following notes:\n${promptText}`;
+      }
 
+      const apiMessages = buildApiMessages(newMessages);
+      if (mode === 'summarize' || mode === 'explain' || mode === 'roadmap') {
+        if (mode === 'summarize' || mode === 'roadmap') {
+          apiMessages[apiMessages.length - 1].content = finalPrompt;
+        }
+        currentAiTextRef.current = '';
         await stream(
           apiUrl,
           {
@@ -203,13 +342,14 @@ export default function AIHub() {
               Authorization: `Bearer ${localStorage.getItem('token')}`,
             },
             body: JSON.stringify({
-              question: finalPrompt,
-              context: 'general',
-              language: 'english',
-              image: imagePayload
+              messages: apiMessages,
+              mode,
+              image: imagePayload,
             }),
           },
           (chunk) => {
+            setIsAwaitingStream(false);
+            currentAiTextRef.current += chunk;
             setMessages(prev => {
               const newMsgs = [...prev];
               const lastMsg = newMsgs[newMsgs.length - 1];
@@ -225,32 +365,38 @@ export default function AIHub() {
           (err) => {
             setMessages(prev => {
               const newMsgs = [...prev];
-              newMsgs[newMsgs.length - 1].text = `Error: ${err.message || 'Failed to get response'}`;
-              // Save error message to backend
+              const last = newMsgs[newMsgs.length - 1];
+              if (last?.role === 'ai') {
+                newMsgs[newMsgs.length - 1] = {
+                  ...last,
+                  text: `Error: ${err.message || 'Failed to get response'}`,
+                };
+              }
               API.post('/ai/chats', { chatId: activeChatId, mode, messages: newMsgs }).catch(console.error);
               return newMsgs;
             });
           }
         );
-        // After stream finishes, save the final complete AI message
+        if (currentAiTextRef.current) {
+          speakText(currentAiTextRef.current);
+        }
         setMessages(prev => {
-           API.post('/ai/chats', { chatId: activeChatId, mode, messages: prev }).catch(console.error);
-           return prev;
+          API.post('/ai/chats', { chatId: activeChatId, mode, messages: prev }).catch(console.error);
+          return prev;
         });
-      } else if (mode === 'quiz') {
+      } else {
         const { data } = await API.post('/ai/quiz/generate', {
           text: promptText,
           image: imagePayload,
           numQuestions: 5,
           difficulty: 'medium'
         });
-        
-        setIsTyping(false);
+
         const mockComponent = (
           <div className="ai-mockup-quiz">
             {data.quiz.map((q, i) => (
               <div key={i} className="mb-4">
-                <h4 className="mb-2">Q{i+1}. {q.question}</h4>
+                <h4 className="mb-2">Q{i + 1}. {q.question}</h4>
                 {q.options.map((opt, j) => (
                   <div key={j} className="ai-quiz-option">{opt}</div>
                 ))}
@@ -258,7 +404,7 @@ export default function AIHub() {
             ))}
           </div>
         );
-        
+
         const aiMsg = {
           id: (Date.now() + 1).toString(),
           role: 'ai',
@@ -268,24 +414,8 @@ export default function AIHub() {
         const updatedMsgs = [...newMessages, aiMsg];
         setMessages(updatedMsgs);
         API.post('/ai/chats', { chatId: activeChatId, mode, messages: updatedMsgs }).catch(console.error);
-      } else if (mode === 'summarize') {
-        const { data } = await API.post('/ai/summarize', {
-          text: promptText,
-          image: imagePayload,
-          type: 'balanced'
-        });
-        
-        const aiMsg = {
-          id: (Date.now() + 1).toString(),
-          role: 'ai',
-          text: data.summary,
-        };
-        const updatedMsgs = [...newMessages, aiMsg];
-        setMessages(updatedMsgs);
-        API.post('/ai/chats', { chatId: activeChatId, mode, messages: updatedMsgs }).catch(console.error);
       }
     } catch (err) {
-      setIsTyping(false);
       const aiMsg = {
         id: (Date.now() + 1).toString(),
         role: 'ai',
@@ -294,6 +424,10 @@ export default function AIHub() {
       const updatedMsgs = [...newMessages, aiMsg];
       setMessages(updatedMsgs);
       API.post('/ai/chats', { chatId: activeChatId, mode, messages: updatedMsgs }).catch(console.error);
+    } finally {
+      setIsStreaming(false);
+      setIsAwaitingStream(false);
+      currentAiTextRef.current = '';
     }
   };
 
@@ -309,7 +443,8 @@ export default function AIHub() {
     setMessages([]);
     setInputValue('');
     setAttachments([]);
-    setIsTyping(false);
+    setIsStreaming(false);
+    setIsAwaitingStream(false);
   };
 
   const loadChat = async (chatId) => {
@@ -332,14 +467,20 @@ export default function AIHub() {
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
 
+  const filteredHistory = chatHistory.filter((c) =>
+    c.title?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   const groupedChats = {
-    today: chatHistory.filter(c => new Date(c.updatedAt) >= today),
-    yesterday: chatHistory.filter(c => {
+    today: filteredHistory.filter(c => new Date(c.updatedAt) >= today),
+    yesterday: filteredHistory.filter(c => {
       const d = new Date(c.updatedAt);
       return d >= yesterday && d < today;
     }),
-    earlier: chatHistory.filter(c => new Date(c.updatedAt) < yesterday)
+    earlier: filteredHistory.filter(c => new Date(c.updatedAt) < yesterday)
   };
+
+  const [greeting, emoji] = getGreeting();
 
   return (
     <div className="ai-root">
@@ -360,7 +501,12 @@ export default function AIHub() {
         </div>
 
         <div className="ai-sidebar-search">
-          <input type="text" placeholder="Search chats..." />
+          <input
+            type="text"
+            placeholder="Search chats..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </div>
 
         <div className="ai-sidebar-content">
@@ -397,9 +543,9 @@ export default function AIHub() {
             </div>
           )}
           
-          {chatHistory.length === 0 && (
-             <div className="ai-history-item" style={{opacity: 0.5, cursor: 'default'}}>
-               No recent chats
+          {filteredHistory.length === 0 && (
+             <div className="ai-history-empty">
+               {searchQuery ? 'No chats match your search.' : 'No recent chats'}
              </div>
           )}
         </div>
@@ -421,7 +567,7 @@ export default function AIHub() {
             <button className="ai-toggle-btn" onClick={() => setSidebarOpen(!sidebarOpen)}>
               <FiSidebar size={20} />
             </button>
-            <span className="ai-title">NotesHere AI</span>
+            <span className="ai-title">DEVAI</span>
           </div>
 
           <div className="ai-topbar-right">
@@ -446,10 +592,10 @@ export default function AIHub() {
                 <FiZap size={32} />
               </div>
               <div className="ai-welcome-title">
-                Good afternoon, <span>Dev</span>
+                {greeting} {emoji}, <span>Dev</span>
               </div>
               <div className="ai-welcome-subtitle">
-                Your AI study companion. Summarize notes, generate quizzes, <br/>solve doubts — all in one place.
+                Your intelligent dev assistant. Summarize notes, generate quizzes, <br/>solve doubts — all in one place.
               </div>
 
               <div className="ai-suggestion-grid">
@@ -469,42 +615,75 @@ export default function AIHub() {
           ) : (
             /* Chat Messages */
             <div className="ai-messages-wrapper">
-              {messages.map(msg => (
-                <div key={msg.id} className={`ai-message ${msg.role}`}>
-                  <div className="ai-message-inner">
-                    <div className={`ai-avatar ${msg.role}`}>
-                      {msg.role === 'user' ? 'DS' : <FiZap size={16} />}
-                    </div>
-                    <div className="ai-message-content">
-                      {msg.files && msg.files.map(f => (
-                        <div key={f.id} className="ai-attachment-card">
-                          <FiFileText size={16} />
-                          <span>{f.name}</span>
-                        </div>
-                      ))}
-                      
-                      <div className="prose prose-invert max-w-none text-sm">
-                        {msg.role === 'user' ? (
-                          msg.text.split('\n').map((line, i) => (
-                            <React.Fragment key={i}>
-                              {line}
-                              {i !== msg.text.split('\n').length - 1 && <br />}
-                            </React.Fragment>
-                          ))
-                        ) : (
-                          <ReactMarkdown>{msg.text || ''}</ReactMarkdown>
-                        )}
+              <AnimatePresence mode="popLayout">
+                {messages.map((msg, index) => (
+                  <motion.div
+                    key={msg.id}
+                    layout
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -16 }}
+                    transition={{ duration: 0.18 }}
+                    className={`ai-message ${msg.role}`}
+                  >
+                    <div className="ai-message-inner">
+                      <div className={`ai-avatar ${msg.role}`}>
+                        {msg.role === 'user' ? 'DS' : <FiZap size={16} />}
                       </div>
+                      <div className="ai-message-content">
+                        {msg.files && msg.files.map(f => (
+                          <motion.div
+                            key={f.id}
+                            layout
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="ai-attachment-card"
+                          >
+                            <FiFileText size={16} />
+                            <span>{f.name}</span>
+                          </motion.div>
+                        ))}
 
-                      {/* Render mock UI components for AI responses */}
-                      {msg.mockComponent}
+                        <div className="prose prose-invert max-w-none text-sm">
+                          {msg.role === 'user' ? (
+                            msg.text.split('\n').map((line, i) => (
+                              <React.Fragment key={i}>
+                                {line}
+                                {i !== msg.text.split('\n').length - 1 && <br />}
+                              </React.Fragment>
+                            ))
+                          ) : (
+                            <>
+                              <ReactMarkdown>{msg.text || ''}</ReactMarkdown>
+                              {isStreaming && !isAwaitingStream && index === messages.length - 1 && (
+                                <span className="ai-cursor" />
+                              )}
+                            </>
+                          )}
+                        </div>
+
+                        {msg.role === 'ai' && msg.text && (
+                          <div className="ai-msg-actions">
+                            <button
+                              className="ai-copy-btn"
+                              onClick={() => copyAiMessage(msg)}
+                            >
+                              {copiedMessageId === msg.id ? 'Copied ✓' : 'Copy'}
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Render mock UI components for AI responses */}
+                        {msg.mockComponent}
+                      </div>
                     </div>
-                  </div>
-                </div>
-              ))}
-              
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+
               {/* Typing Indicator */}
-              {isTyping && (
+              {isStreaming && isAwaitingStream && (
                 <div className="ai-message ai">
                   <div className="ai-message-inner">
                     <div className="ai-avatar bot"><FiZap size={16} /></div>
@@ -518,7 +697,7 @@ export default function AIHub() {
                   </div>
                 </div>
               )}
-              
+
               {/* Auto-scroll anchor */}
               <div ref={chatEndRef} />
             </div>
@@ -553,12 +732,15 @@ export default function AIHub() {
             )}
 
             <textarea 
+              ref={textareaRef}
               className="ai-textarea"
-              placeholder="Ask anything about your notes..."
+              placeholder="Ask DEVAI anything…"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
+              onInput={autoResizeTextarea}
               onKeyDown={handleKeyDown}
               rows={1}
+              disabled={isStreaming}
             />
 
             <div className="ai-input-footer">
@@ -569,10 +751,31 @@ export default function AIHub() {
                 <button className="ai-tool-btn" onClick={() => handleAttach('image')}>
                   <FiImage /> Image
                 </button>
+                <button
+                  className={`ai-tool-btn ${isRecording ? 'recording' : ''}`}
+                  onClick={() => {
+                    if (isRecording) stopRecognition();
+                    else startRecognition();
+                  }}
+                  title={isRecording ? 'Stop recording' : 'Talk to AI'}
+                >
+                  <FiMic /> {isRecording ? 'Stop' : 'Talk'}
+                </button>
                 <button className="ai-tool-btn" onClick={() => handleAttach('notes')}>
                   <FiBookOpen /> My Notes
                 </button>
               </div>
+              {/* Microphone permission status */}
+              {micPermission === 'denied' && (
+                <div className="ai-mic-warning" style={{color: '#f87171', fontSize: 12, marginTop: 6}}>
+                  Microphone blocked — allow access in your browser settings.
+                </div>
+              )}
+              {micPermission === 'granted' && (
+                <div className="ai-mic-success" style={{color: '#34d399', fontSize: 12, marginTop: 6}}>
+                  Microphone access allowed.
+                </div>
+              )}
               
               {/* Hidden File Input */}
               <input
@@ -583,19 +786,33 @@ export default function AIHub() {
                 onChange={handleFileSelect}
               />
               
-              <button 
-                className="ai-send-btn" 
-                onClick={handleSend}
-                disabled={!inputValue.trim() && attachments.length === 0}
-              >
-                <FiArrowUp size={18} />
-              </button>
+              {isStreaming ? (
+                <button
+                  className="ai-stop-btn"
+                  onClick={() => {
+                    abort();
+                    setIsStreaming(false);
+                    setIsAwaitingStream(false);
+                  }}
+                  type="button"
+                >
+                  <FiStopCircle size={18} />
+                </button>
+              ) : (
+                <button 
+                  className="ai-send-btn" 
+                  onClick={handleSend}
+                  disabled={!inputValue.trim() && attachments.length === 0}
+                >
+                  <FiArrowUp size={18} />
+                </button>
+              )}
             </div>
           </div>
         </div>
         
         <div className="ai-disclaimer">
-          NotesHere AI can make mistakes. Verify important info from your notes.
+          DEVAI can make mistakes. Verify important info from your notes.
         </div>
       </div>
     </div>

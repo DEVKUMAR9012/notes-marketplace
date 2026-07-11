@@ -1,17 +1,48 @@
 const asyncHandler = require('express-async-handler');
+const User = require('../models/User');
+const EmailLog = require('../models/EmailLog');
+const sendEmail = require('../utils/sendEmail');
+const templates = require('../utils/emailTemplates');
 
 // @desc    Get email campaign stats
 // @route   GET /api/admin/email/stats
 // @access  Private/Admin
 const getEmailStats = asyncHandler(async (req, res) => {
-  // Return dummy stats for now to prevent 404
+  const stats = await EmailLog.aggregate([
+    {
+      $group: {
+        _id: null,
+        total: { $sum: 1 },
+        sent: { $sum: { $cond: [{ $eq: ['$status', 'sent'] }, 1, 0] } },
+        failed: { $sum: { $cond: [{ $eq: ['$status', 'failed'] }, 1, 0] } },
+      }
+    }
+  ]);
+
+  const byType = await EmailLog.aggregate([
+    { $group: { _id: { type: '$type', status: '$status' }, count: { $sum: 1 } } }
+  ]);
+
+  const dailyVolume = await EmailLog.aggregate([
+    {
+      $group: {
+        _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+        count: { $sum: 1 }
+      }
+    },
+    { $sort: { _id: -1 } },
+    { $limit: 7 }
+  ]);
+
+  const data = stats[0] || { total: 0, sent: 0, failed: 0 };
+  
   res.json({
-    totalSent: 1250,
-    opened: 840,
-    clicked: 320,
-    bounced: 15,
-    lastCampaign: 'Welcome New Users - May 2026',
-    activeSubscribers: 4500
+    total: data.total,
+    sent: data.sent,
+    failed: data.failed,
+    deliveryRate: data.total > 0 ? ((data.sent / data.total) * 100).toFixed(2) : 0,
+    byType,
+    dailyVolume: dailyVolume.reverse()
   });
 });
 
@@ -19,33 +50,85 @@ const getEmailStats = asyncHandler(async (req, res) => {
 // @route   GET /api/admin/email/logs
 // @access  Private/Admin
 const getEmailLogs = asyncHandler(async (req, res) => {
-  // Return dummy logs for now
-  res.json([
-    { id: 1, recipient: 'user1@example.com', subject: 'Welcome to Notes Marketplace', status: 'delivered', sentAt: new Date(Date.now() - 3600000) },
-    { id: 2, recipient: 'user2@example.com', subject: 'Your download is ready', status: 'opened', sentAt: new Date(Date.now() - 7200000) },
-    { id: 3, recipient: 'user3@example.com', subject: 'Weekly Newsletter', status: 'clicked', sentAt: new Date(Date.now() - 86400000) },
-    { id: 4, recipient: 'user4@example.com', subject: 'Account Verification', status: 'bounced', sentAt: new Date(Date.now() - 172800000) },
+  const page = Math.max(1, parseInt(req.query.page) || 1);
+  const limit = 20;
+  const skip = (page - 1) * limit;
+
+  const filterType = req.query.type || '';
+  const filterStatus = req.query.status || '';
+
+  let query = {};
+  if (filterType) query.type = filterType;
+  if (filterStatus) query.status = filterStatus;
+
+  const [logs, total] = await Promise.all([
+    EmailLog.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit),
+    EmailLog.countDocuments(query)
   ]);
+
+  res.json({
+    logs,
+    pagination: {
+      page,
+      pages: Math.ceil(total / limit),
+      total
+    }
+  });
 });
 
 // @desc    Send marketing campaign
 // @route   POST /api/admin/email/campaign
 // @access  Private/Admin
 const sendMarketingCampaign = asyncHandler(async (req, res) => {
-  const { subject, body, target } = req.body;
+  const { subject, htmlBody, audience = 'all' } = req.body;
 
-  if (!subject || !body) {
+  if (!subject || !htmlBody) {
     res.status(400);
     throw new Error('Please provide subject and body');
   }
 
-  // Simulate campaign sending
-  console.log(`Campaign started: ${subject} to ${target || 'all subscribers'}`);
+  // Build audience filter
+  let filter = { isVerified: true, emailSubscribed: true };
+  if (audience === 'buyers') {
+    filter.purchasedNotes = { $exists: true, $not: { $size: 0 } };
+  } else if (audience === 'sellers') {
+    filter.totalSales = { $gt: 0 };
+  }
+
+  const users = await User.find(filter).select('name email _id');
+
+  if (!users.length) {
+    return res.status(400).json({ success: false, message: 'No users found for this audience' });
+  }
+
+  // Send emails in batches of 10 (rate-limit friendly)
+  let sent = 0;
+  let failed = 0;
+  const batchSize = 10;
+
+  for (let i = 0; i < users.length; i += batchSize) {
+    const batch = users.slice(i, i + batchSize);
+    const promises = batch.map(user =>
+      sendEmail({
+        email: user.email,
+        subject,
+        html: templates.campaignEmail(user.name, user._id.toString(), subject, htmlBody),
+        type: 'campaign'
+      })
+    );
+    const results = await Promise.allSettled(promises);
+    results.forEach(r => r.status === 'fulfilled' && r.value ? sent++ : failed++);
+
+    // Small delay between batches
+    if (i + batchSize < users.length) {
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+  }
 
   res.status(200).json({
     success: true,
-    message: 'Campaign initiated successfully',
-    estimatedReach: 4500
+    message: `Campaign sent! ✅ ${sent} delivered, ${failed} failed out of ${users.length} recipients.`,
+    stats: { total: users.length, sent, failed }
   });
 });
 

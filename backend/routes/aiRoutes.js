@@ -16,6 +16,7 @@ const {
   explainCode,
   generateRoadmap,
   interviewPrep,
+  chatStream,
   saveAIChat, getAIChats, getAIChat
 } = require('../controllers/aiController');
 
@@ -65,6 +66,11 @@ router.post('/roadmap', generateRoadmap);
 // 7️⃣  INTERVIEW PREP
 // ═══════════════════════════════════════════════════════════
 router.post('/interview-prep', interviewPrep);
+
+// ═══════════════════════════════════════════════════════════
+// 🎤  STREAMING CHAT (Summarize, Explain, Roadmap)
+// ═══════════════════════════════════════════════════════════
+router.post('/chat-stream', chatStream);
 
 // ═══════════════════════════════════════════════════════════
 // 8️⃣  AI CHAT HISTORY

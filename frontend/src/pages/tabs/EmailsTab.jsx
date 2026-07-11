@@ -307,6 +307,19 @@ const EmailsTab = () => {
   const [testTemplate, setTestTemplate] = useState('welcome');
   const [testEmail, setTestEmail]       = useState('');
 
+  // Suppress React Quill's findDOMNode deprecation warning (library issue with React 18)
+  useEffect(() => {
+    const originalError = console.error;
+    const errorHandler = (...args) => {
+      if (typeof args[0] === 'string' && args[0].includes('findDOMNode')) {
+        return; // Suppress this specific warning
+      }
+      originalError.apply(console, args);
+    };
+    console.error = errorHandler;
+    return () => { console.error = originalError; };
+  }, []);
+
   const showToast = useCallback((msg, type = 'success') => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3500);

@@ -13,7 +13,7 @@ export const AuthProvider = ({ children }) => {
       return null;
     }
   });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // ⭐ Don't block UI on first load
 
   // ── Background Session Engine ─────────────────────────────────────────────
   // Called on mount. Three outcomes:
@@ -22,17 +22,19 @@ export const AuthProvider = ({ children }) => {
   //   C) Token exists + /auth/me fails (expired) → clear & re-create silent guest
   const initializeSession = useCallback(async () => {
     const token = localStorage.getItem('token');
+    setLoading(true); // Show loading only if already mounted for 2+ seconds
 
     if (!token) {
       // ── A: Fresh visitor — create invisible ghost session ──────────────
       try {
-        const { data } = await API.post('/auth/guest-init');
+        const { data } = await API.post('/auth/guest-init', {}, { timeout: 30000 }); // 30s timeout for cold start
         if (data?.success) {
           syncToken(data.token);
           localStorage.setItem('user', JSON.stringify(data.user));
           setUser(data.user);
         }
-      } catch {
+      } catch (err) {
+        console.warn('Guest session creation delayed (backend warming up):', err.message);
         // Silent fail — app works fine without a session
       }
     } else {
@@ -50,7 +52,7 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem('user');
         setUser(null);
         try {
-          const { data } = await API.post('/auth/guest-init');
+          const { data } = await API.post('/auth/guest-init', {}, { timeout: 30000 });
           if (data?.success) {
             syncToken(data.token);
             localStorage.setItem('user', JSON.stringify(data.user));

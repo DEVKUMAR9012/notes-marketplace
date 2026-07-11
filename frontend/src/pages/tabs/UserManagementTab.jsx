@@ -109,7 +109,11 @@ const UserManagementTab = () => {
       <div style={style} className="border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors group flex items-center px-5 text-sm">
         <div className="w-1/4 min-w-[200px] flex items-center gap-3">
           <Avatar name={user.name} src={user.avatar} />
-          <span className="text-white font-medium truncate">{user.name}</span>
+          <div className="flex items-center gap-2 overflow-hidden">
+            <span className="text-white font-medium truncate">{user.name}</span>
+            {user.authProvider === 'google' && <Badge label="Google" color="blue" />}
+            {(user.isGuest || user.authProvider === 'guest') && <Badge label="Guest" color="gray" />}
+          </div>
         </div>
         <div className="w-1/4 min-w-[150px] text-gray-400 truncate">{user.email}</div>
         <div className="w-1/6 min-w-[100px]">
@@ -224,8 +228,12 @@ const UserManagementTab = () => {
           <div className="space-y-5">
             <div className="flex items-center gap-4">
               <Avatar name={selectedUser.name} src={selectedUser.avatar} size={16} />
-              <div>
-                <p className="text-white text-lg font-bold">{selectedUser.name}</p>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="text-white text-lg font-bold">{selectedUser.name}</p>
+                  {selectedUser.authProvider === 'google' && <Badge label="Google" color="blue" />}
+                  {(selectedUser.isGuest || selectedUser.authProvider === 'guest') && <Badge label="Guest" color="gray" />}
+                </div>
                 <p className="text-gray-400 text-sm">{selectedUser.email}</p>
               </div>
               <Badge label={selectedUser.role || 'user'} color="violet" />

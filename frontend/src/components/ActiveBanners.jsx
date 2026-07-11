@@ -17,17 +17,22 @@ export default function ActiveBanners() {
   });
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) return; // Skip API call until user is loaded
 
-    API.get('/banners/active')
-      .then(res => {
-        if (res.data?.success) {
-          setBanners(res.data.data || []);
-        }
-      })
-      .catch(err => {
-        console.error('Failed to fetch active banners:', err);
-      });
+    // Debounce banner fetch to avoid multiple calls
+    const timer = setTimeout(() => {
+      API.get('/banners/active')
+        .then(res => {
+          if (res.data?.success) {
+            setBanners(res.data.data || []);
+          }
+        })
+        .catch(err => {
+          console.error('Failed to fetch active banners:', err);
+        });
+    }, 300); // Wait 300ms to reduce concurrent requests
+
+    return () => clearTimeout(timer);
   }, [user]);
 
   const handleDismiss = (id) => {

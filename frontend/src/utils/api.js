@@ -67,8 +67,8 @@ API.interceptors.response.use(
     // ✅ AUTO-RETRY FOR COLD START ERRORS
     const shouldRetry = 
       (code === 'ECONNABORTED' || code === 'ECONNREFUSED' || !response) &&
-      config.retryCount < RETRY_CONFIG.maxRetries &&
-      config.method !== 'post'; // Only retry GET requests automatically
+      config.retryCount < RETRY_CONFIG.maxRetries;
+      // Removed method check - retry ALL requests including POST on cold start
 
     if (shouldRetry) {
       const delay = Math.min(
@@ -150,12 +150,23 @@ API.interceptors.response.use(
 
 // ✅ WARM UP SERVER ON APP START - Prevents cold start on first request
 export const warmupServer = async () => {
-  try {
-    await axios.get(`${getBaseUrl()}/health`, { timeout: 5000 });
-    console.log('Server is ready ✓');
-  } catch (err) {
-    console.log('Server warming up in background...');
+  const maxAttempts = 3;
+  
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      const response = await axios.get(`${getBaseUrl()}/health`, { timeout: 8000 });
+      console.log('✅ Server is ready');
+      return true;
+    } catch (err) {
+      if (i < maxAttempts - 1) {
+        console.log(`⏳ Warming backend... (attempt ${i + 1}/${maxAttempts})`);
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s before retry
+      }
+    }
   }
+  
+  console.log('⚠️ Server warmup timeout - loading in background');
+  return false;
 };
 
 /**
@@ -173,4 +184,4 @@ export const syncToken = (token) => {
   }
 };
 
-export default API;
+export default API;

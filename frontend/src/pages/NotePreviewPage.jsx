@@ -24,7 +24,7 @@ import {
   FiSend, FiUserCheck, FiUserPlus,
 } from 'react-icons/fi';
 // WhatsApp / Telegram don't exist in react-icons/fi — use simple text emoji buttons
-import API from '../utils/api';
+import API, { API_BASE_URL } from '../utils/api';
 import { downloadPdf, buildPdfUrl } from '../utils/downloadPdf';
 import { useAuth } from '../context/AuthContext';
 import BuyModal from '../components/BuyModal';
@@ -250,9 +250,114 @@ function PdfPageViewer({ pdfUrl, canViewFull, isPurchaseChecking, onBuy, note })
 }
 
 /* ══════════════════════════════════════════════════════════════════════════ */
+/*  ReviewsList  –  GET /api/notes/:id/reviews  – Display all reviews         */
+/* ══════════════════════════════════════════════════════════════════════════ */
+function ReviewsList({ noteId, refreshKey }) {
+  const [reviews, setReviews] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    
+    API.get(`/notes/${noteId}/reviews`)
+      .then(res => {
+        if (alive) {
+          const reviewsData = Array.isArray(res.data) ? res.data : res.data?.reviews || [];
+          setReviews(reviewsData);
+        }
+      })
+      .catch(() => { if (alive) setReviews([]); })
+      .finally(() => { if (alive) setLoading(false); });
+
+    return () => { alive = false; };
+  }, [noteId, refreshKey]);
+
+  if (loading) {
+    return (
+      <div className="text-center py-4">
+        <div className="w-4 h-4 border-2 border-violet-500/30 border-t-violet-500 rounded-full animate-spin mx-auto mb-2" />
+        <p className="text-gray-500 text-xs">Loading reviews…</p>
+      </div>
+    );
+  }
+
+  if (!reviews.length) {
+    return (
+      <div className="text-center py-4">
+        <p className="text-gray-500 text-xs">No reviews yet. Be the first to review! ⭐</p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <SectionLabel text={`Reviews (${reviews.length})`} />
+      <div className="space-y-3">
+        {reviews.map(review => (
+          <div
+            key={review._id}
+            className="rounded-lg border border-white/8 p-3"
+            style={{ background: 'rgba(255,255,255,0.02)' }}
+          >
+            {/* User + Rating */}
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <div className="flex items-center gap-2 flex-1">
+                {review.user?.profileImage ? (
+                  <img
+                    src={review.user.profileImage.startsWith('http')
+                      ? review.user.profileImage
+                      : `${API_BASE_URL}${review.user.profileImage}`}
+                    alt={review.user.name}
+                    className="w-7 h-7 rounded-full object-cover flex-shrink-0 border border-white/10"
+                  />
+                ) : (
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold bg-violet-500/20 text-violet-300 flex-shrink-0 border border-violet-500/20">
+                    {review.user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-white text-xs font-semibold truncate">
+                    {review.user?.name || 'Anonymous'}
+                  </p>
+                  <p className="text-gray-500 text-[10px] mt-0.5">
+                    {new Date(review.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-0.5 flex-shrink-0">
+                {[1, 2, 3, 4, 5].map(star => (
+                  <FiStar
+                    key={star}
+                    size={13}
+                    className={`${
+                      star <= review.rating
+                        ? 'text-amber-400 fill-amber-400'
+                        : 'text-gray-600'
+                    }`}
+                    aria-hidden="true"
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Comment */}
+            {review.comment && (
+              <p className="text-gray-300 text-xs leading-relaxed">
+                {review.comment}
+              </p>
+            )}
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════════════ */
 /*  RatingWidget  –  POST /api/notes/:id/reviews { rating, comment }         */
 /* ══════════════════════════════════════════════════════════════════════════ */
-function RatingWidget({ noteId, notePrice, isPurchased }) {
+function RatingWidget({ noteId, notePrice, isPurchased, onReviewSubmitted }) {
   const [selected,  setSelected]  = useState(0);
   const [hover,     setHover]     = useState(0);
   const [comment,   setComment]   = useState('');
@@ -275,6 +380,8 @@ function RatingWidget({ noteId, notePrice, isPurchased }) {
       });
       setSubmitted(true);
       showToast('Review submitted! ⭐', 'success');
+      // Refresh reviews list
+      if (onReviewSubmitted) onReviewSubmitted();
     } catch (err) {
       const msg = err?.response?.data?.message || 'Failed to submit review';
       setError(msg);
@@ -350,6 +457,7 @@ function Sidebar({
   following, followLoading, onFollow, onChat, isSelf, isPurchased,
 }) {
   const navigate = useNavigate();
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const initials = (uploader?.name || 'U')
     .split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
@@ -368,43 +476,27 @@ function Sidebar({
   return (
     <div className="p-4 space-y-4">
 
-      {/* ── UPLOADER ─────────────────────────────────────────────── */}
+      {/* ── UPLOADER ────────────────────────────────────────────── */}
       <Card>
-        <SectionLabel text="Uploader" />
-
-        {/* avatar + name */}
         <div className="flex items-center gap-3 mb-4">
-          <button
-            onClick={() => uploader?._id && navigate(`/profile/${uploader._id}`)}
-            aria-label={`View ${uploader?.name || 'uploader'}'s profile`}
-            className="flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-violet-500 rounded-full"
-          >
-            {uploader?.profileImage ? (
-              <img
-                src={absUrl(uploader.profileImage)}
-                alt={uploader.name}
-                className="w-12 h-12 rounded-full object-cover"
-              />
+          {(() => {
+            const getImageUrl = (url) => {
+              if (!url) return null;
+              if (url.startsWith('http')) return url;
+              return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url.replace(/\\/g, '/')}`;
+            };
+            const avatarSrc = getImageUrl(uploader?.profileImage) || getImageUrl(uploader?.avatar);
+            return avatarSrc ? (
+              <img src={avatarSrc} alt={uploader?.name} className="w-12 h-12 rounded-full object-cover flex-shrink-0 border border-white/10" />
             ) : (
-              <div
-                className="w-12 h-12 rounded-full flex items-center justify-center text-white font-black text-base"
-                style={{ background: 'linear-gradient(135deg,#7c3aed,#db2777)' }}
-              >
+              <div className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold bg-violet-500/20 text-violet-300 flex-shrink-0 border border-violet-500/30">
                 {initials}
               </div>
-            )}
-          </button>
-          <div className="min-w-0">
-            <button
-              onClick={() => uploader?._id && navigate(`/profile/${uploader._id}`)}
-              className="text-white font-bold text-sm leading-tight hover:text-violet-300 transition text-left"
-            >
-              {uploader?.name || 'Unknown'}
-            </button>
-            <p className="text-gray-400 text-xs mt-0.5 truncate">
-              {[uploader?.college, uploader?.branch || uploader?.subject]
-                .filter(Boolean).join(' · ')}
-            </p>
+            );
+          })()}
+          <div>
+            <h3 className="text-white font-bold">{uploader?.name || 'Unknown User'}</h3>
+            <p className="text-gray-400 text-xs">Uploader</p>
           </div>
         </div>
 
@@ -447,9 +539,9 @@ function Sidebar({
         </div>
 
         {/* ── Follow + Chat actions ────────────────────────────────────── */}
-        {!isSelf && (
-          <div className="space-y-2">
-            {/* Follow */}
+        <div className="space-y-2">
+          {/* Follow */}
+          {!isSelf && (
             <motion.button
               whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
               onClick={onFollow}
@@ -470,19 +562,28 @@ function Sidebar({
                 <><FiUserPlus size={14} aria-hidden="true" /> Follow</>
               )}
             </motion.button>
+          )}
 
-            {/* Direct Chat */}
-            <motion.button
-              whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-              onClick={onChat}
-              aria-label="Send a direct message"
-              className="w-full py-2.5 rounded-xl text-sm font-semibold border border-white/10 text-gray-300 hover:text-white hover:bg-white/8 transition-all flex items-center justify-center gap-2"
-              style={{ background: 'rgba(255,255,255,0.04)' }}
-            >
-              <FiSend size={13} aria-hidden="true" /> Direct Message
-            </motion.button>
-          </div>
-        )}
+          {/* Direct Chat */}
+          <motion.button
+            whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+            onClick={() => {
+              if (isSelf) {
+                showToast("You cannot chat with yourself in production, but opening your chat console!", "info");
+              }
+              onChat();
+            }}
+            aria-label="Send a direct message"
+            className="w-full py-2.5 rounded-xl text-sm font-bold text-white shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
+            style={{
+              background: 'linear-gradient(135deg, #7c3aed, #db2777)',
+              boxShadow: '0 4px 15px rgba(124, 58, 237, 0.25)'
+            }}
+          >
+            <FiMessageCircle size={15} aria-hidden="true" className="flex-shrink-0" /> Direct Chat
+          </motion.button>
+        </div>
+
 
         {/* ── Social links ────────────────────────────────────────────── */}
         {(() => {
@@ -564,7 +665,19 @@ function Sidebar({
 
       {/* ── RATE THIS NOTE ───────────────────────────────────────── */}
       <Card>
-        <RatingWidget noteId={noteId} notePrice={note.price} isPurchased={isPurchased} />
+        <RatingWidget 
+          noteId={noteId} 
+          notePrice={note.price} 
+          isPurchased={isPurchased}
+          onReviewSubmitted={() => {
+            setRefreshKey(k => k + 1);
+          }}
+        />
+      </Card>
+
+      {/* ── REVIEWS ──────────────────────────────────────────────── */}
+      <Card>
+        <ReviewsList noteId={noteId} refreshKey={refreshKey} />
       </Card>
 
       {/* ── MORE FROM UPLOADER ───────────────────────────────────── */}

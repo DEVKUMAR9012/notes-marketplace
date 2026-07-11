@@ -1,0 +1,13 @@
+{
+  "version": "1.0.0",
+  "projectName": "notes-marketplace",
+  "userName": "developer",
+  "skillLevel": "intermediate",
+  "outputFolder": ".vibecheck/flow",
+  "planningArtifacts": ".vibecheck\\flow\\planning-artifacts",
+  "implementationArtifacts": ".vibecheck\\flow\\implementation-artifacts",
+  "installedAt": "2026-07-10T08:22:14.543Z",
+  "ide": [
+    "vscode"
+  ]
+}
