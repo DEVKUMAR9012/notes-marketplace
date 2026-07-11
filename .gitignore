@@ -35,3 +35,12 @@ backend/uploads/*
 frontend/build/
 frontend/dist/
 backend/dist/
+
+# AI tool configs (Claude, Cursor, Vibecheck, etc.)
+.claude/
+.cursor/
+.vibecheck/
+workflows/
+CLAUDE.md
+PERFORMANCE_FIXES.md
+*.antigravityignore
