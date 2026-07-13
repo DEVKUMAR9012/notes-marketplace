@@ -1,6 +1,5 @@
 ﻿<div align="center">
 
-<img src="./screenshots/Screenshot 2026-07-13 145311.png" alt="Notes Marketplace Banner" width="100%"/>
 
 # Notes Marketplace
 
