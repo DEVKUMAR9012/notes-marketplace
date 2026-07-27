@@ -110,7 +110,7 @@ export default function UserManagement() {
                 <tr>
                   <td colSpan="5" className="p-8 text-center text-gray-500">
                     <div className="flex flex-col items-center gap-3">
-                      <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
+                      <div className="w-8 h-8 border-2 border-coral-500 border-t-transparent rounded-full animate-spin"></div>
                       <p>Loading users...</p>
                     </div>
                   </td>

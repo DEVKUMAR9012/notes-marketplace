@@ -10,7 +10,7 @@ export default function FormFields({ formData, handleChange }) {
         placeholder="Title"
         value={formData.title}
         onChange={handleChange}
-        className="w-full px-4 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/50 text-white placeholder-gray-500 transition-all"
+        className="w-full px-4 py-3.5 rounded-xl focus:outline-none transition-all theme-input"
         required
       />
 
@@ -30,14 +30,14 @@ export default function FormFields({ formData, handleChange }) {
           placeholder={formData.itemType === 'book' ? "Genre / Subject" : "Subject"}
           value={formData.subject}
           onChange={handleChange}
-          className="w-full px-4 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/50 text-white placeholder-gray-500 transition-all"
+          className="w-full px-4 py-3.5 rounded-xl focus:outline-none transition-all theme-input"
           required
         />
         <select
           name="category"
           value={formData.category || ''}
           onChange={handleChange}
-          className="w-full px-4 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/50 text-white placeholder-gray-500 transition-all cursor-pointer font-medium"
+          className="w-full px-4 py-3.5 rounded-xl focus:outline-none transition-all theme-input cursor-pointer font-medium"
           required
         >
           <option value="" className="bg-gray-900">Select Category</option>
@@ -66,7 +66,7 @@ export default function FormFields({ formData, handleChange }) {
               placeholder="Enter College Name"
               value={formData.college}
               onChange={handleChange}
-              className="w-full px-4 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/50 text-white placeholder-gray-500 transition-all"
+              className="w-full px-4 py-3.5 rounded-xl focus:outline-none transition-all theme-input"
               required
             />
           ) : (
@@ -75,7 +75,7 @@ export default function FormFields({ formData, handleChange }) {
               name="college"
               value={formData.college}
               readOnly
-              className="w-full px-4 py-3.5 bg-gray-950/20 border border-white/5 rounded-xl text-white/50 cursor-not-allowed select-none transition-all placeholder-gray-600"
+              className="w-full px-4 py-3.5 rounded-xl text-gray-400 cursor-not-allowed select-none transition-all border" style={{ background: 'rgba(0,0,0,0.04)', borderColor: 'var(--border)' }}
               placeholder="College/Class (Auto-filled)"
               required={!!formData.category} // Only required if category is selected
             />
@@ -86,7 +86,7 @@ export default function FormFields({ formData, handleChange }) {
               name="semester"
               value={formData.semester}
               onChange={handleChange}
-              className="w-full px-4 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/50 text-white placeholder-gray-500 transition-all cursor-pointer"
+              className="w-full px-4 py-3.5 rounded-xl focus:outline-none transition-all theme-input cursor-pointer"
               required
             >
               <option value="" className="bg-gray-900">Select Semester</option>
@@ -95,7 +95,7 @@ export default function FormFields({ formData, handleChange }) {
               ))}
             </select>
           ) : (
-            <div className="w-full px-4 py-3.5 bg-gray-950/20 border border-white/5 rounded-xl text-white/40 select-none flex items-center font-medium">
+            <div className="w-full px-4 py-3.5 rounded-xl text-gray-400 select-none flex items-center font-medium border" style={{ background: 'rgba(0,0,0,0.04)', borderColor: 'var(--border)' }}>
               School Level (No Semester)
             </div>
           )}

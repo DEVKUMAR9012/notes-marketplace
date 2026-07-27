@@ -33,7 +33,7 @@ export default function RegisterSocialOnly() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: '#07071a',
+      background: 'var(--bg-gradient)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -42,26 +42,26 @@ export default function RegisterSocialOnly() {
       overflow: 'hidden',
     }}>
 
-      {/* 🌌 Purple depth orb — top-left */}
+      {/* 🌌 Coral depth orb — top-left */}
       <div style={{
         position: 'absolute', top: '-20%', left: '-15%',
         width: '700px', height: '700px',
-        background: 'radial-gradient(circle, rgba(109,40,217,0.22) 0%, transparent 65%)',
+        background: 'radial-gradient(circle, rgba(249,123,91,0.18) 0%, transparent 65%)',
         pointerEvents: 'none',
       }} />
 
-      {/* 🌌 Magenta depth orb — bottom-right */}
+      {/* 🌌 Mint depth orb — bottom-right */}
       <div style={{
         position: 'absolute', bottom: '-20%', right: '-15%',
         width: '600px', height: '600px',
-        background: 'radial-gradient(circle, rgba(219,39,119,0.17) 0%, transparent 65%)',
+        background: 'radial-gradient(circle, rgba(16,185,129,0.15) 0%, transparent 65%)',
         pointerEvents: 'none',
       }} />
 
       {/* Subtle grid texture */}
       <div style={{
         position: 'absolute', inset: 0, pointerEvents: 'none',
-        backgroundImage: 'linear-gradient(rgba(255,255,255,0.018) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.018) 1px,transparent 1px)',
+        backgroundImage: 'linear-gradient(rgba(0,0,0,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,0,0,0.03) 1px,transparent 1px)',
         backgroundSize: '48px 48px',
         maskImage: 'radial-gradient(ellipse 80% 80% at 50% 50%,black 40%,transparent 100%)',
         WebkitMaskImage: 'radial-gradient(ellipse 80% 80% at 50% 50%,black 40%,transparent 100%)',
@@ -74,13 +74,13 @@ export default function RegisterSocialOnly() {
         style={{ maxWidth: '440px', width: '100%', position: 'relative', zIndex: 1 }}
       >
         <div style={{
-          background: 'rgba(255,255,255,0.025)',
-          border: '1px solid rgba(255,255,255,0.09)',
+          background: 'rgba(255, 255, 255, 0.82)',
+          border: '1px solid rgba(0, 0, 0, 0.08)',
           borderRadius: '28px',
           padding: '40px 36px 36px',
           backdropFilter: 'blur(28px)',
           WebkitBackdropFilter: 'blur(28px)',
-          boxShadow: '0 40px 100px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.04) inset',
+          boxShadow: '0 24px 70px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255, 255, 255, 0.9) inset',
         }}>
 
           {/* ── Logo ──────────────────────────────────────────────────────── */}
@@ -89,7 +89,7 @@ export default function RegisterSocialOnly() {
               <div style={{ position: 'relative' }}>
                 <div style={{
                   position: 'absolute', inset: '-12px',
-                  background: 'radial-gradient(circle, rgba(139,92,246,0.38) 0%, transparent 70%)',
+                  background: 'radial-gradient(circle, rgba(249,123,91,0.25) 0%, transparent 70%)',
                   borderRadius: '50%', filter: 'blur(10px)', pointerEvents: 'none',
                   animation: 'logo-breathe 3s ease-in-out infinite',
                 }} />
@@ -101,7 +101,7 @@ export default function RegisterSocialOnly() {
             <div style={{
               fontSize: '11px', fontWeight: 800, letterSpacing: '0.18em',
               textTransform: 'uppercase', marginBottom: '14px',
-              background: 'linear-gradient(90deg, #a78bfa 0%, #f472b6 100%)',
+              background: 'linear-gradient(90deg, #f97b5b 0%, #10b981 100%)',
               WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
             }}>
               Notes Marketplace
@@ -109,16 +109,16 @@ export default function RegisterSocialOnly() {
 
             {/* Headline */}
             <h1 style={{
-              fontSize: '26px', fontWeight: 800, color: '#fff',
+              fontSize: '26px', fontWeight: 800, color: '#111827',
               margin: '0 0 6px', letterSpacing: '-0.02em', lineHeight: 1.2,
             }}>
               Join the community{' '}
               <span style={{
-                background: 'linear-gradient(135deg, #a78bfa, #f472b6, #fb923c)',
+                background: 'linear-gradient(135deg, #f97b5b, #fb923c, #10b981)',
                 WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
               }}>✦</span>
             </h1>
-            <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '14px', margin: 0 }}>
+            <p style={{ color: '#4b5563', fontSize: '14px', margin: 0 }}>
               Sign up to start learning &amp; sharing
             </p>
           </div>
@@ -146,7 +146,7 @@ export default function RegisterSocialOnly() {
               <button type="button" disabled style={styles.gitlabBtn}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
                   <GitLabIcon />
-                  <span style={{ fontSize: 13, fontWeight: 600, color: '#4b5563' }}>Sign up with GitLab</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#6b7280' }}>Sign up with GitLab</span>
                 </div>
                 <span style={styles.soonBadge}>Soon</span>
               </button>
@@ -235,17 +235,17 @@ const styles = {
   gitlabBtn: {
     width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
     padding: '12px 16px',
-    background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)',
-    borderRadius: '14px', cursor: 'not-allowed', opacity: 0.5,
+    background: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.06)',
+    borderRadius: '14px', cursor: 'not-allowed', opacity: 0.6,
   },
   soonBadge: {
-    fontSize: 10, fontWeight: 700, color: '#7c3aed', textTransform: 'uppercase',
-    letterSpacing: '0.08em', background: 'rgba(139,92,246,0.12)',
-    padding: '3px 8px', borderRadius: '20px', border: '1px solid rgba(139,92,246,0.2)',
+    fontSize: 10, fontWeight: 700, color: '#f97b5b', textTransform: 'uppercase',
+    letterSpacing: '0.08em', background: 'rgba(249,123,91,0.12)',
+    padding: '3px 8px', borderRadius: '20px', border: '1px solid rgba(249,123,91,0.2)',
   },
   spinner: {
     width: 15, height: 15,
-    border: '2px solid rgba(255,255,255,0.15)', borderTopColor: 'rgba(255,255,255,0.5)',
+    border: '2px solid rgba(249,123,91,0.25)', borderTopColor: '#f97b5b',
     borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite',
   },
 };

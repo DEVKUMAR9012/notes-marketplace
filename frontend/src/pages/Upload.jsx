@@ -172,27 +172,29 @@ export default function Upload() {
   };
 
   return (
-    <div className="min-h-screen bg-[#07070f] text-white py-12 relative overflow-hidden">
+    <div className="min-h-screen py-12 relative overflow-hidden">
       <Toast toast={toast} />
       {/* Ambient Effects */}
-      <div className="absolute top-0 right-1/4 w-[600px] h-[600px] bg-violet-800/15 rounded-full blur-[140px] pointer-events-none" />
-      <div className="absolute bottom-0 left-1/4 w-[500px] h-[500px] bg-fuchsia-800/12 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute top-0 right-1/4 w-[600px] h-[600px] rounded-full blur-[140px] pointer-events-none" style={{ background: 'rgba(249,123,91,0.12)' }} />
+      <div className="absolute bottom-0 left-1/4 w-[500px] h-[500px] rounded-full blur-[120px] pointer-events-none" style={{ background: 'rgba(16,185,129,0.10)' }} />
 
       <div className="container relative z-10 mx-auto px-4 max-w-2xl">
         <motion.div
           initial={{ opacity: 0, y: 50 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-[#0c0c16]/80 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl p-8"
+          className="theme-card rounded-3xl shadow-raised p-8"
         >
-          <h1 className="text-3xl font-bold text-white mb-6 flex items-center gap-3">
-            <div className={`p-3 rounded-2xl ${formData.itemType === 'book' ? 'bg-pink-500/20 text-pink-500' : 'bg-violet-500/20 text-violet-500'}`}>
+          <h1 className="text-3xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+            <div className={`p-3 rounded-2xl ${
+              formData.itemType === 'book' ? 'bg-pink-100 text-pink-500' : 'bg-coral-100 text-coral-500'
+            }`}>
               <FiUpload size={24} />
             </div>
             {formData.itemType === 'book' ? 'Publish a Book' : 'Upload a Note'}
           </h1>
 
           {error && (
-            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-2xl text-sm font-medium flex items-start gap-3">
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-600 rounded-2xl text-sm font-medium flex items-start gap-3">
               <span className="text-xl">⚠️</span>
               <p className="mt-0.5">{error}</p>
             </div>
@@ -215,11 +217,13 @@ export default function Upload() {
             <button
               type="submit"
               disabled={loading || !file}
-              className={`w-full py-4 mt-6 rounded-2xl font-bold text-white shadow-xl transition-all ${
-                formData.itemType === 'book' 
-                  ? 'bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 shadow-pink-500/20'
-                  : 'bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 shadow-violet-500/20'
-              } disabled:opacity-50 disabled:cursor-not-allowed`}
+              className="w-full py-4 mt-6 rounded-2xl font-bold text-white shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                background: formData.itemType === 'book'
+                  ? 'linear-gradient(to right, #ec4899, #f43f5e)'
+                  : 'linear-gradient(to right, var(--accent), #fb923c)',
+                boxShadow: formData.itemType === 'book' ? '0 4px 16px rgba(236,72,153,0.3)' : 'var(--shadow-coral)',
+              }}
             >
               {loading ? 'Uploading safely to cloud...' : formData.itemType === 'book' ? 'Publish Book' : 'Publish Note'}
             </button>

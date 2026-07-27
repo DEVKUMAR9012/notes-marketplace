@@ -166,21 +166,21 @@ const FlipCard = ({ icon: Icon, title, description, delay }) => {
         {/* FRONT */}
         <div
           style={{ backfaceVisibility: 'hidden' }}
-          className="absolute inset-0 bg-gradient-to-br from-violet-900/40 to-cyan-900/40 backdrop-blur-xl border border-white/20 rounded-xl p-6 flex flex-col items-center justify-center hover:border-violet-500/50 transition-all group"
+          className="absolute inset-0 theme-card rounded-xl p-6 flex flex-col items-center justify-center hover:shadow-raised transition-all group"
         >
-          <div className="text-4xl mb-4 text-violet-400 group-hover:text-cyan-400 transition transform group-hover:scale-110">
+          <div className="text-4xl mb-4 text-coral-500 transition transform group-hover:scale-110">
             <Icon />
           </div>
-          <h3 className="text-white font-bold text-center">{title}</h3>
-          <p className="text-gray-400 text-xs mt-2 text-center">Click to learn more</p>
+          <h3 className="text-gray-900 font-bold text-center">{title}</h3>
+          <p className="text-gray-500 text-xs mt-2 text-center">Click to learn more</p>
         </div>
 
         {/* BACK */}
         <div
           style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
-          className="absolute inset-0 bg-gradient-to-br from-cyan-900/40 to-violet-900/40 backdrop-blur-xl border border-cyan-500/50 rounded-xl p-6 flex items-center justify-center"
+          className="absolute inset-0 theme-card rounded-xl p-6 flex items-center justify-center border-coral-300"
         >
-          <p className="text-gray-300 text-sm text-center">{description}</p>
+          <p className="text-gray-700 text-sm text-center">{description}</p>
         </div>
       </motion.div>
     </motion.div>
@@ -202,15 +202,15 @@ const FAQItem = ({ question, answer, index }) => {
     >
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-6 py-4 bg-gradient-to-r from-violet-900/30 to-cyan-900/30 backdrop-blur-xl border border-white/10 hover:border-violet-500/50 rounded-lg flex items-center justify-between group transition-all"
+        className="w-full px-6 py-4 theme-card rounded-lg flex items-center justify-between group transition-all"
       >
-        <span className="text-left text-white font-medium group-hover:text-violet-400 transition">
+        <span className="text-left text-gray-900 font-medium group-hover:text-coral-500 transition">
           {question}
         </span>
         <motion.div
           animate={{ rotate: isOpen ? 45 : 0 }}
           transition={{ duration: 0.3 }}
-          className="text-violet-400 text-xl"
+          className="text-coral-500 text-xl"
         >
           <FiChevronDown />
         </motion.div>
@@ -225,7 +225,7 @@ const FAQItem = ({ question, answer, index }) => {
             transition={{ duration: 0.3 }}
             className="overflow-hidden"
           >
-            <div className="px-6 py-4 bg-gray-900/50 border-x border-b border-white/10 text-gray-300 text-sm">
+            <div className="px-6 py-4 border-x border-b text-gray-700 text-sm rounded-b-lg" style={{ background: 'var(--surface-raised)', borderColor: 'var(--border)' }}>
               {answer}
             </div>
           </motion.div>
@@ -554,7 +554,7 @@ export default function Contact() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 pt-24 pb-12 relative overflow-hidden">
+    <div className="min-h-screen pt-24 pb-12 relative overflow-hidden text-gray-900">
       <FloatingParticles />
       {showConfetti && <ConfettiBurst onComplete={() => setShowConfetti(false)} />}
       <LiveChatButton />
@@ -567,11 +567,11 @@ export default function Contact() {
           className="text-center mb-16"
         >
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-4">
-            <span className="text-white">
+            <span className="text-gray-900">
               <TypingText text="We're here to help you" speed={50} />
             </span>
           </h1>
-          <p className="text-xl text-gray-400 mb-8">
+          <p className="text-xl text-gray-500 mb-8">
             Got questions? We'd love to hear from you. Send us a message!
           </p>
 
@@ -589,12 +589,12 @@ export default function Contact() {
               <input
                 type="text"
                 placeholder="Search your issue..."
-                className="w-full px-6 py-4 bg-gray-900/50 backdrop-blur-xl border border-violet-500/30 hover:border-violet-500/60 rounded-full text-white placeholder-gray-500 focus:outline-none focus:border-violet-500 transition-all"
+                className="w-full px-6 py-4 theme-input rounded-full placeholder-gray-400 text-sm outline-none transition-all"
               />
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-gradient-to-r from-violet-600 to-cyan-600 text-white px-4 py-2 rounded-full text-sm font-medium hover:shadow-lg hover:shadow-violet-500/50 transition-all cursor-pointer"
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-white px-4 py-2 rounded-full text-sm font-medium transition-all cursor-pointer btn-accent"
               >
                 Search
               </motion.button>
@@ -606,49 +606,49 @@ export default function Contact() {
           <TiltCard>
             <motion.form
               onSubmit={handleSubmit(onSubmit)}
-              className="bg-gradient-to-br from-violet-900/20 to-cyan-900/20 backdrop-blur-xl border border-white/15 rounded-2xl p-6 sm:p-8"
+              className="theme-card rounded-2xl p-6 sm:p-8 shadow-raised"
             >
-              <h2 className="text-2xl font-bold text-white mb-6">Send us a Message</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">Send us a Message</h2>
 
               <div className="space-y-4">
                 <div>
-                  <label className="text-sm text-gray-400 mb-2 block">Full Name</label>
+                  <label className="text-sm text-gray-600 mb-2 block">Full Name</label>
                   <motion.input
                     type="text"
                     {...register('name', { required: 'Name is required' })}
                     placeholder="Your name"
-                    className="w-full px-4 py-3 bg-gray-900/40 border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-violet-500 transition-all"
+                    className="w-full px-4 py-3 rounded-lg theme-input transition-all"
                     whileFocus={{ scale: 1.02 }}
                   />
                   {errors.name && <p className="text-red-400 text-xs mt-1">{errors.name.message}</p>}
                 </div>
 
                 <div>
-                  <label className="text-sm text-gray-400 mb-2 block">Email Address</label>
+                  <label className="text-sm text-gray-600 mb-2 block">Email Address</label>
                   <motion.input
                     type="email"
                     {...register('email', { required: 'Email is required', pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Invalid email' } })}
                     placeholder="you@example.com"
-                    className="w-full px-4 py-3 bg-gray-900/40 border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-violet-500 transition-all"
+                    className="w-full px-4 py-3 rounded-lg theme-input transition-all"
                     whileFocus={{ scale: 1.02 }}
                   />
                   {errors.email && <p className="text-red-400 text-xs mt-1">{errors.email.message}</p>}
                 </div>
 
                 <div>
-                  <label className="text-sm text-gray-400 mb-2 block">Subject</label>
+                  <label className="text-sm text-gray-600 mb-2 block">Subject</label>
                   <motion.input
                     type="text"
                     {...register('subject', { required: 'Subject is required' })}
                     placeholder="How can we help?"
-                    className="w-full px-4 py-3 bg-gray-900/40 border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-violet-500 transition-all"
+                    className="w-full px-4 py-3 rounded-lg theme-input transition-all"
                     whileFocus={{ scale: 1.02 }}
                   />
                   {errors.subject && <p className="text-red-400 text-xs mt-1">{errors.subject.message}</p>}
                 </div>
 
                 <div>
-                  <label className="text-sm text-gray-400 mb-2 block">Message</label>
+                  <label className="text-sm text-gray-600 mb-2 block">Message</label>
                   <motion.textarea
                     {...register('message', { required: 'Message is required' })}
                     placeholder="Tell us more..."
@@ -665,7 +665,7 @@ export default function Contact() {
                 disabled={isSubmitting}
                 whileHover={{ scale: isSubmitting ? 1 : 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="w-full mt-6 relative group overflow-hidden px-6 py-3 bg-gradient-to-r from-violet-600 to-cyan-600 hover:from-violet-700 hover:to-cyan-700 disabled:opacity-50 text-white font-semibold rounded-lg transition-all cursor-pointer"
+                className="w-full mt-6 relative group overflow-hidden px-6 py-3 disabled:opacity-50 text-white font-semibold rounded-lg transition-all cursor-pointer btn-accent"
               >
                 <motion.div
                   className="absolute inset-0 bg-white/20 rounded-lg"
@@ -714,16 +714,16 @@ export default function Contact() {
               initial={{ opacity: 0, x: 20 }}
               whileInView={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.1 }}
-              className="bg-gradient-to-br from-emerald-900/20 to-cyan-900/20 backdrop-blur-xl border border-white/15 rounded-xl p-6 hover:border-emerald-500/50 transition-all"
+              className="theme-card rounded-xl p-6 transition-all"
             >
               <div className="flex gap-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-cyan-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                <div className="w-12 h-12 bg-emerald-500 rounded-lg flex items-center justify-center flex-shrink-0">
                   <FiMail className="text-white text-xl" />
                 </div>
                 <div>
-                  <h3 className="text-white font-bold mb-1">Email</h3>
-                  <p className="text-gray-400">devkumar9012@gmail.com</p>
-                  <p className="text-gray-500 text-sm">Official support address</p>
+                  <h3 className="text-gray-900 font-bold mb-1">Email</h3>
+                  <p className="text-gray-600">devkumar9012@gmail.com</p>
+                  <p className="text-gray-400 text-sm">Official support address</p>
                 </div>
               </div>
             </motion.div>
@@ -732,16 +732,16 @@ export default function Contact() {
               initial={{ opacity: 0, x: 20 }}
               whileInView={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2 }}
-              className="bg-gradient-to-br from-blue-900/20 to-violet-900/20 backdrop-blur-xl border border-white/15 rounded-xl p-6 hover:border-blue-500/50 transition-all"
+              className="theme-card rounded-xl p-6 transition-all"
             >
               <div className="flex gap-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-violet-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
                   <FiPhone className="text-white text-xl" />
                 </div>
                 <div>
-                  <h3 className="text-white font-bold mb-1">Phone</h3>
-                  <p className="text-gray-400">+91 6398679259</p>
-                  <p className="text-gray-500 text-sm">Mon-Fri, 10am-6pm IST</p>
+                  <h3 className="text-gray-900 font-bold mb-1">Phone</h3>
+                  <p className="text-gray-600">+91 6398679259</p>
+                  <p className="text-gray-400 text-sm">Mon-Fri, 10am-6pm IST</p>
                 </div>
               </div>
             </motion.div>
@@ -750,16 +750,16 @@ export default function Contact() {
               initial={{ opacity: 0, x: 20 }}
               whileInView={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.3 }}
-              className="bg-gradient-to-br from-pink-900/20 to-red-900/20 backdrop-blur-xl border border-white/15 rounded-xl p-6 hover:border-pink-500/50 transition-all"
+              className="theme-card rounded-xl p-6 transition-all"
             >
               <div className="flex gap-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-red-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                <div className="w-12 h-12 bg-coral-500 rounded-lg flex items-center justify-center flex-shrink-0">
                   <FiMapPin className="text-white text-xl" />
                 </div>
                 <div>
-                  <h3 className="text-white font-bold mb-1">Address</h3>
-                  <p className="text-gray-400">Agra, Uttar Pradesh, India</p>
-                  <p className="text-gray-500 text-sm">Dayalbagh Educational Institute Ecosystem</p>
+                  <h3 className="text-gray-900 font-bold mb-1">Address</h3>
+                  <p className="text-gray-600">Agra, Uttar Pradesh, India</p>
+                  <p className="text-gray-400 text-sm">Dayalbagh Educational Institute Ecosystem</p>
                 </div>
               </div>
             </motion.div>
@@ -772,7 +772,7 @@ export default function Contact() {
           transition={{ duration: 0.8 }}
           className="mb-20"
         >
-          <h2 className="text-3xl sm:text-4xl font-bold text-white text-center mb-12">
+          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 text-center mb-12">
             How Can We Help?
           </h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -794,7 +794,7 @@ export default function Contact() {
           transition={{ duration: 0.8 }}
           className="mb-20"
         >
-          <h2 className="text-3xl sm:text-4xl font-bold text-white text-center mb-12">
+          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 text-center mb-12">
             Frequently Asked Questions
           </h2>
           <div className="max-w-3xl mx-auto">
@@ -808,9 +808,9 @@ export default function Contact() {
           initial={{ opacity: 0, x: 100 }}
           whileInView={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.8 }}
-          className="text-center py-12 border-t border-white/10"
+          className="text-center py-12 border-t border-black/10"
         >
-          <h3 className="text-white font-bold mb-6">Follow Us</h3>
+          <h3 className="text-gray-900 font-bold mb-6">Follow Us</h3>
           <div className="flex justify-center gap-6">
             {socialLinks.map((link, i) => (
               <motion.a

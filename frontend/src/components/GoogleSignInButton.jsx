@@ -180,17 +180,17 @@ const styles = {
   },
   conicSpinner: {
     position: 'absolute', inset: '-60px',
-    background: 'conic-gradient(from 0deg,#8b5cf6,#ec4899,#fb923c,#fbbf24,#8b5cf6)',
+    background: 'conic-gradient(from 0deg,#f97b5b,#fb923c,#10b981,#f97b5b)',
     transformOrigin: '50% 50%',
   },
   innerSurface: {
     position: 'relative', borderRadius: '14px',
-    background: 'linear-gradient(135deg,#0d0d1e 0%,#110e1e 100%)',
+    background: '#ffffff',
     overflow: 'hidden',
   },
   innerGlow: {
     position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 0,
-    background: 'radial-gradient(ellipse at 50% 120%,rgba(139,92,246,0.18) 0%,transparent 65%)',
+    background: 'radial-gradient(ellipse at 50% 120%,rgba(249,123,91,0.08) 0%,transparent 65%)',
   },
   buttonHost: {
     position: 'relative', zIndex: 1,

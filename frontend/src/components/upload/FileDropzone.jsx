@@ -55,53 +55,53 @@ export default function FileDropzone({ file, setFile, setError }) {
     <div 
       {...getRootProps()} 
       className={`mt-2 border-2 border-dashed rounded-3xl p-8 text-center transition-all cursor-pointer group ${
-        isDragReject ? 'border-red-500/50 bg-red-500/10' :
-        isDragActive ? 'border-violet-500 bg-violet-500/10 scale-[1.02]' :
-        file ? 'border-emerald-500/50 bg-emerald-500/10' : 
-        'border-white/10 bg-white/5 hover:border-violet-500/30 hover:bg-white/10'
+        isDragReject ? 'border-red-400/60 bg-red-50' :
+        isDragActive ? 'border-coral-400 bg-coral-50 scale-[1.02]' :
+        file ? 'border-emerald-400/60 bg-emerald-50' : 
+        'border-black/10 bg-white/40 hover:border-coral-400/40 hover:bg-white/60'
       }`}
     >
       <input {...getInputProps()} />
       
       {file ? (
         <div className="flex flex-col items-center">
-          <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center mb-4">
-            <FiFile className="text-3xl text-emerald-400" />
+          <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mb-4">
+            <FiFile className="text-3xl text-emerald-600" />
           </div>
-          <p className="text-emerald-400 font-semibold text-lg max-w-[90%] truncate">
+          <p className="text-emerald-700 font-semibold text-lg max-w-[90%] truncate">
             {file.name}
           </p>
-          <p className="text-sm text-emerald-400/70 mt-1">
+          <p className="text-sm text-emerald-600/80 mt-1">
             {(file.size / 1024 / 1024).toFixed(2)} MB • Ready to upload
           </p>
           <button 
             type="button"
             onClick={removeFile}
-            className="mt-4 flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-red-400 transition-colors bg-black/20 px-4 py-2 rounded-xl"
+            className="mt-4 flex items-center gap-2 text-xs font-bold text-gray-500 hover:text-red-500 transition-colors bg-black/5 px-4 py-2 rounded-xl"
           >
             <FiX size={14} /> Remove File
           </button>
         </div>
       ) : (
         <div className="flex flex-col items-center">
-          <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-4 transition-all duration-300 ${isDragActive ? 'bg-violet-500/20' : 'bg-white/5 group-hover:bg-violet-500/10'}`}>
-            <FiUploadCloud className={`text-4xl transition-colors duration-300 ${isDragActive ? 'text-violet-400 scale-110' : 'text-gray-500 group-hover:text-violet-400'}`} />
+          <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-4 transition-all duration-300 ${isDragActive ? 'bg-coral-100' : 'bg-black/5 group-hover:bg-coral-50'}`}>
+            <FiUploadCloud className={`text-4xl transition-colors duration-300 ${isDragActive ? 'text-coral-500 scale-110' : 'text-gray-400 group-hover:text-coral-500'}`} />
           </div>
           
-          <h3 className="text-lg font-semibold text-white mb-2">
+          <h3 className="text-lg font-semibold text-gray-800 mb-2">
             {isDragActive ? 'Drop it here!' : 'Drag & drop your file here'}
           </h3>
           
           <p className="text-sm text-gray-500 mb-6">
-            or <span className="text-violet-400 group-hover:text-violet-300 transition-colors">browse from your computer</span>
+            or <span className="text-coral-500 group-hover:text-coral-600 transition-colors">browse from your computer</span>
           </p>
           
-          <div className="flex flex-wrap justify-center gap-2 text-[10px] font-bold text-gray-600 uppercase tracking-wider">
-            <span className="bg-white/5 px-2 py-1 rounded-md">PDF</span>
-            <span className="bg-white/5 px-2 py-1 rounded-md">DOCX</span>
-            <span className="bg-white/5 px-2 py-1 rounded-md">PPT</span>
-            <span className="bg-white/5 px-2 py-1 rounded-md">Images</span>
-            <span className="bg-white/5 px-2 py-1 rounded-md text-violet-400/70">MAX 10MB</span>
+          <div className="flex flex-wrap justify-center gap-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+            <span className="bg-black/5 px-2 py-1 rounded-md">PDF</span>
+            <span className="bg-black/5 px-2 py-1 rounded-md">DOCX</span>
+            <span className="bg-black/5 px-2 py-1 rounded-md">PPT</span>
+            <span className="bg-black/5 px-2 py-1 rounded-md">Images</span>
+            <span className="bg-black/5 px-2 py-1 rounded-md text-coral-500/80">MAX 10MB</span>
           </div>
         </div>
       )}

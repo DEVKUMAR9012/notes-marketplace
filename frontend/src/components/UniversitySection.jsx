@@ -94,7 +94,7 @@ function StatItem({ value, label, accentColor }) {
       >
         {formatted}
       </span>
-      <span className="text-[9px] uppercase tracking-widest text-white/35 font-medium">
+      <span className="text-[9px] uppercase tracking-widest text-gray-400 font-medium">
         {label}
       </span>
     </div>
@@ -177,10 +177,11 @@ function UniversityCard({ university, index, onClick }) {
         className="relative rounded-2xl overflow-hidden h-full flex flex-col"
         style={{
           background:
-            "linear-gradient(145deg, rgba(255,255,255,0.055) 0%, rgba(255,255,255,0.02) 100%)",
-          backdropFilter: "blur(20px)",
-          WebkitBackdropFilter: "blur(20px)",
-          border: `1px solid rgba(255,255,255,0.08)`,
+            "rgba(255,255,255,0.75)",
+          backdropFilter: "blur(16px)",
+          WebkitBackdropFilter: "blur(16px)",
+          border: `1px solid rgba(0,0,0,0.08)`,
+          boxShadow: '0 4px 24px rgba(0,0,0,0.07)',
         }}
       >
         {/* Top accent bar */}
@@ -240,11 +241,11 @@ function UniversityCard({ university, index, onClick }) {
           {/* University name & meta */}
           <div className="space-y-1 shrink-0">
             <div className="flex items-baseline gap-2">
-              <h3 className="text-white font-bold text-sm leading-tight tracking-[-0.01em]">
+              <h3 className="text-gray-900 font-bold text-sm leading-tight tracking-[-0.01em]">
                 {university.fullName}
               </h3>
             </div>
-            <div className="flex items-center gap-2 text-white/40 text-[10px] flex-wrap">
+            <div className="flex items-center gap-2 text-gray-400 text-[10px] flex-wrap">
               <svg width="8" height="10" viewBox="0 0 10 12" fill="none">
                 <path
                   d="M5 0C2.79 0 1 1.79 1 4c0 3 4 8 4 8s4-5 4-8c0-2.21-1.79-4-4-4zm0 5.5A1.5 1.5 0 1 1 5 2.5a1.5 1.5 0 0 1 0 3z"
@@ -252,7 +253,7 @@ function UniversityCard({ university, index, onClick }) {
                 />
               </svg>
               <span className="truncate">{university.location}</span>
-              <span className="text-white/20">·</span>
+              <span className="text-gray-300">·</span>
               <span className="truncate">Est. {university.established}</span>
             </div>
           </div>
@@ -261,8 +262,8 @@ function UniversityCard({ university, index, onClick }) {
           <div
             className="grid grid-cols-3 gap-2 py-3 rounded-xl shrink-0"
             style={{
-              background: "rgba(255,255,255,0.03)",
-              border: "1px solid rgba(255,255,255,0.06)",
+              background: "rgba(0,0,0,0.03)",
+              border: "1px solid rgba(0,0,0,0.07)",
             }}
           >
             <StatItem
@@ -272,7 +273,7 @@ function UniversityCard({ university, index, onClick }) {
             />
             <div
               className="w-px self-stretch"
-              style={{ background: "rgba(255,255,255,0.07)" }}
+              style={{ background: "rgba(0,0,0,0.08)" }}
             />
             <StatItem
               value={university.subjectsCount}
@@ -281,7 +282,7 @@ function UniversityCard({ university, index, onClick }) {
             />
             <div
               className="col-span-3 h-px mx-4"
-              style={{ background: "rgba(255,255,255,0.07)" }}
+              style={{ background: "rgba(0,0,0,0.07)" }}
             />
             <div className="col-span-3">
               <StatItem
@@ -306,9 +307,9 @@ function UniversityCard({ university, index, onClick }) {
             style={{
               background: hovered
                 ? `linear-gradient(135deg, ${university.accentColor}DD, ${university.accentColor}99)`
-                : "rgba(255,255,255,0.06)",
-              color: hovered ? "#fff" : "rgba(255,255,255,0.55)",
-              border: `1px solid ${hovered ? university.accentColor + "66" : "rgba(255,255,255,0.08)"}`,
+                : "rgba(0,0,0,0.05)",
+              color: hovered ? "#fff" : "rgba(55,65,81,0.7)",
+              border: `1px solid ${hovered ? university.accentColor + "66" : "rgba(0,0,0,0.10)"}`,
             }}
           >
             <AnimatePresence mode="wait">

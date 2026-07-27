@@ -127,16 +127,16 @@ export default function GuestConversionModal({ isOpen, onClose, triggerReason = 
               animate={{ scale: 1, y: 0, opacity: 1 }}
               exit={{ scale: 0.85, y: 40, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 300, damping: 24 }}
-              className="w-full max-w-md bg-[#0c0c18] border border-violet-500/20 rounded-3xl shadow-2xl shadow-violet-900/30 overflow-hidden"
+              className="w-full max-w-md bg-white/95 border border-black/10 rounded-3xl shadow-2xl shadow-coral-900/10 overflow-hidden relative"
             >
               {/* Glow accent */}
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-72 h-1 bg-gradient-to-r from-transparent via-violet-500 to-transparent" />
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-72 h-1 bg-gradient-to-r from-transparent via-coral-500 to-transparent" />
 
               <div className="p-7">
                 {/* Close */}
                 <button
                   onClick={onClose}
-                  className="absolute top-5 right-5 p-1.5 rounded-xl hover:bg-white/10 text-gray-500 hover:text-white transition"
+                  className="absolute top-5 right-5 p-1.5 rounded-xl hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition"
                 >
                   <FiX size={16} />
                 </button>
@@ -148,14 +148,14 @@ export default function GuestConversionModal({ isOpen, onClose, triggerReason = 
                     animate={{ opacity: 1, scale: 1 }}
                     className="flex flex-col items-center gap-4 py-6 text-center"
                   >
-                    <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-violet-600 to-emerald-500 flex items-center justify-center shadow-2xl shadow-violet-900/50">
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-coral-500 to-mint-500 flex items-center justify-center shadow-lg shadow-coral-500/20">
                       <FiGift size={32} className="text-white" />
                     </div>
-                    <h2 className="text-2xl font-extrabold text-white">Welcome Aboard! 🎉</h2>
-                    <p className="text-gray-400 text-sm">Your cart & activity are safe. Redirecting to your profile...</p>
-                    <div className="w-full bg-white/5 rounded-full h-1.5 mt-2 overflow-hidden">
+                    <h2 className="text-2xl font-extrabold text-gray-900">Welcome Aboard! 🎉</h2>
+                    <p className="text-gray-600 text-sm">Your cart &amp; activity are safe. Redirecting to your profile...</p>
+                    <div className="w-full bg-gray-100 rounded-full h-1.5 mt-2 overflow-hidden">
                       <motion.div
-                        className="h-full bg-gradient-to-r from-violet-500 to-emerald-400"
+                        className="h-full bg-gradient-to-r from-coral-500 to-mint-500"
                         initial={{ width: '0%' }}
                         animate={{ width: '100%' }}
                         transition={{ duration: 2.8 }}
@@ -168,17 +168,17 @@ export default function GuestConversionModal({ isOpen, onClose, triggerReason = 
                 {step === 'otp' && (
                   <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
                     <div className="flex flex-col items-center gap-3 mb-6 text-center">
-                      <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
-                        <FiKey size={24} className="text-emerald-400" />
+                      <div className="w-14 h-14 rounded-2xl bg-mint-500/10 border border-mint-500/30 flex items-center justify-center">
+                        <FiKey size={24} className="text-mint-600" />
                       </div>
-                      <h2 className="text-xl font-bold text-white">Verify Your Email</h2>
-                      <p className="text-gray-400 text-sm">
-                        We sent a 6-digit code to <span className="text-white font-medium">{formData.email}</span>
+                      <h2 className="text-xl font-bold text-gray-900">Verify Your Email</h2>
+                      <p className="text-gray-600 text-sm">
+                        We sent a 6-digit code to <span className="text-gray-900 font-semibold">{formData.email}</span>
                       </p>
                     </div>
 
                     {error && (
-                      <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-xl mb-4 text-sm text-center">
+                      <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-xl mb-4 text-sm text-center">
                         {error}
                       </div>
                     )}
@@ -188,13 +188,13 @@ export default function GuestConversionModal({ isOpen, onClose, triggerReason = 
                         type="text" inputMode="numeric" maxLength={6}
                         value={otp}
                         onChange={e => { setOtp(e.target.value.replace(/\D/g, '').slice(0, 6)); if (error) setError(''); }}
-                        className="w-full text-center font-mono text-3xl py-4 bg-white/5 border border-emerald-500/30 rounded-2xl text-emerald-400 placeholder-gray-700 focus:outline-none focus:border-emerald-500 tracking-widest transition"
+                        className="w-full text-center font-mono text-3xl py-4 bg-gray-50 border border-gray-200 rounded-2xl text-gray-900 placeholder-gray-300 focus:outline-none focus:border-mint-500 tracking-widest transition"
                         placeholder="000000"
                         required
                       />
                       <button
                         type="submit" disabled={loading || otp.length !== 6}
-                        className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-3.5 rounded-2xl font-bold shadow-lg shadow-emerald-900/30 hover:shadow-emerald-900/50 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                        className="w-full bg-gradient-to-r from-mint-500 to-teal-500 text-white py-3.5 rounded-2xl font-bold shadow-lg shadow-mint-500/20 hover:shadow-mint-500/30 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                       >
                         {loading ? 'Verifying...' : <><FiShield size={16} /> Claim My Account</>}
                       </button>
@@ -207,47 +207,47 @@ export default function GuestConversionModal({ isOpen, onClose, triggerReason = 
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                     {/* Header */}
                     <div className="flex flex-col items-center gap-2 mb-6 text-center">
-                      <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-violet-600 to-fuchsia-600 flex items-center justify-center shadow-lg shadow-violet-900/40">
+                      <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-coral-500 to-orange-400 flex items-center justify-center shadow-lg shadow-coral-500/30">
                         <FiLock size={24} className="text-white" />
                       </div>
-                      <h2 className="text-xl font-extrabold text-white">Secure Your Work!</h2>
-                      <p className="text-gray-400 text-sm leading-relaxed">
-                        Create a secure account to continue <span className="text-violet-400 font-semibold">{triggerReason}</span>.
-                        <br />Your cart &amp; activity will be linked permanently. 🔒
+                      <h2 className="text-xl font-extrabold text-gray-900">Create Free Account</h2>
+                      <p className="text-gray-600 text-sm leading-relaxed">
+                        Sign up to save your account &amp; continue <span className="text-coral-500 font-semibold">{triggerReason}</span>.
+                        <br />Your cart &amp; activity will be saved. 🔒
                       </p>
                     </div>
 
                     {error && (
-                      <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-xl mb-4 text-sm text-center">
+                      <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-xl mb-4 text-sm text-center">
                         {error}
                       </div>
                     )}
 
                     <form onSubmit={handleConvert} className="space-y-3">
                       <div className="relative">
-                        <FiUser className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" size={15} />
+                        <FiUser className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={15} />
                         <input
                           type="text" name="name" value={formData.name} onChange={handleChange}
                           placeholder="Full Name" required
-                          className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-600 text-sm focus:outline-none focus:border-violet-500/60 focus:ring-1 focus:ring-violet-500/20 transition"
+                          className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 text-sm focus:outline-none focus:border-coral-500 focus:ring-1 focus:ring-coral-500/20 transition"
                         />
                       </div>
                       <div className="relative">
-                        <FiMail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" size={15} />
+                        <FiMail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={15} />
                         <input
                           type="email" name="email" value={formData.email} onChange={handleChange}
                           placeholder="Email Address" required
-                          className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-600 text-sm focus:outline-none focus:border-violet-500/60 focus:ring-1 focus:ring-violet-500/20 transition"
+                          className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 text-sm focus:outline-none focus:border-coral-500 focus:ring-1 focus:ring-coral-500/20 transition"
                         />
                       </div>
                       <div className="relative">
-                        <FiLock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" size={15} />
+                        <FiLock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={15} />
                         <input
                           type={showPassword ? 'text' : 'password'} name="password" value={formData.password} onChange={handleChange}
                           placeholder="Create Password (min 6 chars)" required
-                          className="w-full pl-10 pr-10 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-600 text-sm focus:outline-none focus:border-violet-500/60 focus:ring-1 focus:ring-violet-500/20 transition"
+                          className="w-full pl-10 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 text-sm focus:outline-none focus:border-coral-500 focus:ring-1 focus:ring-coral-500/20 transition"
                         />
-                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition">
+                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 transition">
                           {showPassword ? <FiEyeOff size={15} /> : <FiEye size={15} />}
                         </button>
                       </div>
@@ -255,21 +255,21 @@ export default function GuestConversionModal({ isOpen, onClose, triggerReason = 
                         <input
                           type="text" name="college" value={formData.college} onChange={handleChange}
                           placeholder="College (Optional)"
-                          className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-600 text-sm focus:outline-none focus:border-violet-500/60 focus:ring-1 focus:ring-violet-500/20 transition"
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 text-sm focus:outline-none focus:border-coral-500 focus:ring-1 focus:ring-coral-500/20 transition"
                         />
                       </div>
 
                       <button
                         type="submit" disabled={loading}
-                        className="w-full bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white py-3.5 rounded-2xl font-bold shadow-lg shadow-violet-900/40 hover:shadow-violet-900/60 hover:from-violet-500 hover:to-fuchsia-500 transition-all disabled:opacity-50 mt-1 flex items-center justify-center gap-2"
+                        className="w-full bg-gradient-to-r from-coral-500 to-orange-500 text-white py-3.5 rounded-2xl font-bold shadow-lg shadow-coral-500/30 hover:shadow-coral-500/40 hover:from-coral-600 hover:to-orange-600 transition-all disabled:opacity-50 mt-1 flex items-center justify-center gap-2"
                       >
-                        {loading ? 'Creating Account...' : <><FiArrowRight size={16} /> Create Account & Continue</>}
+                        {loading ? 'Creating Account...' : <><FiArrowRight size={16} /> Create Account &amp; Save</>}
                       </button>
                     </form>
 
-                    <p className="text-center text-xs text-gray-600 mt-4">
+                    <p className="text-center text-xs text-gray-500 mt-4">
                       Already have an account?{' '}
-                      <button onClick={() => { onClose(); navigate('/login'); }} className="text-violet-400 hover:text-violet-300 font-medium transition">
+                      <button onClick={() => { onClose(); navigate('/login'); }} className="text-coral-500 hover:text-coral-600 font-semibold transition">
                         Sign in
                       </button>
                     </p>

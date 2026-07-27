@@ -50,8 +50,8 @@ const SectionLabel = ({ text }) => (
 
 const Card = ({ children, className = '' }) => (
   <div
-    className={`rounded-2xl border border-white/8 p-4 ${className}`}
-    style={{ background: 'rgba(255,255,255,0.025)' }}
+    className={`rounded-2xl border p-4 ${className}`}
+    style={{ background: 'var(--surface-raised)', borderColor: 'var(--border)' }}
   >
     {children}
   </div>
@@ -143,7 +143,7 @@ function PdfPageViewer({ pdfUrl, canViewFull, isPurchaseChecking, onBuy, note })
   /* ── purchase still loading ─────────────────────────────────────────── */
   if (isPurchaseChecking) return (
     <div className="flex-1 flex flex-col items-center justify-center gap-3">
-      <div className="w-8 h-8 border-2 border-violet-400/40 border-t-violet-400 rounded-full animate-spin" />
+      <div className="w-8 h-8 border-2 border-coral-500/40 border-t-coral-500 rounded-full animate-spin" />
       <p className="text-gray-500 text-sm">Checking access…</p>
     </div>
   );
@@ -153,15 +153,13 @@ function PdfPageViewer({ pdfUrl, canViewFull, isPurchaseChecking, onBuy, note })
       {/* canvas area */}
       <div
         ref={containerRef}
-        className="flex-1 overflow-auto relative"
-        style={{ background: '#111120' }}
+        className="flex-1 overflow-auto relative bg-gray-100/50"
       >
         <div className="flex flex-col items-center p-4 min-h-full">
           {/* spinner overlay while rendering */}
           {rendering && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center"
-              style={{ background: 'rgba(10,10,24,0.55)' }}>
-              <div className="w-8 h-8 border-2 border-violet-400/40 border-t-violet-400 rounded-full animate-spin" />
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60">
+              <div className="w-8 h-8 border-2 border-coral-500/40 border-t-coral-500 rounded-full animate-spin" />
             </div>
           )}
 
@@ -169,14 +167,14 @@ function PdfPageViewer({ pdfUrl, canViewFull, isPurchaseChecking, onBuy, note })
             <div className="relative w-full">
               <canvas
                 ref={canvasRef}
-                className="w-full h-auto shadow-2xl"
+                className="w-full h-auto shadow-xl"
                 style={{ borderRadius: 2 }}
               />
               {/* paywall gradient fade */}
               {showPaywall && (
                 <div
                   className="absolute bottom-0 left-0 right-0 h-44 pointer-events-none"
-                  style={{ background: 'linear-gradient(to bottom, transparent 0%, #0d0d18 90%)' }}
+                  style={{ background: 'linear-gradient(to bottom, transparent 0%, rgba(255,255,255,0.95) 90%)' }}
                   aria-hidden="true"
                 />
               )}
@@ -188,7 +186,7 @@ function PdfPageViewer({ pdfUrl, canViewFull, isPurchaseChecking, onBuy, note })
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-20 gap-3">
-              <div className="w-8 h-8 border-2 border-violet-400/40 border-t-violet-400 rounded-full animate-spin" />
+              <div className="w-8 h-8 border-2 border-coral-500/40 border-t-coral-500 rounded-full animate-spin" />
               <p className="text-gray-500 text-sm">Loading PDF…</p>
             </div>
           )}
@@ -495,15 +493,15 @@ function Sidebar({
             );
           })()}
           <div>
-            <h3 className="text-white font-bold">{uploader?.name || 'Unknown User'}</h3>
-            <p className="text-gray-400 text-xs">Uploader</p>
+            <h3 className="text-gray-900 font-bold">{uploader?.name || 'Unknown User'}</h3>
+            <p className="text-gray-500 text-xs">Uploader</p>
           </div>
         </div>
 
         {/* stats row */}
         <div
-          className="grid grid-cols-3 gap-3 mb-4 rounded-xl border border-white/8 p-3"
-          style={{ background: 'rgba(255,255,255,0.02)' }}
+          className="grid grid-cols-3 gap-3 mb-4 rounded-xl border p-3"
+          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
         >
           {(() => {
             // Compute stats from profile data
@@ -531,7 +529,7 @@ function Sidebar({
               { label: 'Downloads', val: totalDownloads },
             ].map(({ label, val }) => (
               <div key={label} className="text-center">
-                <p className="text-white font-bold text-base leading-tight">{val}</p>
+                <p className="text-gray-900 font-bold text-base leading-tight">{val}</p>
                 <p className="text-gray-500 text-[10px] mt-0.5">{label}</p>
               </div>
             ));
@@ -841,19 +839,18 @@ export default function NotePreviewPage() {
   /* ── loading / error ─────────────────────────────────────────────── */
   if (loading) return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-4"
-      style={{ background: '#0d0d18' }} role="status" aria-label="Loading">
-      <div className="w-10 h-10 border-[3px] border-violet-500/30 border-t-violet-500 rounded-full animate-spin" />
+      role="status" aria-label="Loading">
+      <div className="w-10 h-10 border-[3px] border-coral-500/30 border-t-coral-500 rounded-full animate-spin" />
       <p className="text-gray-500 text-sm">Loading preview…</p>
     </div>
   );
 
   if (error || !note) return (
-    <div className="min-h-screen flex flex-col items-center justify-center gap-4"
-      style={{ background: '#0d0d18' }}>
+    <div className="min-h-screen flex flex-col items-center justify-center gap-4">
       <span className="text-5xl" aria-hidden="true">😕</span>
-      <p className="text-gray-400" role="alert">{error || 'Note not found'}</p>
+      <p className="text-gray-500" role="alert">{error || 'Note not found'}</p>
       <button onClick={() => navigate(-1)}
-        className="px-5 py-2 bg-violet-500/15 border border-violet-500/30 rounded-xl text-violet-300 text-sm font-semibold hover:bg-violet-500/25 transition">
+        className="px-5 py-2 border rounded-xl text-gray-700 text-sm font-semibold hover:text-gray-900 transition btn-accent">
         ← Go Back
       </button>
     </div>
@@ -872,27 +869,27 @@ export default function NotePreviewPage() {
 
   return (
     <div
-      className="h-screen flex flex-col overflow-hidden text-white"
-      style={{ background: '#0d0d18', fontFamily: "'Inter',system-ui,sans-serif" }}
+      className="h-screen flex flex-col overflow-hidden text-gray-900"
+      style={{ fontFamily: "'Inter',system-ui,sans-serif" }}
     >
       {/* ────────────────────── HEADER ─────────────────────────────── */}
       <header
-        className="flex-shrink-0 flex items-center gap-3 px-4 border-b border-white/8 z-40"
-        style={{ height: 60, background: '#0d0d18' }}
+        className="flex-shrink-0 flex items-center gap-3 px-4 border-b z-40"
+        style={{ height: 60, background: 'var(--surface-raised)', borderColor: 'var(--border)' }}
       >
         {/* back */}
         <button
           onClick={() => navigate(-1)}
           aria-label="Go back"
-          className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-lg border border-white/12 text-gray-400 hover:text-white hover:bg-white/8 transition"
-          style={{ background: 'rgba(255,255,255,0.04)' }}
+          className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-lg border text-gray-500 hover:text-gray-800 hover:bg-black/5 transition"
+          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
         >
           <FiArrowLeft size={17} aria-hidden="true" />
         </button>
 
         {/* title + subtitle */}
         <div className="flex-1 min-w-0">
-          <h1 className="text-white font-bold text-[15px] truncate leading-tight">{note.title}</h1>
+          <h1 className="text-gray-900 font-bold text-[15px] truncate leading-tight">{note.title}</h1>
           {headerSubtitle && (
             <p className="text-gray-500 text-xs truncate mt-0.5">{headerSubtitle}</p>
           )}
@@ -907,13 +904,13 @@ export default function NotePreviewPage() {
               showToast(bookmarked ? 'Bookmark removed' : 'Bookmarked!', 'success');
             }}
             aria-label={bookmarked ? 'Remove bookmark' : 'Bookmark note'}
-            className="w-9 h-9 flex items-center justify-center rounded-lg border border-white/12 text-gray-400 hover:text-white hover:bg-white/8 transition"
-            style={{ background: 'rgba(255,255,255,0.04)' }}
+            className="w-9 h-9 flex items-center justify-center rounded-lg border text-gray-500 hover:text-gray-900 hover:bg-black/5 transition"
+            style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
           >
             <FiBookmark
               size={16}
               aria-hidden="true"
-              className={bookmarked ? 'fill-violet-400 text-violet-400' : ''}
+              className={bookmarked ? 'fill-coral-500 text-coral-500' : ''}
             />
           </button>
 
@@ -924,8 +921,8 @@ export default function NotePreviewPage() {
               showToast('Link copied!', 'success');
             }}
             aria-label="Copy link"
-            className="w-9 h-9 flex items-center justify-center rounded-lg border border-white/12 text-gray-400 hover:text-white hover:bg-white/8 transition"
-            style={{ background: 'rgba(255,255,255,0.04)' }}
+            className="w-9 h-9 flex items-center justify-center rounded-lg border text-gray-500 hover:text-gray-900 hover:bg-black/5 transition"
+            style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
           >
             <FiShare2 size={16} aria-hidden="true" />
           </button>
@@ -935,8 +932,8 @@ export default function NotePreviewPage() {
             <button
               onClick={() => downloadPdf(buildPdfUrl(note.pdfUrl), note.title)}
               aria-label="Download PDF"
-              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-white/15 text-white text-sm font-bold hover:bg-white/8 transition"
-              style={{ background: 'rgba(255,255,255,0.05)' }}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg border text-gray-800 text-sm font-bold transition hover:bg-black/5"
+              style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
             >
               <FiDownload size={14} aria-hidden="true" />
               Download{!isPaid ? ' Free' : ''}
@@ -945,8 +942,7 @@ export default function NotePreviewPage() {
             <button
               onClick={() => setBuyNote(note)}
               aria-label={`Buy full access for ₹${note.price}`}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-bold transition"
-              style={{ background: 'linear-gradient(135deg,#7c3aed,#db2777)' }}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-bold transition btn-accent"
             >
               <FiShoppingCart size={14} aria-hidden="true" />
               ₹{note.price}
@@ -957,8 +953,8 @@ export default function NotePreviewPage() {
 
       {/* ────────────────────── TAB BAR ────────────────────────────── */}
       <nav
-        className="flex-shrink-0 flex border-b border-white/8"
-        style={{ background: '#0d0d18' }}
+        className="flex-shrink-0 flex border-b"
+        style={{ background: 'var(--surface-raised)', borderColor: 'var(--border)' }}
         role="tablist"
         aria-label="Content sections"
       >
@@ -970,8 +966,8 @@ export default function NotePreviewPage() {
             onClick={() => setActiveTab(tid)}
             className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-semibold border-b-2 transition-colors ${
               activeTab === tid
-                ? 'text-white border-violet-500'
-                : 'text-gray-500 border-transparent hover:text-gray-300'
+                ? 'text-coral-500 border-coral-500'
+                : 'text-gray-500 border-transparent hover:text-gray-800'
             }`}
           >
             <Icon size={12} aria-hidden="true" className="flex-shrink-0" />
@@ -989,9 +985,10 @@ export default function NotePreviewPage() {
         <div
           role="tabpanel"
           aria-label="PDF preview"
-          className={`flex-1 min-w-0 flex flex-col border-r border-white/8 ${
+          className={`flex-1 min-w-0 flex flex-col border-r ${
             activeTab !== 'preview' ? 'hidden lg:flex' : 'flex'
           }`}
+          style={{ borderColor: 'var(--border)' }}
         >
           {note.pdfUrl ? (
             <PdfPageViewer

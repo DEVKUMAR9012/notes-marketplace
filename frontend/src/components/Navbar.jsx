@@ -2,7 +2,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiLogOut, FiHome, FiUpload, FiUser, FiMenu, FiX, FiShoppingCart, FiBook, FiHeadphones, FiMessageSquare, FiShield, FiUserPlus } from 'react-icons/fi';
+import { FiLogOut, FiHome, FiUpload, FiUser, FiMenu, FiX, FiShoppingCart, FiHeadphones, FiMessageSquare, FiShield, FiUserPlus } from 'react-icons/fi';
 import { BsStars } from 'react-icons/bs';
 import { useState } from 'react';
 import AnimatedLogo from './AnimatedLogo';
@@ -27,7 +27,6 @@ export default function Navbar() {
     }
   };
 
-  // Build nav items — isAI flag renders the glowing pill inline
   const navItems = [
     { label: 'Home', icon: FiHome, path: '/' },
     ...(!isGuest ? [{ label: 'Upload', icon: FiUpload, path: '/upload' }] : []),
@@ -42,8 +41,11 @@ export default function Navbar() {
   const isActive = (path) => location.pathname === path;
 
   return (
-    <nav className="sticky top-0 w-full z-50 bg-gray-900/80 backdrop-blur-xl border-b border-white/10">
-      <div className="container mx-auto px-4 py-4">
+    <nav
+      className="sticky top-0 w-full z-50 backdrop-blur-xl border-b"
+      style={{ background: 'var(--nav-bg)', borderColor: 'var(--border)' }}
+    >
+      <div className="container mx-auto px-4 py-3.5">
         <div className="flex items-center justify-between">
 
           {/* Logo */}
@@ -55,34 +57,34 @@ export default function Navbar() {
             <AnimatedLogo size={window.innerWidth < 768 ? 'small' : 'medium'} />
           </Link>
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-5">
+          {/* Desktop Nav Links */}
+          <div className="hidden md:flex items-center gap-1">
             {navItems.map(({ label, icon: Icon, path }) => (
-              // Regular nav link
               <MotionLink
                 key={path}
                 to={path}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all text-sm font-medium ${
                   isActive(path)
-                    ? 'bg-violet-600/30 text-violet-300 border border-violet-500/50'
-                    : 'text-gray-300 hover:text-white hover:bg-white/5'
+                    ? 'bg-coral-50 text-coral-500 border border-coral-200'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-black/5'
                 }`}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
                 <div className="relative">
-                  {Icon && <Icon size={18} />}
+                  {Icon && <Icon size={16} />}
                   {label === 'Cart' && cart?.length > 0 && (
                     <motion.span
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
-                      className="absolute -top-2 -right-2 w-4 h-4 bg-red-500 text-[10px] text-white font-bold flex items-center justify-center rounded-full shadow-lg shadow-red-500/40"
+                      className="absolute -top-2 -right-2 w-4 h-4 text-[10px] text-white font-bold flex items-center justify-center rounded-full shadow-md"
+                      style={{ background: 'var(--accent)' }}
                     >
                       {cart.length}
                     </motion.span>
                   )}
                 </div>
-                <span className="text-sm font-medium">{label}</span>
+                <span>{label}</span>
               </MotionLink>
             ))}
 
@@ -90,78 +92,83 @@ export default function Navbar() {
             {!isGuest ? (
               <MotionLink
                 to="/profile"
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all text-sm font-medium ${
                   isActive('/profile')
-                    ? 'bg-violet-600/30 text-violet-300 border border-violet-500/50'
-                    : 'text-gray-300 hover:text-white hover:bg-white/5'
+                    ? 'bg-coral-50 text-coral-500 border border-coral-200'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-black/5'
                 }`}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
-                <FiUser size={18} />
-                <span className="text-sm font-medium">Profile</span>
+                <FiUser size={16} />
+                <span>Profile</span>
               </MotionLink>
             ) : (
               <MotionLink
                 to="/register"
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-violet-600/30 to-fuchsia-600/30 border border-violet-500/40 text-violet-300 hover:from-violet-600/50 hover:to-fuchsia-600/50 transition-all"
+                className="flex items-center gap-2 px-3.5 py-2 rounded-xl border text-sm font-medium transition-all"
+                style={{ borderColor: 'var(--accent-border)', color: 'var(--accent)', background: 'var(--accent-light)' }}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
-                <FiUserPlus size={18} />
-                <span className="text-sm font-medium">✨ Claim Profile</span>
+                <FiUserPlus size={16} />
+                <span>✨ Claim Profile</span>
               </MotionLink>
             )}
           </div>
 
-          {/* Right Side: silent status chip + action button */}
+          {/* Right Side: status chip + action button */}
           <div className="hidden md:flex items-center gap-3">
-            {/* Status chip */}
             {isGuest ? (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/8">
-                <div className="w-2 h-2 rounded-full bg-violet-400 animate-pulse" />
+              <div
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg border"
+                style={{ background: 'rgba(0,0,0,0.04)', borderColor: 'var(--border)' }}
+              >
+                <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: 'var(--accent)' }} />
                 <span className="text-xs text-gray-500 font-medium">Visitor</span>
               </div>
             ) : (
-              <div className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-lg border border-white/10">
-                <div className="w-2 h-2 rounded-full bg-green-500" />
-                <span className="text-xs text-gray-400 font-medium truncate max-w-[150px]">
+              <div
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg border"
+                style={{ background: 'rgba(0,0,0,0.04)', borderColor: 'var(--border)' }}
+              >
+                <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                <span className="text-xs text-gray-600 font-medium truncate max-w-[150px]">
                   {user?.name || 'User'}
                 </span>
               </div>
             )}
 
-            {/* Action button */}
             {isGuest ? (
               <motion.button
                 onClick={() => navigate('/register')}
-                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white rounded-lg font-semibold text-sm shadow-lg shadow-violet-900/30 hover:shadow-violet-900/50 transition-all"
+                className="flex items-center gap-2 px-5 py-2 text-white rounded-full font-semibold text-sm btn-accent"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
-                <FiUserPlus size={16} />
+                <FiUserPlus size={15} />
                 Sign Up
               </motion.button>
             ) : (
               <motion.button
                 onClick={handleLogout}
-                className="flex items-center gap-2 px-4 py-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg border border-red-500/30 transition-all"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium transition-all text-red-500 hover:bg-red-50"
+                style={{ borderColor: 'rgba(239,68,68,0.25)' }}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
-                <FiLogOut size={18} />
-                <span className="text-sm font-medium">Logout</span>
+                <FiLogOut size={16} />
+                <span>Logout</span>
               </motion.button>
             )}
           </div>
 
-
           {/* Mobile Menu Button */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 hover:bg-white/10 rounded-lg text-gray-300 hover:text-white transition"
+            className="md:hidden p-2 rounded-xl text-gray-600 hover:text-gray-900 hover:bg-black/5 transition"
           >
-            {mobileMenuOpen ? <FiX size={24} /> : <FiMenu size={24} />}
+            {mobileMenuOpen ? <FiX size={22} /> : <FiMenu size={22} />}
           </button>
         </div>
 
@@ -173,59 +180,65 @@ export default function Navbar() {
               animate={{ opacity: 1, height: 'auto', y: 0 }}
               exit={{ opacity: 0, height: 0, y: -10 }}
               transition={{ duration: 0.2 }}
-              className="md:hidden mt-4 space-y-2 overflow-hidden"
+              className="md:hidden mt-3 space-y-1 overflow-hidden"
             >
               {navItems.map(({ label, icon: Icon, path }) => (
                 <MotionLink
                   key={path}
                   to={path}
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-medium ${
                     isActive(path)
-                      ? 'bg-violet-600/30 text-violet-300 border border-violet-500/50'
-                      : 'text-gray-300 hover:text-white hover:bg-white/5'
+                      ? 'bg-coral-50 text-coral-500 border border-coral-200'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-black/5'
                   }`}
                 >
                   <div className="relative">
-                    {Icon && <Icon size={18} />}
+                    {Icon && <Icon size={17} />}
                     {label === 'Cart' && cart?.length > 0 && (
-                      <span className="absolute -top-2 -right-2 w-4 h-4 bg-red-500 text-[10px] text-white font-bold flex items-center justify-center rounded-full">
+                      <span
+                        className="absolute -top-2 -right-2 w-4 h-4 text-[10px] text-white font-bold flex items-center justify-center rounded-full"
+                        style={{ background: 'var(--accent)' }}
+                      >
                         {cart.length}
                       </span>
                     )}
                   </div>
-                  <span className="font-medium">{label}</span>
+                  <span>{label}</span>
                 </MotionLink>
               ))}
 
-              {/* Profile / Claim mobile */}
               {!isGuest ? (
                 <MotionLink
                   to="/profile"
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
-                    isActive('/profile') ? 'bg-violet-600/30 text-violet-300 border border-violet-500/50' : 'text-gray-300 hover:text-white hover:bg-white/5'
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-medium ${
+                    isActive('/profile') ? 'bg-coral-50 text-coral-500 border border-coral-200' : 'text-gray-600 hover:text-gray-900 hover:bg-black/5'
                   }`}
                 >
-                  <FiUser size={18} />
-                  <span className="font-medium">Profile</span>
+                  <FiUser size={17} />
+                  <span>Profile</span>
                 </MotionLink>
               ) : (
                 <MotionLink
                   to="/register"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-violet-600/20 border border-violet-500/30 text-violet-300"
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-medium"
+                  style={{ borderColor: 'var(--accent-border)', color: 'var(--accent)', background: 'var(--accent-light)' }}
                 >
-                  <FiUserPlus size={18} />
-                  <span className="font-medium">✨ Claim Profile (Sign Up)</span>
+                  <FiUserPlus size={17} />
+                  <span>✨ Claim Profile (Sign Up)</span>
                 </MotionLink>
               )}
 
-              <div className="border-t border-white/10 pt-2 mt-2">
+              <div className="border-t pt-2 mt-2" style={{ borderColor: 'var(--border)' }}>
                 {!isGuest && (
-                  <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-lg mb-2">
-                    <div className="w-2 h-2 rounded-full bg-green-500" />
-                    <span className="text-sm text-gray-400">{user?.name || 'User'}</span>
+                  <div
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl mb-1"
+                    style={{ background: 'rgba(0,0,0,0.04)' }}
+                  >
+                    <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                    <span className="text-sm text-gray-600">{user?.name || 'User'}</span>
                   </div>
                 )}
 
@@ -234,14 +247,14 @@ export default function Navbar() {
                     isGuest ? navigate('/register') : handleLogout();
                     setMobileMenuOpen(false);
                   }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border transition-all ${
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all text-sm font-medium ${
                     isGuest
-                      ? 'bg-gradient-to-r from-violet-600/30 to-fuchsia-600/30 border-violet-500/30 text-violet-300'
-                      : 'text-red-400 hover:text-red-300 hover:bg-red-500/10 border-red-500/30'
+                      ? 'border-coral-200 text-coral-500 bg-coral-50'
+                      : 'text-red-500 hover:bg-red-50 border-red-200'
                   }`}
                 >
-                  {isGuest ? <FiUserPlus size={18} /> : <FiLogOut size={18} />}
-                  <span className="font-medium">{isGuest ? 'Sign Up Free' : 'Logout'}</span>
+                  {isGuest ? <FiUserPlus size={17} /> : <FiLogOut size={17} />}
+                  <span>{isGuest ? 'Sign Up Free' : 'Logout'}</span>
                 </motion.button>
               </div>
             </motion.div>
@@ -251,4 +264,3 @@ export default function Navbar() {
     </nav>
   );
 }
-

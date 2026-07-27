@@ -1,30 +1,26 @@
 @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap');
 
 :root {
-  --ai-bg: #07090F;
-  --ai-surface: #0F1320;
-  --ai-amber: #F5A623;
-  --ai-text-primary: #ECECF1;
-  --ai-text-secondary: #C5C5D2;
-  --ai-text-muted: #8E8EA0;
-  --ai-border: rgba(255, 255, 255, 0.1);
-  --ai-border-hover: rgba(255, 255, 255, 0.2);
+  --ai-bg: transparent;
+  --ai-surface: rgba(255, 255, 255, 0.85);
+  --ai-amber: #f97b5b;
+  --ai-text-primary: #111827;
+  --ai-text-secondary: #374151;
+  --ai-text-muted: #6b7280;
+  --ai-border: rgba(0, 0, 0, 0.09);
+  --ai-border-hover: rgba(0, 0, 0, 0.18);
 }
 
 .ai-root {
   display: flex;
-  height: 100vh;
-  width: 100vw;
+  height: calc(100vh - 68px);
+  width: 100%;
   background-color: var(--ai-bg);
   color: var(--ai-text-primary);
   font-family: 'Sora', sans-serif;
   overflow: hidden;
-  /* Override global Navbar padding if any */
-  padding-top: 0 !important;
-  position: fixed;
-  top: 0;
-  left: 0;
-  z-index: 100;
+  position: relative;
+  z-index: 1;
 }
 
 /* ── Sidebar ─────────────────────────────────────────────────── */

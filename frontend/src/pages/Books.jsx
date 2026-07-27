@@ -40,18 +40,18 @@ const useDebounce = (value, delay = 300) => {
 
 // ─── SKELETON ─────────────────────────────────────────────────────────────────
 const SkeletonCard = () => (
-  <div className="rounded-2xl overflow-hidden bg-white/5 border border-white/10 animate-pulse">
-    <div className="h-52 bg-white/10" />
+  <div className="rounded-2xl overflow-hidden border animate-pulse" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+    <div className="h-52" style={{ background: 'rgba(0,0,0,0.08)' }} />
     <div className="p-4 space-y-3">
-      <div className="h-4 bg-white/10 rounded w-3/4" />
+      <div className="h-4 rounded w-3/4" style={{ background: 'rgba(0,0,0,0.08)' }} />
       <div className="flex gap-2">
-        <div className="h-5 bg-white/10 rounded-full w-20" />
-        <div className="h-5 bg-white/10 rounded-full w-14" />
+        <div className="h-5 rounded-full w-20" style={{ background: 'rgba(0,0,0,0.08)' }} />
+        <div className="h-5 rounded-full w-14" style={{ background: 'rgba(0,0,0,0.08)' }} />
       </div>
-      <div className="h-3 bg-white/10 rounded w-1/2" />
+      <div className="h-3 rounded w-1/2" style={{ background: 'rgba(0,0,0,0.08)' }} />
       <div className="flex gap-2 pt-1">
-        <div className="h-9 bg-white/10 rounded-xl flex-1" />
-        <div className="h-9 bg-white/10 rounded-xl flex-1" />
+        <div className="h-9 rounded-xl flex-1" style={{ background: 'rgba(0,0,0,0.08)' }} />
+        <div className="h-9 rounded-xl flex-1" style={{ background: 'rgba(0,0,0,0.08)' }} />
       </div>
     </div>
   </div>
@@ -179,7 +179,7 @@ const PreviewModal = ({ note, onClose, onBuy }) => {
 
         {isPaid && purchaseStatus === null ? (
           <div className="w-full flex items-center justify-center" style={{ height: 'calc(100% - 57px)' }}>
-            <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            <div className="w-8 h-8 border-2 border-coral-500/30 border-t-coral-500 rounded-full animate-spin" />
           </div>
 
         ) : canViewFull ? (
@@ -191,10 +191,10 @@ const PreviewModal = ({ note, onClose, onBuy }) => {
           />
 
         ) : (
-          <div className="overflow-y-auto bg-gray-900 relative" style={{ height: 'calc(100% - 57px)' }}>
+          <div className="overflow-y-auto bg-gray-50 relative" style={{ height: 'calc(100% - 57px)' }}>
             {pagesLoading ? (
               <div className="flex flex-col items-center justify-center h-64 gap-3">
-                <div className="w-8 h-8 border-2 border-white/30 border-t-violet-400 rounded-full animate-spin" />
+                <div className="w-8 h-8 border-2 border-coral-500/30 border-t-coral-500 rounded-full animate-spin" />
                 <p className="text-gray-500 text-sm">Loading preview...</p>
               </div>
             ) : (
@@ -282,9 +282,9 @@ const NoteCard = forwardRef(({ note, onPreview, onBuy, onAddToCart, gradient, is
   return (
     <div ref={ref} className="h-full">
       <TiltCard className="group relative h-full">
-      <div className="absolute -inset-0.5 bg-gradient-to-r from-violet-600 via-fuchsia-500 to-pink-500 rounded-2xl blur opacity-0 group-hover:opacity-60 transition-all duration-500 pointer-events-none" />
+      <div className="absolute -inset-0.5 bg-gradient-to-r from-pink-500 via-coral-400 to-amber-400 rounded-2xl blur opacity-0 group-hover:opacity-40 transition-all duration-500 pointer-events-none" />
       <motion.div
-        className="relative bg-gray-900/90 backdrop-blur-xl rounded-2xl overflow-hidden border border-white/10 group-hover:border-white/20 transition-all duration-300 flex flex-col h-full"
+        className="relative theme-card rounded-2xl overflow-hidden transition-all duration-300 flex flex-col h-full group-hover:shadow-raised"
         onHoverStart={() => setHovered(true)}
         onHoverEnd={() => setHovered(false)}
       >
@@ -348,32 +348,32 @@ const NoteCard = forwardRef(({ note, onPreview, onBuy, onAddToCart, gradient, is
         </div>
 
         <div className="p-4 flex flex-col flex-1">
-          <h3 className="font-bold text-sm text-white mb-2 line-clamp-2 leading-snug group-hover:text-pink-300 transition-colors duration-300">
+          <h3 className="font-bold text-sm text-gray-900 mb-2 line-clamp-2 leading-snug group-hover:text-coral-500 transition-colors duration-300">
             {note.title}
           </h3>
           <div className="flex flex-wrap gap-1.5 mb-3">
-            <span className="text-[11px] bg-pink-500/15 text-pink-300 border border-pink-500/25 px-2 py-0.5 rounded-full">📚 {note.subject || 'General'}</span>
+            <span className="text-[11px] bg-pink-100 text-pink-500 border border-pink-200 px-2 py-0.5 rounded-full">📚 {note.subject || 'General'}</span>
           </div>
           <div className="space-y-1 mb-3 flex-1">
-            <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+            <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
               <FiUser className="text-[10px] flex-shrink-0" />
               <span className="truncate">{note.sellerName || 'Anonymous'}</span>
-              {note.verified && <span className="ml-auto text-[10px] bg-blue-500/20 text-blue-400 px-1 rounded border border-blue-500/30 flex-shrink-0">✓</span>}
+              {note.verified && <span className="ml-auto text-[10px] bg-blue-100 text-blue-600 px-1 rounded border border-blue-200 flex-shrink-0">✓</span>}
             </div>
           </div>
           <div className="flex items-center gap-0.5 mb-4">
-            {[1,2,3,4,5].map(s => <FiStar key={s} className={`text-[10px] ${s <= stars ? 'text-yellow-400 fill-yellow-400' : 'text-gray-700'}`} />)}
-            <span className="text-[10px] text-gray-600 ml-1">({note.reviews || 0})</span>
+            {[1,2,3,4,5].map(s => <FiStar key={s} className={`text-[10px] ${s <= stars ? 'text-amber-400 fill-amber-400' : 'text-gray-300'}`} />)}
+            <span className="text-[10px] text-gray-400 ml-1">({note.reviews || 0})</span>
           </div>
           <div className="flex gap-2 sm:gap-3">
             <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
               onClick={() => onPreview(note)}
-              className="flex-1 bg-white/8 hover:bg-white/15 border border-white/10 text-white py-2.5 sm:py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all min-h-[44px] sm:min-h-auto">
+              className="flex-1 border text-gray-700 py-2.5 sm:py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all min-h-[44px] sm:min-h-auto hover:text-gray-900" style={{ background: 'rgba(0,0,0,0.04)', borderColor: 'var(--border)' }}>
               <FiEye /> Preview
             </motion.button>
             <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
               onClick={() => onBuy(note)}
-              className={`flex-1 py-2.5 sm:py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-lg text-white min-h-[44px] sm:min-h-auto ${note.price === 0 ? 'bg-gradient-to-r from-emerald-500 to-green-500' : 'bg-gradient-to-r from-violet-600 to-fuchsia-600'}`}>
+              className={`flex-1 py-2.5 sm:py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-md text-white min-h-[44px] sm:min-h-auto btn-accent`}>
               <FiDownload /> {note.price === 0 ? 'Free' : 'Buy'}
             </motion.button>
           </div>
@@ -535,11 +535,11 @@ export default function Books() {
   const tabData = { all: baseFiltered, trending, top: topRated, new: newest, wishlist: wishlisted };
 
   return (
-    <div className="min-h-screen bg-[#07070f] text-white">
+    <div className="min-h-screen">
       {/* Ambient */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-0 right-1/4 w-[600px] h-[600px] bg-fuchsia-800/15 rounded-full blur-[140px]" />
-        <div className="absolute bottom-0 left-1/4 w-[500px] h-[500px] bg-violet-800/12 rounded-full blur-[120px]" />
+        <div className="absolute top-0 right-1/4 w-[600px] h-[600px] rounded-full blur-[140px]" style={{ background: 'rgba(249,123,91,0.12)' }} />
+        <div className="absolute bottom-0 left-1/4 w-[500px] h-[500px] rounded-full blur-[120px]" style={{ background: 'rgba(16,185,129,0.10)' }} />
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-14">
@@ -547,16 +547,16 @@ export default function Books() {
         {/* Hero */}
         <motion.div initial={{ opacity: 0, y: -30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="text-center mb-12">
           <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-pink-500/40 bg-pink-500/10 text-pink-300 text-xs font-medium mb-5">
-            <FiBook className="fill-pink-400 text-pink-400" /> Books Marketplace — India's Best
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-pink-300 bg-pink-50 text-pink-600 text-xs font-medium mb-5">
+            <FiBook className="fill-pink-500 text-pink-500" /> Books Marketplace — India's Best
           </motion.div>
           <h1 className="text-3xl sm:text-5xl lg:text-7xl font-black tracking-tighter mb-4 leading-none">
-            <span className="bg-gradient-to-r from-pink-400 via-fuchsia-400 to-violet-400 bg-clip-text text-transparent">Read Smarter</span>
-            <br /><span className="text-white/90 text-2xl sm:text-4xl lg:text-5xl">With Top Books 📚</span>
+            <span className="bg-gradient-to-r from-pink-500 via-coral-500 to-amber-500 bg-clip-text text-transparent">Read Smarter</span>
+            <br /><span className="text-gray-900 text-2xl sm:text-4xl lg:text-5xl">With Top Books 📚</span>
           </h1>
-          <p className="text-gray-400 text-xs sm:text-sm lg:text-base max-w-lg mx-auto px-2">Discover the best books across genres and curricula.</p>
+          <p className="text-gray-500 text-xs sm:text-sm lg:text-base max-w-lg mx-auto px-2">Discover the best books across genres and curricula.</p>
           <div className="flex items-center justify-center gap-6 mt-6">
-            {[{ icon: FiBook, label: `${notes.length} Books`, color: 'text-pink-400' }, { icon: FiTrendingUp, label: 'Trending', color: 'text-fuchsia-400' }, { icon: FiAward, label: 'Top Rated', color: 'text-yellow-400' }].map(({ icon: Icon, label, color }) => (
+            {[{ icon: FiBook, label: `${notes.length} Books`, color: 'text-pink-500' }, { icon: FiTrendingUp, label: 'Trending', color: 'text-coral-500' }, { icon: FiAward, label: 'Top Rated', color: 'text-amber-500' }].map(({ icon: Icon, label, color }) => (
               <div key={label} className={`flex items-center gap-1.5 text-xs ${color} font-medium`}><Icon /> {label}</div>
             ))}
           </div>
@@ -570,17 +570,17 @@ export default function Books() {
               <input value={searchInput}
                 onChange={e => setSearchInput(e.target.value)}
                 placeholder="Search books, genres, authors..."
-                className="w-full pl-11 pr-10 py-3.5 bg-white/5 border border-white/10 hover:border-white/20 focus:border-pink-500/60 rounded-xl text-white placeholder-gray-500 text-sm outline-none transition-all" />
+                className="w-full pl-11 pr-10 py-3.5 rounded-xl text-gray-900 placeholder-gray-400 text-sm outline-none transition-all theme-input" />
               {searchInput && (
-                <button onClick={() => { setSearchInput(''); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition"><FiX /></button>
+                <button onClick={() => { setSearchInput(''); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 transition"><FiX /></button>
               )}
             </div>
           </div>
           
           {!loading && (
-            <p className="text-xs text-gray-600">
+            <p className="text-xs text-gray-500">
               Showing {notes.length} of {pagination.total} books
-              {debouncedSearch && <span className="text-pink-400"> for "{debouncedSearch}"</span>}
+              {debouncedSearch && <span style={{ color: 'var(--accent)' }}> for "{debouncedSearch}"</span>}
             </p>
           )}
         </motion.div>
@@ -590,7 +590,7 @@ export default function Books() {
           {tabs.map(tab => (
             <motion.button key={tab.id} whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all duration-200 ${activeTab === tab.id ? 'bg-white/12 text-white border border-white/20' : 'text-gray-500 hover:text-gray-300 border border-transparent'}`}>
+              className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all duration-200 ${activeTab === tab.id ? 'text-white btn-accent' : 'text-gray-500 hover:text-gray-800 border border-transparent'}`}>
               {tab.icon} {tab.label}
             </motion.button>
           ))}
@@ -627,7 +627,7 @@ export default function Books() {
           <div ref={sentinelRef} className="h-8 flex items-center justify-center">
             {loadingMore && (
               <div className="flex items-center gap-2 text-gray-500 text-xs">
-                <div className="w-4 h-4 border-2 border-pink-500/40 border-t-pink-500 rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-coral-500/40 border-t-coral-500 rounded-full animate-spin" />
                 Loading more...
               </div>
             )}

@@ -14,15 +14,15 @@ import API, { API_BASE_URL } from '../utils/api';
 const StatCard = ({ icon: Icon, label, value, color, sub }) => (
   <motion.div
     whileHover={{ y: -4, scale: 1.02 }}
-    className="relative bg-white/5 border border-white/10 rounded-2xl p-5 overflow-hidden group"
+    className="relative theme-card rounded-2xl p-5 overflow-hidden group"
   >
     <div className={`absolute top-0 right-0 w-24 h-24 rounded-full blur-2xl opacity-20 ${color}`} />
     <div className={`inline-flex p-2.5 rounded-xl mb-3 ${color} bg-opacity-20`}>
-      <Icon className="text-white text-lg" />
+      <Icon className="text-gray-900 text-lg" />
     </div>
-    <p className="text-2xl font-black text-white mb-0.5">{value}</p>
-    <p className="text-xs text-gray-400">{label}</p>
-    {sub && <p className="text-[11px] text-gray-600 mt-1">{sub}</p>}
+    <p className="text-2xl font-black text-gray-900 mb-0.5">{value}</p>
+    <p className="text-xs text-gray-500">{label}</p>
+    {sub && <p className="text-[11px] text-gray-400 mt-1">{sub}</p>}
   </motion.div>
 );
 
@@ -31,19 +31,20 @@ const NoteRow = ({ note, type }) => (
   <motion.div
     initial={{ opacity: 0, x: -10 }}
     animate={{ opacity: 1, x: 0 }}
-    className="flex items-center gap-3 p-3 bg-white/4 hover:bg-white/8 rounded-xl border border-white/8 transition-all group"
+    className="flex items-center gap-3 p-3 rounded-xl border border-black/8 hover:border-black/15 transition-all group"
+    style={{ background: 'var(--surface-raised)' }}
   >
-    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-violet-500/30 to-fuchsia-500/30 flex items-center justify-center flex-shrink-0">
-      <FiBook className="text-violet-400 text-sm" />
+    <div className="w-10 h-10 rounded-lg bg-coral-50 flex items-center justify-center flex-shrink-0">
+      <FiBook className="text-coral-500 text-sm" />
     </div>
     <div className="flex-1 min-w-0">
-      <p className="text-sm text-white font-medium truncate">{note.title}</p>
+      <p className="text-sm text-gray-900 font-medium truncate">{note.title}</p>
       <p className="text-[11px] text-gray-500">{note.subject} {note.semester ? `• Sem ${note.semester}` : ''}</p>
     </div>
     {type === 'uploaded' && (
       <div className="text-right flex-shrink-0">
-        <p className="text-xs text-emerald-400 font-semibold">₹{note.totalEarnings || 0}</p>
-        <p className="text-[11px] text-gray-600">{note.downloads || 0} downloads</p>
+        <p className="text-xs text-emerald-600 font-semibold">₹{note.totalEarnings || 0}</p>
+        <p className="text-[11px] text-gray-400">{note.downloads || 0} downloads</p>
       </div>
     )}
     {type === 'purchased' && (
@@ -51,7 +52,7 @@ const NoteRow = ({ note, type }) => (
         href={`${API_BASE_URL}${note.pdfUrl?.startsWith('/') ? '' : '/'}${note.pdfUrl}`}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center gap-1 px-2.5 py-1.5 bg-violet-600/30 hover:bg-violet-600/60 rounded-lg text-violet-300 text-xs transition flex-shrink-0"
+        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-white text-xs transition flex-shrink-0 btn-accent"
       >
         <FiEye className="text-xs" /> View
       </a>
@@ -63,11 +64,11 @@ const NoteRow = ({ note, type }) => (
 const TimelineRow = ({ title, time }) => (
   <div className="flex gap-4 relative">
     <div className="flex flex-col items-center">
-      <div className="w-3 h-3 rounded-full bg-violet-500 shadow-[0_0_10px_rgba(139,92,246,0.6)]" />
-      <div className="w-0.5 h-full bg-white/10 my-1" />
+      <div className="w-3 h-3 rounded-full bg-coral-500 shadow-[0_0_10px_rgba(249,123,91,0.5)]" />
+      <div className="w-0.5 h-full bg-black/10 my-1" />
     </div>
     <div className="pb-6">
-      <p className="text-sm text-white font-medium">{title}</p>
+      <p className="text-sm text-gray-900 font-medium">{title}</p>
       <p className="text-[11px] text-gray-500 mt-0.5">{time}</p>
     </div>
   </div>
@@ -228,15 +229,15 @@ export default function Profile() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#07070f] flex items-center justify-center">
-        <div className="w-10 h-10 border-2 border-violet-500/40 border-t-violet-500 rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-10 h-10 border-2 border-coral-500/40 border-t-coral-500 rounded-full animate-spin" />
       </div>
     );
   }
 
   if (!profile) {
     return (
-      <div className="min-h-screen bg-[#07070f] flex items-center justify-center text-gray-400">
+      <div className="min-h-screen flex items-center justify-center text-gray-500">
         Failed to load profile. Please refresh.
       </div>
     );
@@ -314,31 +315,31 @@ export default function Profile() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#07070f] text-white">
+    <div className="min-h-screen">
       {/* Ambient blobs */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-0 right-1/3 w-[500px] h-[500px] bg-violet-800/12 rounded-full blur-[130px]" />
-        <div className="absolute bottom-0 left-1/3 w-[400px] h-[400px] bg-fuchsia-800/10 rounded-full blur-[120px]" />
+        <div className="absolute top-0 right-1/3 w-[500px] h-[500px] rounded-full blur-[130px]" style={{ background: 'rgba(249,123,91,0.12)' }} />
+        <div className="absolute bottom-0 left-1/3 w-[400px] h-[400px] rounded-full blur-[120px]" style={{ background: 'rgba(16,185,129,0.10)' }} />
       </div>
 
       <div className="relative z-10 max-w-6xl mx-auto px-3 sm:px-6 py-8 sm:py-12">
         
         {/* Profile Completion Bar */}
         {isOwnProfile && completionPct < 100 && !editing && (
-          <div className="mb-6 bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="mb-6 theme-card rounded-2xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div className="flex-1 w-full">
               <div className="flex justify-between items-end mb-2">
-                <span className="text-sm font-semibold text-white">Profile Completion</span>
-                <span className="text-xs text-violet-400 font-bold">{completionPct}%</span>
+                <span className="text-sm font-semibold text-gray-900">Profile Completion</span>
+                <span className="text-xs font-bold" style={{ color: 'var(--accent)' }}>{completionPct}%</span>
               </div>
-              <div className="w-full bg-gray-800 rounded-full h-2">
-                <div className="bg-gradient-to-r from-violet-500 to-fuchsia-500 h-2 rounded-full transition-all duration-1000" style={{ width: `${completionPct}%` }} />
+              <div className="w-full bg-black/10 rounded-full h-2">
+                <div className="h-2 rounded-full transition-all duration-1000" style={{ width: `${completionPct}%`, background: 'var(--accent)' }} />
               </div>
             </div>
-            <div className="text-xs text-gray-400">
-              <span className="text-gray-300">Missing:</span> {missingFields.join(', ')}
+            <div className="text-xs text-gray-500">
+              <span className="text-gray-700">Missing:</span> {missingFields.join(', ')}
             </div>
-            <button onClick={() => setEditing(true)} className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-medium transition text-nowrap">
+            <button onClick={() => setEditing(true)} className="px-3 py-1.5 border rounded-lg text-xs font-medium transition text-nowrap text-gray-700 hover:text-gray-900" style={{ background: 'var(--surface-raised)', borderColor: 'var(--border)' }}>
               Complete Profile
             </button>
           </div>
@@ -348,7 +349,7 @@ export default function Profile() {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative bg-white/4 border border-white/10 rounded-3xl mb-8 overflow-hidden"
+          className="relative theme-card rounded-3xl mb-8 overflow-hidden"
         >
           {/* Header Cover Image/Gradient */}
           <div className="h-40 sm:h-56 w-full relative overflow-hidden bg-[#1a103c]">
@@ -379,7 +380,7 @@ export default function Profile() {
               {/* Avatar & Badges */}
               <div className="flex flex-col gap-3">
                 <div className="relative">
-                  <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full overflow-hidden border-4 border-[#07070f] ring-2 ring-teal-500/50 bg-gradient-to-br from-violet-600 to-fuchsia-600 flex items-center justify-center shadow-2xl">
+                  <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full overflow-hidden border-4 border-white ring-2 ring-coral-300 bg-gradient-to-br from-coral-400 to-amber-400 flex items-center justify-center shadow-2xl">
                     {avatarSrc && !avatarError ? (
                       <img src={avatarSrc} alt="Profile" className="w-full h-full object-cover" onError={() => setAvatarError(true)} />
                     ) : (
@@ -389,7 +390,7 @@ export default function Profile() {
                   {editing && (
                     <button
                       onClick={() => fileInputRef.current?.click()}
-                      className="absolute bottom-2 right-2 w-10 h-10 bg-violet-600 rounded-full flex items-center justify-center border-4 border-[#07070f] hover:bg-violet-700 transition shadow-lg"
+                      className="absolute bottom-2 right-2 w-10 h-10 btn-accent rounded-full flex items-center justify-center border-4 border-white transition shadow-lg"
                     >
                       <FiCamera className="text-sm text-white" />
                     </button>
@@ -478,13 +479,13 @@ export default function Profile() {
                 </div>
               ) : (
                 <>
-                  <div className="flex items-center gap-3 mb-1">
-                    <h1 className="text-3xl font-black text-white">{profile.name}</h1>
+                  <div className="flex items-center gap-3 mb-1 flex-wrap">
+                    <h1 className="text-3xl font-black text-gray-900">{profile.name}</h1>
                     {profile.isVerified && <span className="bg-blue-500 text-white text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1 font-bold"><FiCheck /> Verified</span>}
-                    {profile.totalSales > 10 && <span className="bg-gradient-to-r from-orange-400 to-yellow-500 text-black text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1 font-bold">⭐ Top Seller</span>}
+                    {profile.totalSales > 10 && <span className="bg-amber-400 text-gray-900 text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1 font-bold">⭐ Top Seller</span>}
                     {(profile.uploadedNotes?.length || 0) > 5 && <span className="bg-emerald-500 text-white text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1 font-bold">📚 Active</span>}
-                    <span className="bg-fuchsia-600/50 border border-fuchsia-500/30 text-fuchsia-100 text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1 font-bold">🎓 Student</span>
-                    <span className="bg-yellow-500/20 border border-yellow-500/30 text-yellow-300 text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1 font-bold"><FiStar className="fill-current" /> {profile.stars || 0} Stars</span>
+                    <span className="bg-coral-50 border border-coral-200 text-coral-600 text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1 font-bold">🎓 Student</span>
+                    <span className="bg-amber-50 border border-amber-200 text-amber-600 text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1 font-bold"><FiStar className="fill-current" /> {profile.stars || 0} Stars</span>
                   </div>
                   
                   {profile.stream && <p className="text-violet-400 text-sm font-semibold mb-2">{profile.stream}</p>}
@@ -540,13 +541,13 @@ export default function Profile() {
         </motion.div>
 
         {/* ── Tabs ── */}
-        <div className="flex gap-2 overflow-x-auto p-1.5 mb-6 scrollbar-none bg-white/5 rounded-2xl w-max max-w-full">
+        <div className="flex gap-2 overflow-x-auto p-1.5 mb-6 scrollbar-none rounded-2xl w-max max-w-full border" style={{ background: 'var(--surface-raised)', borderColor: 'var(--border)' }}>
           {tabs.map(tab => (
             <motion.button key={tab.id} whileTap={{ scale: 0.96 }}
               onClick={() => setActiveTab(tab.id)}
               className={`flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
-                ${activeTab === tab.id ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'}`}>
-              <tab.icon className={`text-base ${activeTab === tab.id ? 'text-violet-400' : ''}`} /> {tab.label}
+                ${activeTab === tab.id ? 'text-white shadow-sm btn-accent' : 'text-gray-500 hover:text-gray-900 hover:bg-black/5'}`}>
+              <tab.icon className={`text-base ${activeTab === tab.id ? 'text-white' : ''}`} /> {tab.label}
             </motion.button>
           ))}
         </div>
@@ -814,7 +815,7 @@ function WalletTab({ profile, onRefresh }) {
 
   if (loadingWallet) return (
     <div className="flex justify-center py-20">
-      <div className="w-8 h-8 border-2 border-violet-500/40 border-t-violet-500 rounded-full animate-spin" />
+      <div className="w-8 h-8 border-2 border-coral-500/40 border-t-coral-500 rounded-full animate-spin" />
     </div>
   );
 

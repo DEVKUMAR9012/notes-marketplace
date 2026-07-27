@@ -184,9 +184,9 @@ const PDFThumbnail = ({ pdfUrl, title, note, fileName = '', compact = false }) =
     return (
       <div ref={containerRef} className="w-full h-full relative">
         {canvasEl}
-        <div className="w-full h-full flex flex-col items-center justify-center bg-black/20">
-          <div className={`${compact ? 'w-5 h-5 border-[1.5px]' : 'w-8 h-8 border-2'} border-white/30 border-t-white rounded-full animate-spin`} />
-          <div className={`text-white/50 ${compact ? 'text-[9px] mt-1' : 'text-xs mt-2'}`}>{!isVisible ? 'Waiting...' : 'Loading PDF...'}</div>
+        <div className="w-full h-full flex flex-col items-center justify-center bg-gray-100/60">
+          <div className={`${compact ? 'w-5 h-5 border-[1.5px]' : 'w-8 h-8 border-2'} border-coral-500/30 border-t-coral-500 rounded-full animate-spin`} />
+          <div className={`text-gray-500 ${compact ? 'text-[9px] mt-1' : 'text-xs mt-2'}`}>{!isVisible ? 'Waiting...' : 'Loading PDF...'}</div>
         </div>
       </div>
     );

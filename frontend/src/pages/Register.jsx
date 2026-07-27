@@ -176,46 +176,48 @@ export default function Register() {
   const switchMethod = (m) => { setAuthMethod(m); setError(''); setStep(1); };
 
   return (
-    <div className="min-h-screen bg-[#07070f] flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="absolute top-0 right-1/4 w-[600px] h-[600px] bg-violet-800/15 rounded-full blur-[140px] pointer-events-none" />
-      <div className="absolute bottom-0 left-1/4 w-[500px] h-[500px] bg-fuchsia-800/12 rounded-full blur-[120px] pointer-events-none" />
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+      <div className="absolute top-0 right-1/4 w-[600px] h-[600px] rounded-full blur-[140px] pointer-events-none" style={{ background: 'rgba(249,123,91,0.12)' }} />
+      <div className="absolute bottom-0 left-1/4 w-[500px] h-[500px] rounded-full blur-[120px] pointer-events-none" style={{ background: 'rgba(16,185,129,0.10)' }} />
 
       <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="max-w-md w-full relative z-10">
-        <div className="bg-gray-900/80 backdrop-blur-xl rounded-3xl shadow-2xl p-8 border border-white/10">
+        <div className="theme-card rounded-3xl shadow-raised p-8">
 
           {/* Header */}
           <div className="text-center mb-6">
             <div className="flex justify-center mb-5 overflow-visible">
               <AnimatedLogo size="large" />
             </div>
-            <h2 className="text-3xl font-bold text-white">
+            <h2 className="text-3xl font-bold text-gray-900">
               {isGuest ? 'Claim Your Account' : 'Create Account'}
             </h2>
-            <p className="text-gray-400 mt-1 text-sm">
+            <p className="text-gray-500 mt-1 text-sm">
               {isGuest ? 'Upgrade your guest pass — your cart stays safe 🔒' : 'Join Notes Marketplace'}
             </p>
           </div>
 
           {/* Guest Pass Reminder Banner */}
           {isGuest && user?.guestTokenNo && (
-            <div className="flex items-center gap-3 bg-violet-600/10 border border-violet-500/20 rounded-2xl px-4 py-3 mb-5">
-              <FiGift className="text-violet-400 flex-shrink-0" size={16} />
+            <div className="flex items-center gap-3 rounded-2xl px-4 py-3 mb-5 border" style={{ background: 'rgba(249,123,91,0.08)', borderColor: 'rgba(249,123,91,0.2)' }}>
+              <FiGift className="flex-shrink-0" size={16} style={{ color: 'var(--accent)' }} />
               <div>
-                <p className="text-[10px] text-violet-400 font-bold uppercase tracking-widest">Your Guest Pass is being upgraded</p>
-                <p className="text-white font-mono text-xs font-bold">{user.guestTokenNo}</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--accent)' }}>Your Guest Pass is being upgraded</p>
+                <p className="text-gray-700 font-mono text-xs font-bold">{user.guestTokenNo}</p>
               </div>
             </div>
           )}
 
           {/* Toggle — only show on step 1 */}
           {step === 1 && (
-            <div className="flex bg-gray-950/60 p-1 rounded-xl mb-6 border border-white/5">
+            <div className="flex p-1 rounded-xl mb-6 border" style={{ background: 'rgba(0,0,0,0.04)', borderColor: 'var(--border)' }}>
               <button type="button" onClick={() => switchMethod('email')}
-                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${authMethod === 'email' ? 'bg-violet-600/80 text-white shadow' : 'text-gray-500 hover:text-gray-300'}`}>
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${authMethod === 'email' ? 'text-white shadow' : 'text-gray-500 hover:text-gray-700'}`}
+                style={authMethod === 'email' ? { background: 'var(--accent)' } : {}}>
                 <FiMail size={14} /> Email
               </button>
               <button type="button" onClick={() => switchMethod('phone')}
-                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${authMethod === 'phone' ? 'bg-violet-600/80 text-white shadow' : 'text-gray-500 hover:text-gray-300'}`}>
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${authMethod === 'phone' ? 'text-white shadow' : 'text-gray-500 hover:text-gray-700'}`}
+                style={authMethod === 'phone' ? { background: 'var(--accent)' } : {}}>
                 <FiPhone size={14} /> Phone
               </button>
             </div>
@@ -226,9 +228,9 @@ export default function Register() {
             <div className="mb-5">
               <GoogleSignInButton label="Sign up with Google" redirectTo="/profile" />
               <div className="flex items-center gap-3 mt-5 mb-1">
-                <div className="flex-1 h-px bg-white/8" />
-                <span className="text-xs text-gray-600 font-medium tracking-widest uppercase">Or sign up with email/phone</span>
-                <div className="flex-1 h-px bg-white/8" />
+                <div className="flex-1 h-px" style={{ background: 'var(--border-strong)' }} />
+                <span className="text-xs text-gray-400 font-medium tracking-widest uppercase">Or sign up with email/phone</span>
+                <div className="flex-1 h-px" style={{ background: 'var(--border-strong)' }} />
               </div>
             </div>
           )}
@@ -236,7 +238,7 @@ export default function Register() {
 
           {/* Error */}
           {error && (
-            <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-xl mb-4 text-sm text-center">
+            <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-xl mb-4 text-sm text-center">
               {error}
               {retrying && <div className="mt-1 text-xs text-gray-400">Retrying... ({retryAttempt}/3)</div>}
             </div>
@@ -247,17 +249,17 @@ export default function Register() {
             {/* ═══ PHONE FLOW ═══ */}
             {authMethod === 'phone' && (
               <motion.div key="phone" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 mb-5 text-center">
-                  <FiPhone className="inline mr-2 text-emerald-400" />
-                  <span className="text-emerald-400 text-xs font-medium">No OTP needed — enter your name & phone and get in! ✅</span>
+                <div className="rounded-xl p-3 mb-5 text-center border" style={{ background: 'rgba(16,185,129,0.08)', borderColor: 'rgba(16,185,129,0.2)' }}>
+                  <FiPhone className="inline mr-2" style={{ color: 'var(--mint)' }} />
+                  <span className="text-emerald-700 text-xs font-medium">No OTP needed — enter your name & phone and get in! ✅</span>
                 </div>
 
                 <form onSubmit={handlePhoneRegister} className="space-y-4">
                   <div className="relative">
-                    <FiUser className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
+                    <FiUser className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input type="text" name="name" value={phoneData.name} onChange={handlePhoneDataChange}
                       disabled={loading} required
-                      className="w-full pl-10 pr-4 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-violet-500 transition-colors disabled:opacity-50"
+                      className="w-full pl-10 pr-4 py-3.5 rounded-xl theme-input transition-colors disabled:opacity-50"
                       placeholder="Full Name" />
                   </div>
 
@@ -266,7 +268,7 @@ export default function Register() {
                     {/* Fixed maxLength from 13 to 16 to accommodate format like +91 98765 43210 */}
                     <input type="tel" name="phone" value={phoneData.phone} onChange={handlePhoneDataChange}
                       disabled={loading} required maxLength={16}
-                      className="w-full pl-10 pr-4 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-violet-500 transition-colors disabled:opacity-50"
+                      className="w-full pl-10 pr-4 py-3.5 rounded-xl theme-input transition-colors disabled:opacity-50"
                       placeholder="+91 98765 43210" />
                   </div>
 
@@ -274,18 +276,18 @@ export default function Register() {
                     <FiHome className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
                     <input type="text" name="college" value={phoneData.college} onChange={handlePhoneDataChange}
                       disabled={loading}
-                      className="w-full pl-10 pr-4 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-violet-500 transition-colors disabled:opacity-50"
+                      className="w-full pl-10 pr-4 py-3.5 rounded-xl theme-input transition-colors disabled:opacity-50"
                       placeholder="College (Optional)" />
                   </div>
 
                   <button type="submit" disabled={loading}
-                    className="w-full bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white py-4 rounded-xl font-bold shadow-[0_0_15px_rgba(139,92,246,0.3)] hover:shadow-[0_0_25px_rgba(139,92,246,0.5)] transition-all disabled:opacity-50 mt-2 flex items-center justify-center gap-2">
+                    className="w-full text-white py-4 rounded-xl font-bold transition-all disabled:opacity-50 mt-2 flex items-center justify-center gap-2 btn-accent">
                     {loading ? 'Please wait...' : <><FiPhone size={16} /> Register</>}
                   </button>
                 </form>
 
-                <p className="text-center text-gray-400 mt-5 text-sm">
-                  Already have an account? <Link to="/login" className="text-white font-bold hover:text-violet-400 transition-colors">Sign in</Link>
+                <p className="text-center text-gray-500 mt-5 text-sm">
+                  Already have an account? <Link to="/login" className="font-bold transition-colors" style={{ color: 'var(--accent)' }}>Sign in</Link>
                 </p>
               </motion.div>
             )}
@@ -297,19 +299,19 @@ export default function Register() {
                   <div className="relative">
                     <FiUser className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
                     <input type="text" name="name" value={formData.name} onChange={handleChange} disabled={loading}
-                      className="w-full pl-10 pr-4 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-violet-500 transition-colors disabled:opacity-50"
+                      className="w-full pl-10 pr-4 py-3.5 rounded-xl theme-input transition-colors disabled:opacity-50"
                       placeholder="Full Name" required />
                   </div>
                   <div className="relative">
                     <FiMail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
                     <input type="email" name="email" value={formData.email} onChange={handleChange} disabled={loading}
-                      className="w-full pl-10 pr-4 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-violet-500 transition-colors disabled:opacity-50"
+                      className="w-full pl-10 pr-4 py-3.5 rounded-xl theme-input transition-colors disabled:opacity-50"
                       placeholder="Email Address" required />
                   </div>
                   <div className="relative">
                     <FiLock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
                     <input type={showPass ? 'text' : 'password'} name="password" value={formData.password} onChange={handleChange} disabled={loading}
-                      className="w-full pl-10 pr-12 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-violet-500 transition-colors disabled:opacity-50"
+                      className="w-full pl-10 pr-12 py-3.5 rounded-xl theme-input transition-colors disabled:opacity-50"
                       placeholder="Password" required />
                     <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white">
                       {showPass ? <FiEyeOff size={18} /> : <FiEye size={18} />}
@@ -326,7 +328,7 @@ export default function Register() {
                   <div className="relative">
                     <FiLock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
                     <input type={showConfirmPass ? 'text' : 'password'} name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} disabled={loading}
-                      className="w-full pl-10 pr-12 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-violet-500 transition-colors disabled:opacity-50"
+                      className="w-full pl-10 pr-12 py-3.5 rounded-xl theme-input transition-colors disabled:opacity-50"
                       placeholder="Confirm Password" required />
                     <button type="button" onClick={() => setShowConfirmPass(!showConfirmPass)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white">
                       {showConfirmPass ? <FiEyeOff size={18} /> : <FiEye size={18} />}
@@ -335,16 +337,16 @@ export default function Register() {
                   <div className="relative">
                     <FiHome className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
                     <input type="text" name="college" value={formData.college} onChange={handleChange} disabled={loading}
-                      className="w-full pl-10 pr-4 py-3.5 bg-gray-950/50 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-violet-500 transition-colors disabled:opacity-50"
+                      className="w-full pl-10 pr-4 py-3.5 rounded-xl theme-input transition-colors disabled:opacity-50"
                       placeholder="College (Optional)" />
                   </div>
                   <button type="submit" disabled={loading}
-                    className="w-full bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white py-4 rounded-xl font-bold shadow-[0_0_15px_rgba(139,92,246,0.3)] hover:shadow-[0_0_25px_rgba(139,92,246,0.5)] transition-all disabled:opacity-50 mt-2">
+                    className="w-full text-white py-4 rounded-xl font-bold transition-all disabled:opacity-50 mt-2 btn-accent">
                     {loading ? (retrying ? `Retrying... ${retryAttempt}/3` : 'Processing...') : 'Continue →'}
                   </button>
                 </form>
-                <p className="text-center text-gray-400 mt-5 text-sm">
-                  Already have an account? <Link to="/login" className="text-white font-bold hover:text-violet-400 transition-colors">Sign in</Link>
+                <p className="text-center text-gray-500 mt-5 text-sm">
+                  Already have an account? <Link to="/login" className="font-bold transition-colors" style={{ color: 'var(--accent)' }}>Sign in</Link>
                 </p>
               </motion.div>
             )}
@@ -356,27 +358,28 @@ export default function Register() {
                   <div className="w-16 h-16 bg-gradient-to-tr from-emerald-500 to-teal-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
                     <FiKey className="text-2xl text-white" />
                   </div>
-                  <h3 className="text-2xl font-bold text-white">Check Your Email</h3>
-                  <p className="text-gray-400 mt-2 text-sm">
+                  <h3 className="text-2xl font-bold text-gray-900">Check Your Email</h3>
+                  <p className="text-gray-500 mt-2 text-sm">
                     We sent a 6-digit code to<br />
-                    <span className="text-white font-medium">{formData.email}</span>
+                    <span className="text-gray-900 font-medium">{formData.email}</span>
                   </p>
                 </div>
                 <form onSubmit={handleVerify} className="space-y-6">
                   <input ref={otpInputRef} type="text" inputMode="numeric" maxLength={6} value={otp}
                     onChange={e => { setOtp(e.target.value.replace(/\D/g, '').slice(0, 6)); if (error) setError(''); }}
                     disabled={loading}
-                    className="w-full text-center font-mono text-2xl py-4 bg-gray-950/50 border border-emerald-500/30 rounded-xl text-emerald-400 placeholder-gray-600 focus:outline-none focus:border-emerald-500 transition-colors disabled:opacity-50 tracking-widest"
+                    className="w-full text-center font-mono text-2xl py-4 rounded-xl border text-emerald-600 placeholder-gray-300 focus:outline-none transition-colors disabled:opacity-50 tracking-widest"
+                    style={{ background: 'rgba(255,255,255,0.9)', borderColor: 'rgba(16,185,129,0.4)' }}
                     placeholder="000000" required />
                   <button type="submit" disabled={loading || otp.length !== 6}
-                    className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-4 rounded-xl font-bold shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:shadow-[0_0_25px_rgba(16,185,129,0.5)] transition-all disabled:opacity-50">
+                    className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-4 rounded-xl font-bold shadow-lg transition-all disabled:opacity-50">
                     {loading ? 'Verifying...' : 'Verify & Login'}
                   </button>
                   <div className="flex justify-between items-center">
-                    <button type="button" onClick={goBack} className="flex items-center gap-1 text-sm text-gray-400 hover:text-white transition-colors">
+                    <button type="button" onClick={goBack} className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 transition-colors">
                       <FiArrowLeft size={14} /> Back
                     </button>
-                    <button type="button" onClick={handleResendOtp} disabled={resendCooldown > 0 || loading} className="text-sm text-gray-400 hover:text-white disabled:opacity-50 transition-colors">
+                    <button type="button" onClick={handleResendOtp} disabled={resendCooldown > 0 || loading} className="text-sm text-gray-500 hover:text-gray-800 disabled:opacity-50 transition-colors">
                       {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend code'}
                     </button>
                   </div>

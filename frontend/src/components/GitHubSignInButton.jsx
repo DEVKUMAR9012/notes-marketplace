@@ -82,23 +82,24 @@ export default function GitHubSignInButton({ redirectTo = '/', label = 'Continue
           justifyContent: 'center',
           gap: '10px',
           padding: '13px 20px',
-          background: 'rgba(255,255,255,0.05)',
-          border: '1px solid rgba(255,255,255,0.12)',
+          background: '#ffffff',
+          border: '1px solid rgba(0,0,0,0.12)',
           borderRadius: '14px',
           cursor: loading ? 'not-allowed' : 'pointer',
           transition: 'all 0.18s',
           opacity: loading ? 0.7 : 1,
+          boxShadow: '0 2px 6px rgba(0,0,0,0.02)',
         }}
-        onMouseEnter={e => { if (!loading) { e.currentTarget.style.background = 'rgba(255,255,255,0.09)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.22)'; } }}
-        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; }}
+        onMouseEnter={e => { if (!loading) { e.currentTarget.style.background = 'rgba(0,0,0,0.03)'; e.currentTarget.style.borderColor = 'rgba(0,0,0,0.22)'; } }}
+        onMouseLeave={e => { e.currentTarget.style.background = '#ffffff'; e.currentTarget.style.borderColor = 'rgba(0,0,0,0.12)'; }}
       >
         {loading ? (
-          <span style={{ width: 20, height: 20, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
+          <span style={{ width: 20, height: 20, border: '2px solid rgba(0,0,0,0.2)', borderTopColor: '#111827', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
         ) : (
-          <FiGithub size={20} color="#d1d5db" />
+          <FiGithub size={20} color="#111827" />
         )}
-        <span style={{ fontSize: 14, fontWeight: 600, color: '#d1d5db' }}>
-          {loading ? 'Redirecting to GitHub…' : label}
+        <span style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>
+          {loading ? 'Connecting…' : label}
         </span>
       </button>
 

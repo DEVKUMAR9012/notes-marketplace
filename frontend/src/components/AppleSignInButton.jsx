@@ -135,24 +135,25 @@ export default function AppleSignInButton({ redirectTo = '/', label = 'Continue 
           justifyContent: 'center',
           gap: '10px',
           padding: '13px 20px',
-          background: 'rgba(255,255,255,0.05)',
-          border: '1px solid rgba(255,255,255,0.12)',
+          background: '#ffffff',
+          border: '1px solid rgba(0,0,0,0.12)',
           borderRadius: '14px',
           cursor: loading ? 'not-allowed' : 'pointer',
           transition: 'all 0.18s',
           opacity: loading ? 0.7 : 1,
+          boxShadow: '0 2px 6px rgba(0,0,0,0.02)',
         }}
-        onMouseEnter={e => { if (!loading) { e.currentTarget.style.background = 'rgba(255,255,255,0.09)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.22)'; } }}
-        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; }}
+        onMouseEnter={e => { if (!loading) { e.currentTarget.style.background = 'rgba(0,0,0,0.03)'; e.currentTarget.style.borderColor = 'rgba(0,0,0,0.22)'; } }}
+        onMouseLeave={e => { e.currentTarget.style.background = '#ffffff'; e.currentTarget.style.borderColor = 'rgba(0,0,0,0.12)'; }}
       >
         {loading ? (
-          <span style={{ width: 20, height: 20, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
+          <span style={{ width: 20, height: 20, border: '2px solid rgba(0,0,0,0.2)', borderTopColor: '#111827', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
         ) : (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="#111827" xmlns="http://www.w3.org/2000/svg">
             <path d="M18.71 19.5C17.88 20.74 17 21.95 15.66 21.97C14.32 22 13.89 21.18 12.37 21.18C10.84 21.18 10.37 21.95 9.09997 22C7.78997 22.05 6.8 20.68 5.96 19.47C4.25 17 2.94 12.45 4.7 9.39C5.57 7.87 7.13 6.91 8.82 6.88C10.1 6.86 11.32 7.75 12.11 7.75C12.89 7.75 14.37 6.68 15.92 6.84C16.57 6.87 18.39 7.1 19.56 8.82C19.47 8.88 17.39 10.1 17.41 12.63C17.44 15.65 20.06 16.66 20.09 16.67C20.06 16.74 19.67 18.11 18.71 19.5ZM13 3.5C13.73 2.67 14.94 2.04 15.94 2C16.07 3.17 15.6 4.35 14.9 5.19C14.21 6.04 13.07 6.7 11.95 6.61C11.8 5.46 12.36 4.26 13 3.5Z" />
           </svg>
         )}
-        <span style={{ fontSize: 14, fontWeight: 600, color: '#d1d5db' }}>
+        <span style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>
           {loading ? 'Signing in…' : label}
         </span>
       </button>

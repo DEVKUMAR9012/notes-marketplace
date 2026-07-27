@@ -30,7 +30,7 @@
   position: absolute;
   width: 3px;
   height: 3px;
-  background: #5DCAA5;
+  background: #f97b5b;
   border-radius: 50%;
   opacity: 0;
 }
@@ -63,7 +63,7 @@
 .orb1 {
   width: 200px;
   height: 200px;
-  background: radial-gradient(circle, #5DCAA5, transparent);
+  background: radial-gradient(circle, #f97b5b, transparent);
   top: -80px;
   left: -80px;
   animation: float 8s ease-in-out infinite;
@@ -72,7 +72,7 @@
 .orb2 {
   width: 150px;
   height: 150px;
-  background: radial-gradient(circle, #7F77DD, transparent);
+  background: radial-gradient(circle, #10b981, transparent);
   bottom: -60px;
   right: -60px;
   animation: float 10s ease-in-out infinite reverse;
@@ -108,12 +108,12 @@
   position: absolute;
   width: 30px;
   height: 36px;
-  background: linear-gradient(135deg, #5DCAA5, #378ADD);
+  background: linear-gradient(135deg, #f97b5b, #fb923c);
   border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 15px rgba(93, 202, 165, 0.4);
+  box-shadow: 0 0 15px rgba(249, 123, 91, 0.4);
   top: 0;
   left: 0;
 }
@@ -140,8 +140,8 @@
 
 .note-card.second {
   transform: rotate(-12deg) translate(-12px, 8px);
-  background: linear-gradient(135deg, #7F77DD, #534AB7);
-  box-shadow: 0 0 15px rgba(127, 119, 221, 0.4);
+  background: linear-gradient(135deg, #10b981, #059669);
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
   animation: float-card 3s ease-in-out infinite;
 }
 
@@ -173,7 +173,7 @@
 .main-text {
   font-size: 24px;
   font-weight: 800;
-  background: linear-gradient(to right, #a78bfa, #e879f9); /* Violet to Fuchsia */
+  background: linear-gradient(to right, #f97b5b, #10b981);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -194,11 +194,11 @@
 }
 
 .subtitle {
-  color: rgba(181, 212, 244, 0.6);
+  color: rgba(55, 65, 81, 0.55);
   font-size: 10px;
   margin-top: 2px;
   letter-spacing: 2px;
-  font-weight: 300;
+  font-weight: 400;
   animation: fade-in 1.5s ease-in-out;
 }
 

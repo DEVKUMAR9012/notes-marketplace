@@ -33,7 +33,7 @@ export default function LoginSocialOnly() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: '#07071a',
+      background: 'var(--bg-gradient)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -42,26 +42,26 @@ export default function LoginSocialOnly() {
       overflow: 'hidden',
     }}>
 
-      {/* 🌌 Purple depth orb — top-left */}
+      {/* 🌌 Coral depth orb — top-left */}
       <div style={{
         position: 'absolute', top: '-20%', left: '-15%',
         width: '700px', height: '700px',
-        background: 'radial-gradient(circle, rgba(109,40,217,0.22) 0%, transparent 65%)',
+        background: 'radial-gradient(circle, rgba(249,123,91,0.18) 0%, transparent 65%)',
         pointerEvents: 'none',
       }} />
 
-      {/* 🌌 Magenta depth orb — bottom-right */}
+      {/* 🌌 Mint depth orb — bottom-right */}
       <div style={{
         position: 'absolute', bottom: '-20%', right: '-15%',
         width: '600px', height: '600px',
-        background: 'radial-gradient(circle, rgba(219,39,119,0.17) 0%, transparent 65%)',
+        background: 'radial-gradient(circle, rgba(16,185,129,0.15) 0%, transparent 65%)',
         pointerEvents: 'none',
       }} />
 
       {/* Subtle grid texture */}
       <div style={{
         position: 'absolute', inset: 0, pointerEvents: 'none',
-        backgroundImage: 'linear-gradient(rgba(255,255,255,0.018) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.018) 1px,transparent 1px)',
+        backgroundImage: 'linear-gradient(rgba(0,0,0,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,0,0,0.03) 1px,transparent 1px)',
         backgroundSize: '48px 48px',
         maskImage: 'radial-gradient(ellipse 80% 80% at 50% 50%,black 40%,transparent 100%)',
         WebkitMaskImage: 'radial-gradient(ellipse 80% 80% at 50% 50%,black 40%,transparent 100%)',
@@ -74,13 +74,13 @@ export default function LoginSocialOnly() {
         style={{ maxWidth: '440px', width: '100%', position: 'relative', zIndex: 1 }}
       >
         <div style={{
-          background: 'rgba(255,255,255,0.025)',
-          border: '1px solid rgba(255,255,255,0.09)',
+          background: 'rgba(255, 255, 255, 0.82)',
+          border: '1px solid rgba(0, 0, 0, 0.08)',
           borderRadius: '28px',
           padding: '40px 36px 36px',
           backdropFilter: 'blur(28px)',
           WebkitBackdropFilter: 'blur(28px)',
-          boxShadow: '0 40px 100px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.04) inset',
+          boxShadow: '0 24px 70px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255, 255, 255, 0.9) inset',
         }}>
 
           {/* ── Logo ──────────────────────────────────────────────────────── */}
@@ -90,7 +90,7 @@ export default function LoginSocialOnly() {
               <div style={{ position: 'relative' }}>
                 <div style={{
                   position: 'absolute', inset: '-12px',
-                  background: 'radial-gradient(circle, rgba(139,92,246,0.38) 0%, transparent 70%)',
+                  background: 'radial-gradient(circle, rgba(249,123,91,0.25) 0%, transparent 70%)',
                   borderRadius: '50%', filter: 'blur(10px)', pointerEvents: 'none',
                   animation: 'logo-breathe 3s ease-in-out infinite',
                 }} />
@@ -102,7 +102,7 @@ export default function LoginSocialOnly() {
             <div style={{
               fontSize: '11px', fontWeight: 800, letterSpacing: '0.18em',
               textTransform: 'uppercase', marginBottom: '14px',
-              background: 'linear-gradient(90deg, #a78bfa 0%, #f472b6 100%)',
+              background: 'linear-gradient(90deg, #f97b5b 0%, #10b981 100%)',
               WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
             }}>
               Notes Marketplace
@@ -110,16 +110,16 @@ export default function LoginSocialOnly() {
 
             {/* Headline with ✦ star */}
             <h1 style={{
-              fontSize: '26px', fontWeight: 800, color: '#fff',
+              fontSize: '26px', fontWeight: 800, color: '#111827',
               margin: '0 0 6px', letterSpacing: '-0.02em', lineHeight: 1.2,
             }}>
               Welcome back{' '}
               <span style={{
-                background: 'linear-gradient(135deg, #a78bfa, #f472b6, #fb923c)',
+                background: 'linear-gradient(135deg, #f97b5b, #fb923c, #10b981)',
                 WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
               }}>✦</span>
             </h1>
-            <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '14px', margin: 0 }}>
+            <p style={{ color: '#4b5563', fontSize: '14px', margin: 0 }}>
               Choose how you'd like to continue
             </p>
           </div>
@@ -127,7 +127,7 @@ export default function LoginSocialOnly() {
           {/* ── Buttons ───────────────────────────────────────────────────── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
 
-            {/* 🔥 Google — primary CTA with spinning border (handled inside component) */}
+            {/* 🔥 Google — primary CTA */}
             <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.07 }}>
               <GoogleSignInButton label="Sign in with Google" redirectTo="/" />
             </motion.div>
@@ -147,7 +147,7 @@ export default function LoginSocialOnly() {
               <button type="button" disabled style={styles.gitlabBtn}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
                   <GitLabIcon />
-                  <span style={{ fontSize: 13, fontWeight: 600, color: '#4b5563' }}>Continue with GitLab</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#6b7280' }}>Continue with GitLab</span>
                 </div>
                 <span style={styles.soonBadge}>Soon</span>
               </button>
@@ -158,9 +158,9 @@ export default function LoginSocialOnly() {
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
               style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '2px 0' }}
             >
-              <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.07)' }} />
-              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.18)', fontWeight: 500 }}>or</span>
-              <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.07)' }} />
+              <div style={{ flex: 1, height: '1px', background: 'rgba(0,0,0,0.08)' }} />
+              <span style={{ fontSize: 11, color: '#6b7280', fontWeight: 500 }}>or</span>
+              <div style={{ flex: 1, height: '1px', background: 'rgba(0,0,0,0.08)' }} />
             </motion.div>
 
             {/* 👤 Guest — ghost / de-emphasized */}
@@ -172,28 +172,27 @@ export default function LoginSocialOnly() {
                 style={{
                   width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
                   gap: '8px', padding: '11px 20px',
-                  background: 'transparent', border: '1px solid rgba(255,255,255,0.09)',
+                  background: '#ffffff', border: '1px solid rgba(0,0,0,0.12)',
                   borderRadius: '14px', cursor: guestLoading ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.2s', opacity: guestLoading ? 0.55 : 0.65,
+                  transition: 'all 0.2s', opacity: guestLoading ? 0.65 : 1,
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.02)',
                 }}
                 onMouseEnter={e => {
                   if (!guestLoading) {
-                    e.currentTarget.style.opacity = '0.88';
-                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)';
-                    e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+                    e.currentTarget.style.borderColor = '#f97b5b';
+                    e.currentTarget.style.background = 'rgba(249,123,91,0.06)';
                   }
                 }}
                 onMouseLeave={e => {
-                  e.currentTarget.style.opacity = '0.65';
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)';
-                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.borderColor = 'rgba(0,0,0,0.12)';
+                  e.currentTarget.style.background = '#ffffff';
                 }}
               >
                 {guestLoading
                   ? <span style={styles.spinner} />
                   : <span style={{ fontSize: 15, lineHeight: 1 }}>👤</span>
                 }
-                <span style={{ fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,0.4)' }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>
                   {guestLoading ? 'Starting session…' : 'Continue as Guest'}
                 </span>
               </button>
@@ -203,18 +202,18 @@ export default function LoginSocialOnly() {
           {/* Footer */}
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.42 }}>
             <p style={{
-              fontSize: 11, color: 'rgba(255,255,255,0.18)', textAlign: 'center',
+              fontSize: 11, color: '#6b7280', textAlign: 'center',
               marginTop: '18px', marginBottom: 0, lineHeight: 1.65,
             }}>
               Guest sessions stay only in this browser and do not create a saved account
             </p>
             <div style={{
               marginTop: '18px', paddingTop: '16px',
-              borderTop: '1px solid rgba(255,255,255,0.06)', textAlign: 'center',
+              borderTop: '1px solid rgba(0,0,0,0.06)', textAlign: 'center',
             }}>
-              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.28)', margin: 0 }}>
+              <p style={{ fontSize: 13, color: '#4b5563', margin: 0 }}>
                 New here?{' '}
-                <span style={{ color: 'rgba(255,255,255,0.38)' }}>Sign up with any method above</span>
+                <span style={{ color: '#111827', fontWeight: 600 }}>Sign up with any method above</span>
               </p>
             </div>
           </motion.div>
@@ -237,17 +236,17 @@ const styles = {
   gitlabBtn: {
     width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
     padding: '12px 16px',
-    background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)',
-    borderRadius: '14px', cursor: 'not-allowed', opacity: 0.5,
+    background: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.06)',
+    borderRadius: '14px', cursor: 'not-allowed', opacity: 0.6,
   },
   soonBadge: {
-    fontSize: 10, fontWeight: 700, color: '#7c3aed', textTransform: 'uppercase',
-    letterSpacing: '0.08em', background: 'rgba(139,92,246,0.12)',
-    padding: '3px 8px', borderRadius: '20px', border: '1px solid rgba(139,92,246,0.2)',
+    fontSize: 10, fontWeight: 700, color: '#f97b5b', textTransform: 'uppercase',
+    letterSpacing: '0.08em', background: 'rgba(249,123,91,0.12)',
+    padding: '3px 8px', borderRadius: '20px', border: '1px solid rgba(249,123,91,0.2)',
   },
   spinner: {
     width: 15, height: 15,
-    border: '2px solid rgba(255,255,255,0.15)', borderTopColor: 'rgba(255,255,255,0.5)',
+    border: '2px solid rgba(249,123,91,0.25)', borderTopColor: '#f97b5b',
     borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite',
   },
 };
@@ -255,7 +254,7 @@ const styles = {
 function GitLabIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-      <path d="M22.65 14.39L12 22.13 1.35 14.39a.84.84 0 01-.3-.94l1.22-3.78 2.44-7.51A.42.42 0 014.82 2a.43.43 0 01.58 0c.05.05.09.11.11.18l2.44 7.49h8.1l2.44-7.51a.42.42 0 01.11-.18.43.43 0 01.58 0 .42.42 0 01.11.18l2.44 7.51 1.22 3.78a.84.84 0 01-.3.94z" fill="#4b5563"/>
+      <path d="M22.65 14.39L12 22.13 1.35 14.39a.84.84 0 01-.3-.94l1.22-3.78 2.44-7.51A.42.42 0 014.82 2a.43.43 0 01.58 0c.05.05.09.11.11.18l2.44 7.49h8.1l2.44-7.51a.42.42 0 01.11-.18.43.43 0 01.58 0 .42.42 0 01.11.18l2.44 7.51 1.22 3.78a.84.84 0 01-.3.94z" fill="#6b7280"/>
     </svg>
   );
 }
