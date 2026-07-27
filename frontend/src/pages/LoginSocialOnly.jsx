@@ -14,10 +14,15 @@ export default function LoginSocialOnly() {
   const [guestLoading, setGuestLoading] = useState(false);
 
   useEffect(() => {
-    if (user && !user.isGuest) navigate('/', { replace: true });
+    if (user) {
+      navigate('/', { replace: true });
+    } else {
+      handleGuestLogin();
+    }
   }, [user, navigate]);
 
   const handleGuestLogin = async () => {
+    if (guestLoading) return;
     setGuestLoading(true);
     try {
       const { data } = await API.post('/auth/guest-init');
