@@ -1,16 +1,9 @@
-import { useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 export default function ProtectedRoute({ children }) {
-  const { user, loading, initializeSession } = useAuth();
+  const { user, loading } = useAuth();
 
-  useEffect(() => {
-    if (!user && !loading) {
-      initializeSession();
-    }
-  }, [user, loading, initializeSession]);
-
-  if (loading || !user) {
+  if (loading && !user) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-gradient)' }}>
         <div className="flex flex-col items-center gap-4">

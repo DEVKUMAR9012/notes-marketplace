@@ -4,63 +4,69 @@ import API, { syncToken } from '../utils/api';
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  // Hydrate from localStorage immediately to avoid flicker
+  // Hydrate from localStorage immediately to avoid flicker or hanging
   const [user, setUser] = useState(() => {
     try {
       const cached = localStorage.getItem('user');
-      return cached ? JSON.parse(cached) : null;
+      if (cached) return JSON.parse(cached);
+      const fallback = {
+        _id: 'guest_' + Math.random().toString(36).substring(2, 10),
+        name: 'Guest Explorer',
+        role: 'guest',
+        isGuest: true,
+      };
+      localStorage.setItem('user', JSON.stringify(fallback));
+      return fallback;
     } catch {
-      return null;
+      return { _id: 'guest_fallback', name: 'Guest Explorer', role: 'guest', isGuest: true };
     }
   });
-  const [loading, setLoading] = useState(false); // ⭐ Don't block UI on first load
+  const [loading, setLoading] = useState(false);
+
+  const createLocalGuestFallback = () => {
+    const fallback = {
+      _id: 'guest_' + Math.random().toString(36).substring(2, 10),
+      name: 'Guest Explorer',
+      role: 'guest',
+      isGuest: true,
+    };
+    localStorage.setItem('user', JSON.stringify(fallback));
+    setUser(fallback);
+    return fallback;
+  };
 
   // ── Background Session Engine ─────────────────────────────────────────────
-  // Called on mount. Three outcomes:
-  //   A) No token → create silent invisible guest session
-  //   B) Token exists + /auth/me succeeds → refresh user from server
-  //   C) Token exists + /auth/me fails (expired) → clear & re-create silent guest
   const initializeSession = useCallback(async () => {
     const token = localStorage.getItem('token');
-    setLoading(true); // Show loading only if already mounted for 2+ seconds
 
     if (!token) {
-      // ── A: Fresh visitor — create invisible ghost session ──────────────
+      // ── A: Fresh visitor — create or sync guest session ──────────────
       try {
-        const { data } = await API.post('/auth/guest-init', {}, { timeout: 30000 }); // 30s timeout for cold start
+        const { data } = await API.post('/auth/guest-init', {}, { timeout: 10000 });
         if (data?.success) {
           syncToken(data.token);
           localStorage.setItem('user', JSON.stringify(data.user));
           setUser(data.user);
+        } else if (!user) {
+          createLocalGuestFallback();
         }
       } catch (err) {
-        console.warn('Guest session creation delayed (backend warming up):', err.message);
-        // Silent fail — app works fine without a session
+        console.warn('Guest session creation using local fallback:', err.message);
+        if (!user) createLocalGuestFallback();
       }
     } else {
       // ── B/C: Returning visitor — validate & refresh ────────────────────
-      syncToken(token); // Attach existing token to Axios first
+      syncToken(token);
       try {
         const { data } = await API.get('/auth/me');
         const freshUser = data.user || data;
         localStorage.setItem('user', JSON.stringify(freshUser));
         setUser(freshUser);
       } catch {
-        // ── C: Token expired/invalid → nuke it and start fresh ghost session
         syncToken(null);
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        setUser(null);
-        try {
-          const { data } = await API.post('/auth/guest-init', {}, { timeout: 30000 });
-          if (data?.success) {
-            syncToken(data.token);
-            localStorage.setItem('user', JSON.stringify(data.user));
-            setUser(data.user);
-          }
-        } catch {
-          // Silent fail
-        }
+        createLocalGuestFallback();
       }
     }
 

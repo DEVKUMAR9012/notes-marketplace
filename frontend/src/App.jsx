@@ -32,18 +32,18 @@ const NotePreviewPage = lazy(() => import('./pages/NotePreviewPage'));
 // Inline fallback — zero dependencies, renders instantly from CSS
 const PageLoader = () => (
   <div style={{
-    position: 'fixed', inset: 0, background: '#050508', zIndex: 50,
+    position: 'fixed', inset: 0, background: 'linear-gradient(135deg, #ccf0d8 0%, #d8f5a8 50%, #eefcce 100%)', zIndex: 50,
     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '14px'
   }}>
     <div style={{
       width: 40, height: 40,
-      border: '3px solid rgba(139,92,246,0.2)',
-      borderTopColor: '#8b5cf6',
+      border: '3px solid rgba(249,123,91,0.25)',
+      borderTopColor: '#f97b5b',
       borderRadius: '50%',
       animation: 'spin 0.8s linear infinite'
     }} />
     <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-    <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: 13, fontFamily: 'system-ui', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+    <span style={{ color: '#4b5563', fontSize: 13, fontFamily: 'system-ui', letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 600 }}>
       NotesHere
     </span>
   </div>
