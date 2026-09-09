@@ -7,6 +7,7 @@ const {
   createOrder,
   verifyPayment,
   getPurchaseStatus,
+  getMyOrders,
   withdrawRequest
 } = require('../controllers/paymentController');
 const { protect } = require('../middleware/authMiddleware');
@@ -15,6 +16,7 @@ const { protect } = require('../middleware/authMiddleware');
 router.post('/create-order', protect, createOrder);
 router.post('/verify', protect, verifyPayment);
 router.get('/status/:noteId', protect, getPurchaseStatus);
+router.get('/my-orders', protect, getMyOrders);
 router.post('/withdraw', protect, withdrawRequest);
 
 module.exports = router;

@@ -28,6 +28,10 @@ const Contact       = lazy(() => import('./pages/Contact'));
 const Chat          = lazy(() => import('./pages/Chat'));
 const AI            = lazy(() => import('./pages/AI'));
 const NotePreviewPage = lazy(() => import('./pages/NotePreviewPage'));
+const SellerOnboard   = lazy(() => import('./pages/SellerOnboard'));
+const SellerDashboard = lazy(() => import('./pages/SellerDashboard'));
+const MyPurchases     = lazy(() => import('./pages/MyPurchases'));
+const PublicSeller    = lazy(() => import('./pages/PublicSeller'));
 
 // Inline fallback — zero dependencies, renders instantly from CSS
 const PageLoader = () => (
@@ -116,6 +120,18 @@ function App() {
                     } />
                     <Route path="/ai" element={
                       <ProtectedRoute><LayoutWithNavbar><AI /></LayoutWithNavbar></ProtectedRoute>
+                    } />
+                    <Route path="/seller/onboard" element={
+                      <ProtectedRoute><LayoutWithNavbar><SellerOnboard /></LayoutWithNavbar></ProtectedRoute>
+                    } />
+                    <Route path="/seller/dashboard" element={
+                      <ProtectedRoute><LayoutWithNavbar><SellerDashboard /></LayoutWithNavbar></ProtectedRoute>
+                    } />
+                    <Route path="/seller/:id" element={
+                      <ProtectedRoute><LayoutWithNavbar><PublicSeller /></LayoutWithNavbar></ProtectedRoute>
+                    } />
+                    <Route path="/purchases" element={
+                      <ProtectedRoute><LayoutWithNavbar><MyPurchases /></LayoutWithNavbar></ProtectedRoute>
                     } />
 
                     {/* ── 404 ── */}

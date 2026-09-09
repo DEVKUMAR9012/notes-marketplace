@@ -10,7 +10,7 @@ const withdrawalSchema = new mongoose.Schema({
   amount: {
     type: Number,
     required: true,
-    min: [100, 'Minimum withdrawal amount is ₹100']
+    min: [50, 'Minimum withdrawal amount is ₹50']
   },
   status: {
     type: String,

@@ -320,6 +320,7 @@ app.use('/api/chat',     require('./routes/chatRoutes'));
 app.use('/api/ai',       require('./routes/aiRoutes'));   // ✅ AI Chat
 app.use('/api/admin',    require('./routes/adminRoutes'));// ✅ Admin Dashboard
 app.use('/api/banners',  require('./routes/bannerRoutes'));// ✅ Banners System
+app.use('/api/seller',   require('./routes/sellerRoutes'));// ✅ Seller Marketplace & Payouts
 
 app.get('/api/health', (req, res) =>
   res.json({ status: 'OK', message: 'Backend running', timestamp: new Date().toISOString() }));

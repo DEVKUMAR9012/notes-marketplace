@@ -81,6 +81,26 @@ const noteSchema = new mongoose.Schema({
   aiSummary: {
     type: String,
     default: ''
+  },
+  // ─── Marketplace fields ───────────────────────────────────────────────────────
+  previewImage: {
+    type: String,
+    default: ''
+  },
+  course: {
+    type: String,
+    default: '',
+    trim: true
+  },
+  branch: {
+    type: String,
+    default: '',
+    trim: true
+  },
+  category: {
+    type: String,
+    default: '',
+    trim: true
   }
 }, { timestamps: true });
 

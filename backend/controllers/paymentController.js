@@ -3,6 +3,8 @@ const crypto = require('crypto');
 const Note = require('../models/Note');
 const User = require('../models/User');
 const Bundle = require('../models/Bundle');
+const Order = require('../models/Order');
+const Withdrawal = require('../models/Withdrawal');
 const sendEmail = require('../utils/sendEmail');
 const templates = require('../utils/emailTemplates');
 
@@ -103,6 +105,8 @@ exports.verifyPayment = async (req, res) => {
     const notes = await Note.find({ _id: { $in: processedIds } });
     if (!notes.length) return res.status(404).json({ message: 'Notes not found' });
 
+    // Retrieve buyer info for email and order records
+    const buyer = await User.findById(userId).select('name email _id');
     let pdfUrls = [];
     
     for (const note of notes) {
@@ -133,23 +137,46 @@ exports.verifyPayment = async (req, res) => {
         }
       });
 
-      await User.findByIdAndUpdate(note.uploadedBy, {
-        $inc: { walletBalance: sellerEarning, totalEarnings: sellerEarning, totalSales: 1 },
-        $push: {
-          transactions: {
-            type: 'credit',
-            amount: sellerEarning,
-            description: `Sale: ${note.title}`,
-            noteId: note._id,
+      const sellerUser = await User.findByIdAndUpdate(
+        note.uploadedBy,
+        {
+          $inc: { walletBalance: sellerEarning, totalEarnings: sellerEarning, totalSales: 1 },
+          $push: {
+            transactions: {
+              type: 'credit',
+              amount: sellerEarning,
+              description: `Sale: ${note.title}`,
+              noteId: note._id,
+            }
           }
-        }
-      });
+        },
+        { new: true }
+      ).select('name');
+
+      // ── Create persistent Order record ─────────────────────────────────────
+      try {
+        await Order.create({
+          buyer: userId,
+          seller: note.uploadedBy,
+          note: note._id,
+          amount: note.price,
+          platformFee,
+          sellerEarning,
+          razorpayOrderId: razorpay_order_id,
+          razorpayPaymentId: razorpay_payment_id,
+          status: 'paid',
+          noteTitle: note.title,
+          buyerName: buyer?.name || '',
+          sellerName: sellerUser?.name || ''
+        });
+      } catch (orderErr) {
+        console.error('Order creation error:', orderErr);
+      }
       
       pdfUrls.push(note.pdfUrl);
     }
 
     // ✅ Send purchase receipt emails (fire-and-forget)
-    const buyer = await User.findById(userId).select('name email _id');
     if (buyer) {
       const totalAmount = notes.reduce((sum, n) => sum + n.price, 0);
       const titleSummary = notes.length === 1
@@ -163,7 +190,12 @@ exports.verifyPayment = async (req, res) => {
       }).catch(() => {});
     }
 
-    res.json({ success: true, message: 'Payment verified', pdfUrls });
+    res.json({
+      success: true,
+      message: 'Payment verified',
+      pdfUrls,
+      pdfUrl: pdfUrls[0] || null
+    });
   } catch (err) {
     console.error('Verify payment error:', err);
     res.status(500).json({ message: 'Payment verification error' });
@@ -186,6 +218,21 @@ exports.getPurchaseStatus = async (req, res) => {
   } catch (err) {
     console.error('Get purchase status error:', err);
     res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// ── Buyer: Get My Orders / Purchases ─────────────────────────────────────────
+exports.getMyOrders = async (req, res) => {
+  try {
+    const orders = await Order.find({ buyer: req.user._id, status: 'paid' })
+      .populate('note', 'title subject course branch price pdfUrl previewImage')
+      .populate('seller', 'name avatar')
+      .sort({ createdAt: -1 });
+
+    res.json({ success: true, orders });
+  } catch (err) {
+    console.error('Get my orders error:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch your orders' });
   }
 };
 
@@ -221,6 +268,15 @@ exports.withdrawRequest = async (req, res) => {
           description: `Withdrawal to UPI: ${upiId}`,
         }
       }
+    });
+
+    // Create persistent Withdrawal record
+    await Withdrawal.create({
+      user: userId,
+      userName: user.name,
+      amount,
+      upiId,
+      status: 'pending'
     });
 
     res.json({ success: true, message: `₹${amount} withdrawal request submitted to ${upiId}` });

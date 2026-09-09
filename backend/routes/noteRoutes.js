@@ -28,7 +28,15 @@ const upload = require('../middleware/uploadMiddleware');
 router.get('/my-notes', protect, getMyNotes);
 router.get('/stats', getPublicStats);            // ← public stats for home page
 router.get('/category-stats', getCategoryStats);   // ← category stats for university/school sections
-router.post('/', protect, upload.single('pdf'), createNote);
+router.post(
+  '/',
+  protect,
+  upload.fields([
+    { name: 'pdf', maxCount: 1 },
+    { name: 'previewImage', maxCount: 1 }
+  ]),
+  createNote
+);
 router.post('/generate-summaries', bulkGenerateAISummaries); // AI bulk summarizer
 
 // 2️⃣ PUBLIC LIST ROUTE

@@ -112,8 +112,9 @@ export default function PaymentButton({ note, noteIds, user, onSuccess, classNam
 
             if (verifyRes.data.success) {
               setIsPurchased(true);
-              setSuccessData({ ...note, pdfUrl: verifyRes.data.pdfUrl });
-              onSuccess?.({ pdfUrl: verifyRes.data.pdfUrl });
+              const resolvedPdfUrl = verifyRes.data.pdfUrl || verifyRes.data.pdfUrls?.[0];
+              setSuccessData({ ...note, pdfUrl: resolvedPdfUrl });
+              onSuccess?.({ pdfUrl: resolvedPdfUrl });
             }
           } catch (err) {
             alert('Payment verification failed. Contact support with payment ID: ' + response.razorpay_payment_id);

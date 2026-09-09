@@ -16,12 +16,15 @@ import { Toast } from './tabs/SharedAdminUI';
 export default function Upload() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isGuest } = useAuth();
+  const { user, isGuest } = useAuth();
   
+  const isSeller = user?.role === 'seller' || user?.sellerStatus === 'active' || user?.role === 'admin';
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [uploadProgress, setUploadProgress] = useState(0);
   const [toast, setToast] = useState(null);
+  const [previewImageFile, setPreviewImageFile] = useState(null);
 
   const abortControllerRef = useRef(null);
 
@@ -36,6 +39,8 @@ export default function Upload() {
     subject: '',
     college: '',
     semester: '',
+    course: '',
+    branch: '',
     price: 0,
     itemType: 'note',
     category: ''
@@ -128,6 +133,9 @@ export default function Upload() {
       uploadData.append('title', formData.title);
       uploadData.append('description', formData.description);
       uploadData.append('subject', formData.subject);
+      uploadData.append('category', formData.category || '');
+      uploadData.append('course', formData.course || '');
+      uploadData.append('branch', formData.branch || '');
       if (formData.itemType === 'note') {
         uploadData.append('college', formData.college);
         uploadData.append('semester', formData.semester);
@@ -136,6 +144,9 @@ export default function Upload() {
       uploadData.append('itemType', formData.itemType);
       uploadData.append('fileHash', fileHash);
       uploadData.append('pdf', file);
+      if (previewImageFile) {
+        uploadData.append('previewImage', previewImageFile);
+      }
 
       abortControllerRef.current = new AbortController();
 
@@ -206,7 +217,13 @@ export default function Upload() {
           <form onSubmit={handleSubmit} className="space-y-4">
             
             {/* Extracted Form Fields */}
-            <FormFields formData={formData} handleChange={handleChange} />
+            <FormFields
+              formData={formData}
+              handleChange={handleChange}
+              previewImageFile={previewImageFile}
+              setPreviewImageFile={setPreviewImageFile}
+              isSeller={isSeller}
+            />
 
             {/* Extracted Modern Drag & Drop Zone */}
             <FileDropzone file={file} setFile={setFile} setError={setError} />

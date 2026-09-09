@@ -9,7 +9,7 @@ const PDFThumbnail = ({ pdfUrl, title, note, fileName = '', compact = false }) =
   const [userTriggered, setUserTriggered] = useState(false); // For 3G users to manually load
   const [isMobile, setIsMobile] = useState(false);
 
-  const [useCloudinaryTrick, setUseCloudinaryTrick] = useState(false);
+  const [cloudinaryFailed, setCloudinaryFailed] = useState(false);
   
   const canvasRef = useRef(null);
   const renderTaskRef = useRef(null);
@@ -56,24 +56,29 @@ const PDFThumbnail = ({ pdfUrl, title, note, fileName = '', compact = false }) =
       const isSlow = (networkType === '3g' || networkType === '2g' || networkType === 'slow-2g');
       if (isSlow && isMobile && !userTriggered) {
         setLoading(false);
-        return; 
+        return;
+      }
+
+      if (note?.previewImage) {
+        setThumbnail(note.previewImage);
+        setLoading(false);
+        return;
       }
 
       if (!pdfUrl) { setLoading(false); return; }
       if (isImage) { setThumbnail(fullUrl); setLoading(false); return; }
-      if (!isPdf)  { setLoading(false); setError(true); return; }
 
-      // 🚀 CLOUDINARY FAST THUMBNAIL HACK
-      if (useCloudinaryTrick && fullUrl.includes('cloudinary.com')) {
+      // Cloudinary image/upload PDFs can be directly rendered as fast CDN image thumbnails
+      if (!cloudinaryFailed && fullUrl.includes('cloudinary.com') && fullUrl.includes('/image/upload/')) {
         const cloudThumbnail = fullUrl
-          .replace('/raw/upload/', '/image/upload/') 
-          .replace(/\.pdf($|\?)/i, '.jpg$1')        
-          .replace('/upload/', '/upload/w_400,h_550,c_fill,pg_1,f_auto/'); 
-        
+          .replace(/\.pdf($|\?)/i, '.jpg$1')
+          .replace('/upload/', '/upload/w_500,h_700,c_fill,pg_1,f_auto/');
         setThumbnail(cloudThumbnail);
         setLoading(false);
         return;
       }
+
+      if (!isPdf)  { setLoading(false); setError(true); return; }
 
       // 📚 FALLBACK TO PDF.JS
       if (renderTaskRef.current) {
@@ -153,7 +158,7 @@ const PDFThumbnail = ({ pdfUrl, title, note, fileName = '', compact = false }) =
         renderTaskRef.current = null;
       }
     };
-  }, [pdfUrl, isImage, isPdf, fullUrl, isVisible, networkType, userTriggered, useCloudinaryTrick, isMobile]);
+  }, [pdfUrl, isImage, isPdf, fullUrl, isVisible, networkType, userTriggered, cloudinaryFailed, isMobile]);
 
   const canvasEl = !thumbnail ? <canvas ref={canvasRef} style={{ display: 'none' }} /> : null;
 
@@ -224,11 +229,13 @@ const PDFThumbnail = ({ pdfUrl, title, note, fileName = '', compact = false }) =
         alt={title || 'Thumbnail'}
         className="w-full h-full object-cover object-top bg-white transition-opacity duration-300"
         onError={() => {
-          if (useCloudinaryTrick && thumbnail.includes('cloudinary.com')) {
+          if (!cloudinaryFailed && thumbnail?.includes('cloudinary.com')) {
             console.warn("Cloudinary thumbnail failed, falling back to PDF.js for:", title);
-            setUseCloudinaryTrick(false);
+            setCloudinaryFailed(true);
             setThumbnail(null);
             setLoading(true);
+          } else {
+            setError(true);
           }
         }}
       />

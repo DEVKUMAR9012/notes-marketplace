@@ -65,18 +65,25 @@ exports.getProfile = async (req, res) => {
 exports.getPublicProfile = async (req, res) => {
   try {
     const user = await User.findById(req.params.id)
-      .select('-password -cart -wishlist -transactions -walletBalance -otpCode -otpExpire -resetPasswordToken -resetPasswordExpire -blockedUsers');
+      .select('-password -cart -wishlist -transactions -walletBalance -otpCode -otpExpire -resetPasswordToken -resetPasswordExpire -blockedUsers -phoneNumber');
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    const uploadedNotes = await Note.find({ uploadedBy: req.params.id })
-      .select('title subject price downloads totalEarnings rating totalReviews createdAt pdfUrl');
+    const uploadedNotes = await Note.find({ uploadedBy: req.params.id, status: 'approved' })
+      .select('title subject course branch category price downloads totalEarnings rating totalReviews createdAt pdfUrl previewImage');
+
+    const userObj = user.toObject();
+    // Guarantee private payout details and phone are stripped
+    if (userObj.sellerProfile) {
+      delete userObj.sellerProfile.upiId;
+    }
+    delete userObj.phoneNumber;
 
     res.json({
       user: {
-        ...user.toObject(),
+        ...userObj,
         uploadedNotes,
       },
     });

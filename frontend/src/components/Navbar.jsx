@@ -2,7 +2,22 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiLogOut, FiHome, FiUpload, FiUser, FiMenu, FiX, FiShoppingCart, FiHeadphones, FiMessageSquare, FiShield, FiUserPlus } from 'react-icons/fi';
+import {
+  FiLogOut,
+  FiHome,
+  FiUpload,
+  FiUser,
+  FiMenu,
+  FiX,
+  FiShoppingCart,
+  FiHeadphones,
+  FiMessageSquare,
+  FiShield,
+  FiUserPlus,
+  FiShoppingBag,
+  FiTrendingUp,
+  FiAward
+} from 'react-icons/fi';
 import { BsStars } from 'react-icons/bs';
 import { useState } from 'react';
 import AnimatedLogo from './AnimatedLogo';
@@ -15,6 +30,8 @@ export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const isSeller = user?.role === 'seller' || user?.sellerStatus === 'active';
 
   const handleLogout = async () => {
     try {
@@ -30,6 +47,12 @@ export default function Navbar() {
   const navItems = [
     { label: 'Home', icon: FiHome, path: '/' },
     ...(!isGuest ? [{ label: 'Upload', icon: FiUpload, path: '/upload' }] : []),
+    ...(!isGuest ? [{ label: 'Purchases', icon: FiShoppingBag, path: '/purchases' }] : []),
+    ...(!isGuest
+      ? isSeller
+        ? [{ label: 'Seller', icon: FiTrendingUp, path: '/seller/dashboard' }]
+        : [{ label: 'Sell Notes', icon: FiAward, path: '/seller/onboard' }]
+      : []),
     { label: 'AI', icon: BsStars, path: '/ai' },
     { label: 'Chat', icon: FiMessageSquare, path: '/chat' },
     { label: 'Contact', icon: FiHeadphones, path: '/contact' },

@@ -94,6 +94,19 @@ const userSchema = new mongoose.Schema({
     default: 0,
     min: 0
   },
+  // ─── Seller Profile ──────────────────────────────────────────────────────────
+  sellerStatus: {
+    type: String,
+    enum: ['none', 'pending', 'active'],
+    default: 'none'
+  },
+  sellerProfile: {
+    course:      { type: String, default: '' },
+    branch:      { type: String, default: '' },
+    year:        { type: String, default: '' },
+    upiId:       { type: String, default: '' }, // PRIVATE — never expose in public profile
+    completedAt: { type: Date }
+  },
   purchasedNotes: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Note'

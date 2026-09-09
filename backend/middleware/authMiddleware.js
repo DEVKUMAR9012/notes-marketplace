@@ -34,3 +34,18 @@ exports.admin = (req, res, next) => {
     res.status(403).json({ success: false, message: 'Not authorized as an admin' });
   }
 };
+
+exports.requireSeller = (req, res, next) => {
+  if (
+    req.user &&
+    (req.user.role === 'seller' || req.user.sellerStatus === 'active' || req.user.role === 'admin')
+  ) {
+    next();
+  } else {
+    res.status(403).json({
+      success: false,
+      message: 'Seller account required. Please complete seller onboarding first.',
+      code: 'SELLER_REQUIRED'
+    });
+  }
+};

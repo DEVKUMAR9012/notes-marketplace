@@ -293,7 +293,19 @@ exports.getNote = async (req, res) => {
 // @access  Private
 exports.createNote = async (req, res) => {
   try {
-    const { title, description, subject, college, semester, price, itemType, fileHash } = req.body;
+    const {
+      title,
+      description,
+      subject,
+      college,
+      semester,
+      price,
+      itemType,
+      fileHash,
+      course,
+      branch,
+      category
+    } = req.body;
 
     // ✅ Validation
     if (!title || !subject) {
@@ -303,10 +315,25 @@ exports.createNote = async (req, res) => {
       });
     }
 
-    if (!req.file) {
+    // Resolve uploaded files
+    let pdfUrl = '';
+    let previewImageUrl = req.body.previewImage || '';
+
+    if (req.files) {
+      if (req.files.pdf && req.files.pdf[0]) {
+        pdfUrl = req.files.pdf[0].path;
+      }
+      if (req.files.previewImage && req.files.previewImage[0]) {
+        previewImageUrl = req.files.previewImage[0].path;
+      }
+    } else if (req.file) {
+      pdfUrl = req.file.path;
+    }
+
+    if (!pdfUrl) {
       return res.status(400).json({
         success: false,
-        message: 'Please attach a file before uploading.'
+        message: 'Please attach a document file before uploading.'
       });
     }
 
@@ -329,20 +356,21 @@ exports.createNote = async (req, res) => {
       });
     }
 
-    // ✅ Handle uploaded PDF from Cloudinary
-    const pdfUrl = req.file.path;
-
     const note = await Note.create({
       title,
       description:  description || '',
       itemType:     itemType || 'note',
       subject,
       college:      college || '',
+      course:       course || '',
+      branch:       branch || '',
+      category:     category || '',
       semester:     semester ? Number(semester) : null,
       price:        Number(price) || 0,
       pdfUrl,
+      previewImage: previewImageUrl,
       fileHash,
-      uploadedBy:   req.user._id,   // ✅ Fixed: was using wrong field name
+      uploadedBy:   req.user._id,
       status:       'approved'
     });
 
@@ -431,11 +459,16 @@ exports.updateNote = async (req, res) => {
       });
     }
 
-    const { title, description, subject, college, semester, price, itemType } = req.body;
+    const { title, description, subject, college, semester, price, itemType, course, branch, category } = req.body;
+
+    const updateFields = { title, description, subject, college, semester, price, itemType };
+    if (course !== undefined) updateFields.course = course;
+    if (branch !== undefined) updateFields.branch = branch;
+    if (category !== undefined) updateFields.category = category;
 
     note = await Note.findByIdAndUpdate(
       req.params.id,
-      { title, description, subject, college, semester, price, itemType },
+      updateFields,
       { new: true, runValidators: true }
     ).populate('uploadedBy', 'name email college');
 
