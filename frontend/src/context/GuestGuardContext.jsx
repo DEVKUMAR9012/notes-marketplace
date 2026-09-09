@@ -10,7 +10,7 @@
  *  - Survives route changes (the modal stays mounted even during navigation)
  *  - Zero extra JSX in every consuming page/component
  */
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import GuestConversionModal from '../components/GuestConversionModal';
 
@@ -21,6 +21,22 @@ export function GuestGuardProvider({ children }) {
   const { isGuest } = useAuth();
   const [modalOpen, setModalOpen] = useState(false);
   const [triggerReason, setTriggerReason] = useState('this action');
+
+  // Timer: Prompt guests to sign up after 30 seconds
+  useEffect(() => {
+    if (!isGuest) return;
+    
+    // Only trigger once per session to avoid annoying the user if they close it
+    if (sessionStorage.getItem('guest_nudge_shown')) return;
+
+    const timer = setTimeout(() => {
+      setTriggerReason('to unlock exclusive features, save favorites, and buy materials');
+      setModalOpen(true);
+      sessionStorage.setItem('guest_nudge_shown', 'true');
+    }, 30000); // 30 seconds
+
+    return () => clearTimeout(timer);
+  }, [isGuest]);
 
   /**
    * guard(action, reason?)
