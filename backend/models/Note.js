@@ -104,4 +104,7 @@ const noteSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
+// Add compound text index for ultra-fast full-text searches across key fields
+noteSchema.index({ title: 'text', subject: 'text', category: 'text' });
+
 module.exports = mongoose.model('Note', noteSchema);

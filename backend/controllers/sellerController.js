@@ -99,10 +99,11 @@ exports.getSellerDashboard = async (req, res) => {
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
+    const mongoose = require('mongoose');
     const monthlyAggregation = await Order.aggregate([
       {
         $match: {
-          seller: sellerId,
+          seller: new mongoose.Types.ObjectId(sellerId),
           status: 'paid',
           createdAt: { $gte: sixMonthsAgo }
         }
@@ -189,24 +190,31 @@ exports.requestPayout = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    if (withdrawAmount > user.walletBalance) {
-      return res.status(400).json({ success: false, message: 'Insufficient wallet balance' });
-    }
-
     const finalUpiId = (upiId || user.sellerProfile?.upiId || '').trim();
     if (!finalUpiId) {
       return res.status(400).json({ success: false, message: 'UPI ID is required for payout' });
     }
 
-    // Deduct from wallet balance & record transaction
-    user.walletBalance -= withdrawAmount;
-    user.transactions.push({
-      type: 'debit',
-      amount: withdrawAmount,
-      description: `Payout request to UPI: ${finalUpiId}`,
-      date: new Date()
-    });
-    await user.save();
+    // Atomic deduction from wallet balance & record transaction
+    const updatedUser = await User.findOneAndUpdate(
+      { _id: userId, walletBalance: { $gte: withdrawAmount } },
+      {
+        $inc: { walletBalance: -withdrawAmount },
+        $push: {
+          transactions: {
+            type: 'debit',
+            amount: withdrawAmount,
+            description: `Payout request to UPI: ${finalUpiId}`,
+            date: new Date()
+          }
+        }
+      },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(400).json({ success: false, message: 'Insufficient wallet balance' });
+    }
 
     // Create persistent Withdrawal record
     const withdrawal = await Withdrawal.create({

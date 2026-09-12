@@ -5,7 +5,22 @@ const cors    = require('cors');
 const fs      = require('fs');
 const { Server } = require('socket.io');
 const jwt     = require('jsonwebtoken');
+const cluster = require('cluster');
+const os      = require('os');
+const { createAdapter } = require('@socket.io/redis-adapter');
+const Redis   = require('ioredis');
 require('dotenv').config();
+
+if (cluster.isPrimary) {
+  const numCPUs = os.cpus().length;
+  console.log(`🚀 Primary cluster ${process.pid} is running`);
+  for (let i = 0; i < numCPUs; i++) cluster.fork();
+  
+  cluster.on('exit', (worker, code, signal) => {
+    console.log(`Worker ${worker.process.pid} died. Restarting...`);
+    cluster.fork();
+  });
+} else {
 
 const app    = express();
 const server = http.createServer(app);
@@ -18,14 +33,18 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // ========== SOCKET.IO ==========
+const pubClient = new Redis(process.env.REDIS_URI || 'redis://localhost:6379');
+const subClient = pubClient.duplicate();
+
 const io = new Server(server, {
   cors: { origin: corsOptions.origin, credentials: true },
-  pingTimeout: 60000,       // 60s before considering connection dead
-  pingInterval: 25000,      // ping every 25s to keep alive
-  upgradeTimeout: 30000,    // time allowed to upgrade from polling to ws
-  allowUpgrades: true,
-  transports: ['polling', 'websocket'], // polling first (reliable), then upgrade to ws
-  maxHttpBufferSize: 1e6,   // 1MB max message size
+  adapter: createAdapter(pubClient, subClient),
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  upgradeTimeout: 30000,
+  allowUpgrades: false, // force websocket to avoid sticky session issues across clusters
+  transports: ['websocket'], // polling first (reliable), then upgrade to ws
+  maxHttpBufferSize: 1e6,
   connectTimeout: 45000,
 });
 app.set('io', io);
@@ -331,7 +350,7 @@ mongoose.connect(process.env.MONGO_URI, {
   serverSelectionTimeoutMS: 30000, // 30 seconds
   socketTimeoutMS: 45000, // 45 seconds
   connectTimeoutMS: 30000, // 30 seconds
-  maxPoolSize: 10,
+  maxPoolSize: 500, // Increased for massive scale concurrency
   ssl: true,
   authSource: 'admin',
   retryWrites: true,
@@ -378,5 +397,7 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
-  console.log(`🚀 Server on port ${PORT}`);
+  console.log(`🚀 Worker ${process.pid} listening on port ${PORT}`);
 });
+
+} // End of cluster worker block

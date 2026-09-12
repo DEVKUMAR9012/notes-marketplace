@@ -128,14 +128,14 @@ export default function Navbar() {
               </MotionLink>
             ) : (
               <MotionLink
-                to="/register"
+                to="/profile"
                 className="flex items-center gap-2 px-3.5 py-2 rounded-xl border text-sm font-medium transition-all"
                 style={{ borderColor: 'var(--accent-border)', color: 'var(--accent)', background: 'var(--accent-light)' }}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
-                <FiUserPlus size={16} />
-                <span>✨ Claim Profile</span>
+                <FiUser size={16} />
+                <span>✨ Guest Profile</span>
               </MotionLink>
             )}
           </div>
@@ -164,7 +164,7 @@ export default function Navbar() {
 
             {isGuest ? (
               <motion.button
-                onClick={() => navigate('/register')}
+                onClick={() => navigate('/profile')}
                 className="flex items-center gap-2 px-5 py-2 text-white rounded-full font-semibold text-sm btn-accent"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -244,13 +244,13 @@ export default function Navbar() {
                 </MotionLink>
               ) : (
                 <MotionLink
-                  to="/register"
+                  to="/profile"
                   onClick={() => setMobileMenuOpen(false)}
                   className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-medium"
                   style={{ borderColor: 'var(--accent-border)', color: 'var(--accent)', background: 'var(--accent-light)' }}
                 >
-                  <FiUserPlus size={17} />
-                  <span>✨ Claim Profile (Sign Up)</span>
+                  <FiUser size={17} />
+                  <span>✨ Guest Profile</span>
                 </MotionLink>
               )}
 
@@ -267,7 +267,7 @@ export default function Navbar() {
 
                 <motion.button
                   onClick={() => {
-                    isGuest ? navigate('/register') : handleLogout();
+                    isGuest ? navigate('/profile') : handleLogout();
                     setMobileMenuOpen(false);
                   }}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all text-sm font-medium ${

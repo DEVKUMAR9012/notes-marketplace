@@ -150,7 +150,7 @@ export default function Home() {
         </div>
 
         {/* ── Universities Section ─────────────────────────────────────── */}
-        <div className="mb-4 sm:mb-6 relative z-20">
+        <div className="mb-8 relative z-20">
           <UniversitySection categoryStats={categoryStats} />
         </div>
 

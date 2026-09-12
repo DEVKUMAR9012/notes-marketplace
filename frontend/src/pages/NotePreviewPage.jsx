@@ -32,7 +32,7 @@ import { showToast } from '../components/Toast';
 
 /* ─── constants ─────────────────────────────────────────────────────────── */
 const BASE = process.env.REACT_APP_API_URL?.replace(/\/api$/, '') || 'http://localhost:5000';
-const absUrl = (url) => (!url ? '' : url.startsWith('http') ? url : `${BASE}${url}`);
+const absUrl = (url) => (!url ? '' : url.startsWith('http') ? url : `${BASE}${url.startsWith('/') ? '' : '/'}${url.replace(/\\/g, '/')}`);
 
 const TABS = [
   { id: 'preview',  label: 'Preview',  Icon: FiFileText     },

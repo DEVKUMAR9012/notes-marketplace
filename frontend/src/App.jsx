@@ -1,4 +1,4 @@
-import { useEffect, Suspense, lazy } from 'react';
+import { useEffect, Suspense, lazy, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
@@ -10,6 +10,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 import Navbar from './components/Navbar';
 import ActiveBanners from './components/ActiveBanners';
+import IntroReel from './components/IntroReel';
 
 // ── Lazy-loaded pages (code splitting — each page is a separate JS chunk)
 // This means the browser only downloads code for the page the user is on.
@@ -63,12 +64,22 @@ const LayoutWithNavbar = ({ children }) => (
 );
 
 function App() {
+  const [showIntro, setShowIntro] = useState(() => {
+    return !sessionStorage.getItem('hasSeenIntro');
+  });
+
+  const handleIntroComplete = () => {
+    sessionStorage.setItem('hasSeenIntro', 'true');
+    setShowIntro(false);
+  };
+
   useEffect(() => {
     warmupServer();
   }, []);
 
   return (
     <ErrorBoundary>
+      {showIntro && <IntroReel onComplete={handleIntroComplete} />}
       <Toaster position="top-right" />
       <AuthProvider>
         <SocketProvider>

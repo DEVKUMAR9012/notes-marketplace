@@ -13,12 +13,18 @@ export default function RegisterSocialOnly() {
 
   // Email sign-up state toggle
   const [showEmailForm, setShowEmailForm] = useState(false);
+  const [showGuestForm, setShowGuestForm] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [emailLoading, setEmailLoading] = useState(false);
   const [emailError, setEmailError] = useState('');
+  
+  const [guestName, setGuestName] = useState('');
+  const [guestCollege, setGuestCollege] = useState('');
+  const [guestLoading, setGuestLoading] = useState(false);
+  const [guestError, setGuestError] = useState('');
 
   useEffect(() => {
     if (user && !user.isGuest) navigate('/profile', { replace: true });
@@ -46,6 +52,28 @@ export default function RegisterSocialOnly() {
       setEmailError(err?.response?.data?.message || 'Registration failed. Please try again.');
     } finally {
       setEmailLoading(false);
+    }
+  };
+
+  const handleGuestRegister = async (e) => {
+    e.preventDefault();
+    if (!guestName) {
+      setGuestError('Please enter your name');
+      return;
+    }
+    setGuestLoading(true);
+    setGuestError('');
+    try {
+      const { data } = await API.post('/auth/guest-init', { name: guestName, college: guestCollege });
+      syncToken(data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      login(data);
+      alert(`✅ Welcome ${data.user.name}!\n\nYour Guest Login Code is: ${data.guestTokenNo}\n\nPlease save this 8-digit code to log back in later.`);
+      navigate('/explorer', { replace: true });
+    } catch (err) {
+      setGuestError(err?.response?.data?.message || 'Guest session failed. Please try again.');
+    } finally {
+      setGuestLoading(false);
     }
   };
 
@@ -157,22 +185,22 @@ export default function RegisterSocialOnly() {
               <GoogleSignInButton label="Sign in with Google" redirectTo="/profile" />
             </motion.div>
 
-            {/* 🍎 Apple */}
+            {/* 👤 Guest Sign-In */}
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.10 }}>
               <button
                 type="button"
-                disabled
-                style={styles.socialCard}
+                onClick={() => { setShowGuestForm(!showGuestForm); setShowEmailForm(false); }}
+                style={{ ...styles.socialCard, cursor: 'pointer' }}
                 onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
                 onMouseLeave={e => e.currentTarget.style.background = '#f8fafc'}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="#9ca3af">
-                    <path d="M18.71 19.5C17.88 20.74 17 21.95 15.66 21.97C14.32 22 13.89 21.18 12.37 21.18C10.84 21.18 10.37 21.95 9.09997 22C7.78997 22.05 6.8 20.68 5.96 19.47C4.25 17 2.94 12.45 4.7 9.39C5.57 7.87 7.13 6.91 8.82 6.88C10.1 6.86 11.32 7.75 12.11 7.75C12.89 7.75 14.37 6.68 15.92 6.84C16.57 6.87 18.39 7.1 19.56 8.82C19.47 8.88 17.39 10.1 17.41 12.63C17.44 15.65 20.06 16.66 20.09 16.67C20.06 16.74 19.67 18.11 18.71 19.5ZM13 3.5C13.73 2.67 14.94 2.04 15.94 2C16.07 3.17 15.6 4.35 14.9 5.19C14.21 6.04 13.07 6.7 11.95 6.61C11.8 5.46 12.36 4.26 13 3.5Z"/>
-                  </svg>
+                  <div style={{ width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                     <FiUser color="#9ca3af" size={18} />
+                  </div>
                   <div style={{ textAlign: 'left' }}>
-                    <div style={{ fontSize: '13.5px', fontWeight: 600, color: '#1f2937' }}>Sign up with Apple</div>
-                    <div style={{ fontSize: '11px', color: '#9ca3af', fontWeight: 400 }}>OAuth setup pending</div>
+                    <div style={{ fontSize: '13.5px', fontWeight: 600, color: '#1f2937' }}>Sign in as Guest</div>
+                    <div style={{ fontSize: '11px', color: '#9ca3af', fontWeight: 400 }}>Quick access without email</div>
                   </div>
                 </div>
               </button>
@@ -227,7 +255,7 @@ export default function RegisterSocialOnly() {
           <div style={{ marginTop: '16px', textAlign: 'center' }}>
             <button
               type="button"
-              onClick={() => setShowEmailForm(!showEmailForm)}
+              onClick={() => { setShowEmailForm(!showEmailForm); setShowGuestForm(false); }}
               style={{
                 background: 'none', border: 'none', color: '#4b5563',
                 fontSize: '13px', fontWeight: 500, cursor: 'pointer',
@@ -242,6 +270,76 @@ export default function RegisterSocialOnly() {
           </div>
 
           {/* Inline Email / Password Form (Expands smoothly) */}
+          <AnimatePresence>
+            {showGuestForm && (
+              <motion.form
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                onSubmit={handleGuestRegister}
+                style={{ overflow: 'hidden', marginTop: '12px' }}
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {guestError && (
+                    <div style={{
+                      padding: '8px 12px', background: '#fef2f2', border: '1px solid #fecaca',
+                      color: '#b91c1c', borderRadius: '10px', fontSize: '12px', textAlign: 'center',
+                    }}>
+                      {guestError}
+                    </div>
+                  )}
+
+                  <div style={{ position: 'relative' }}>
+                    <FiUser style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
+                    <input
+                      type="text"
+                      placeholder="Your Name"
+                      value={guestName}
+                      onChange={e => setGuestName(e.target.value)}
+                      required
+                      style={{
+                        width: '100%', padding: '11px 14px 11px 40px',
+                        background: '#ffffff', border: '1px solid rgba(0,0,0,0.12)',
+                        borderRadius: '12px', fontSize: '13px', outline: 'none',
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ position: 'relative' }}>
+                    <FiUser style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
+                    <input
+                      type="text"
+                      placeholder="College (Optional)"
+                      value={guestCollege}
+                      onChange={e => setGuestCollege(e.target.value)}
+                      style={{
+                        width: '100%', padding: '11px 14px 11px 40px',
+                        background: '#ffffff', border: '1px solid rgba(0,0,0,0.12)',
+                        borderRadius: '12px', fontSize: '13px', outline: 'none',
+                      }}
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={guestLoading}
+                    style={{
+                      width: '100%', padding: '11px',
+                      background: 'linear-gradient(135deg, #f97b5b, #fb923c)',
+                      color: '#ffffff', border: 'none', borderRadius: '12px',
+                      fontSize: '13px', fontWeight: 700, cursor: guestLoading ? 'not-allowed' : 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                      boxShadow: '0 4px 12px rgba(249, 123, 91, 0.25)',
+                    }}
+                  >
+                    <span>{guestLoading ? 'Starting Session...' : 'Continue as Guest'}</span>
+                    <FiArrowRight size={14} />
+                  </button>
+                </div>
+              </motion.form>
+            )}
+          </AnimatePresence>
+
           <AnimatePresence>
             {showEmailForm && (
               <motion.form

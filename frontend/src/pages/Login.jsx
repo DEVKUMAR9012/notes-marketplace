@@ -9,10 +9,11 @@ import AnimatedLogo from '../components/AnimatedLogo';
 import GoogleSignInButton from '../components/GoogleSignInButton';
 
 export default function Login() {
-  const [authMethod, setAuthMethod] = useState('email'); // 'email' or 'phone'
+  const [authMethod, setAuthMethod] = useState('email'); // 'email', 'phone' or 'guest'
   const [step, setStep] = useState('login'); // 'login', 'forgot', 'reset'
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [guestCode, setGuestCode] = useState('');
   const [password, setPassword] = useState('');
   const [otp, setOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -73,7 +74,7 @@ export default function Login() {
         }, 3);
         login(data);
         navigate('/');
-      } else {
+      } else if (authMethod === 'phone') {
         // Bug 3 fix: strip non-digits and country prefix before length check
         const cleanPhone = phone.replace(/\D/g, '').replace(/^91/, '').replace(/^0/, '');
         if (cleanPhone.length !== 10) {
@@ -81,6 +82,16 @@ export default function Login() {
         }
         const { data } = await retryWithBackoff(async () => {
           return await API.post('/auth/phone-login', { phone: cleanPhone });
+        }, 3);
+        login(data);
+        navigate('/');
+      } else if (authMethod === 'guest') {
+        const cleanCode = guestCode.replace(/\D/g, '');
+        if (cleanCode.length !== 8) {
+          throw new Error('Please enter a valid 8-digit Guest Code');
+        }
+        const { data } = await retryWithBackoff(async () => {
+          return await API.post('/auth/resume-guest', { guestTokenNo: cleanCode });
         }, 3);
         login(data);
         navigate('/');
@@ -220,6 +231,11 @@ export default function Login() {
                       style={authMethod === 'phone' ? { background: 'var(--accent)' } : {}}>
                       <svg stroke="currentColor" fill="none" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round" height="14" width="14" xmlns="http://www.w3.org/2000/svg"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg> Phone
                     </button>
+                    <button type="button" onClick={() => { setAuthMethod('guest'); setError(''); }}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${authMethod === 'guest' ? 'text-white shadow' : 'text-gray-500 hover:text-gray-700'}`}
+                      style={authMethod === 'guest' ? { background: 'var(--accent)' } : {}}>
+                      <FiKey size={14} /> Guest Pass
+                    </button>
                   </div>
 
                   {authMethod === 'email' ? (
@@ -267,7 +283,7 @@ export default function Login() {
                       </button>
                     </div>
                   </>
-                  ) : (
+                  ) : authMethod === 'phone' ? (
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 font-medium">+91</span>
                       <input
@@ -278,6 +294,20 @@ export default function Login() {
                         placeholder="10-digit mobile number"
                         aria-label="Mobile Number"
                         maxLength="10"
+                        required
+                      />
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <FiKey className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                      <input
+                        type="text"
+                        value={guestCode}
+                        onChange={(e) => setGuestCode(e.target.value.replace(/[^0-9]/g, ''))}
+                        className="w-full pl-10 pr-4 py-3.5 rounded-xl transition-colors font-medium tracking-widest theme-input"
+                        placeholder="8-digit Guest Code"
+                        aria-label="Guest Code"
+                        maxLength="8"
                         required
                       />
                     </div>

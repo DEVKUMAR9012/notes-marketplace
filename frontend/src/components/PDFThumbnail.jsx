@@ -20,9 +20,14 @@ const PDFThumbnail = ({ pdfUrl, title, note, fileName = '', compact = false }) =
   const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext);
   const isPdf = ext === 'pdf';
   
-  const fullUrl = pdfUrl?.startsWith('http')
-    ? pdfUrl
-    : `${process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL.replace('/api', '') : 'http://localhost:5000'}${pdfUrl}`;
+  const BASE = process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL.replace(/\/api$/, '') : 'http://localhost:5000';
+  const getAbsUrl = (url) => {
+    if (!url) return '';
+    if (url.startsWith('http')) return url;
+    return `${BASE}${url.startsWith('/') ? '' : '/'}${url.replace(/\\/g, '/')}`;
+  };
+
+  const fullUrl = getAbsUrl(pdfUrl);
 
   // 1. Detect Network Speed & Device Type
   useEffect(() => {
@@ -60,7 +65,8 @@ const PDFThumbnail = ({ pdfUrl, title, note, fileName = '', compact = false }) =
       }
 
       if (note?.previewImage) {
-        setThumbnail(note.previewImage);
+        const previewUrl = getAbsUrl(note.previewImage);
+        setThumbnail(previewUrl);
         setLoading(false);
         return;
       }
@@ -158,7 +164,7 @@ const PDFThumbnail = ({ pdfUrl, title, note, fileName = '', compact = false }) =
         renderTaskRef.current = null;
       }
     };
-  }, [pdfUrl, isImage, isPdf, fullUrl, isVisible, networkType, userTriggered, cloudinaryFailed, isMobile]);
+  }, [pdfUrl, isImage, isPdf, fullUrl, isVisible, networkType, userTriggered, cloudinaryFailed, isMobile, note?.previewImage]);
 
   const canvasEl = !thumbnail ? <canvas ref={canvasRef} style={{ display: 'none' }} /> : null;
 

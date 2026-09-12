@@ -102,6 +102,18 @@ exports.verifyPayment = async (req, res) => {
       return res.status(400).json({ message: 'Payment verification failed' });
     }
 
+    const existingOrder = await Order.findOne({ razorpayOrderId: razorpay_order_id });
+    if (existingOrder) {
+      const notes = await Note.find({ _id: { $in: processedIds } });
+      const pdfUrls = notes.map(n => n.pdfUrl);
+      return res.json({
+        success: true,
+        message: 'Payment already verified',
+        pdfUrls,
+        pdfUrl: pdfUrls[0] || null
+      });
+    }
+
     const notes = await Note.find({ _id: { $in: processedIds } });
     if (!notes.length) return res.status(404).json({ message: 'Notes not found' });
 
@@ -251,24 +263,29 @@ exports.withdrawRequest = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    if (amount > user.walletBalance) {
-      return res.status(400).json({ message: 'Insufficient balance' });
-    }
-
     if (amount < 50) {
       return res.status(400).json({ message: 'Minimum withdrawal is ₹50' });
     }
 
-    await User.findByIdAndUpdate(userId, {
-      $inc: { walletBalance: -amount },
-      $push: {
-        transactions: {
-          type: 'debit',
-          amount,
-          description: `Withdrawal to UPI: ${upiId}`,
+    // Atomic deduction
+    const updatedUser = await User.findOneAndUpdate(
+      { _id: userId, walletBalance: { $gte: amount } },
+      {
+        $inc: { walletBalance: -amount },
+        $push: {
+          transactions: {
+            type: 'debit',
+            amount,
+            description: `Withdrawal to UPI: ${upiId}`,
+          }
         }
-      }
-    });
+      },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(400).json({ message: 'Insufficient balance' });
+    }
 
     // Create persistent Withdrawal record
     await Withdrawal.create({

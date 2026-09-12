@@ -88,6 +88,7 @@ export async function downloadPdf(url, title = 'document') {
 export function buildPdfUrl(pdfUrl, baseUrl = '') {
   if (!pdfUrl) return '';
   if (pdfUrl.startsWith('http') || pdfUrl.startsWith('blob:')) return pdfUrl;
-  const base = baseUrl || process.env.REACT_APP_API_URL?.replace(/\/api$/, '') || 'http://localhost:5000';
-  return `${base}${pdfUrl.startsWith('/') ? '' : '/'}${pdfUrl}`;
+  const base = baseUrl || (process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL.replace(/\/api$/, '') : 'http://localhost:5000');
+  const normalizedUrl = pdfUrl.replace(/\\/g, '/');
+  return `${base}${normalizedUrl.startsWith('/') ? '' : '/'}${normalizedUrl}`;
 }

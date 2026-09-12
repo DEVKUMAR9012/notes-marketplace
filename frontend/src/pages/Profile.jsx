@@ -2,13 +2,15 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { toast } from 'react-hot-toast';
 import {
   FiUser, FiMail, FiMapPin, FiUpload, FiDownload,
   FiDollarSign, FiBook, FiEdit2, FiCheck,
   FiCamera, FiTrendingUp, FiShoppingBag, FiEye, FiHeart,
-  FiMessageSquare, FiUserPlus, FiFlag, FiLinkedin, FiInstagram, FiMessageCircle, FiAward, FiStar
+  FiMessageSquare, FiUserPlus, FiFlag, FiLinkedin, FiInstagram, FiMessageCircle, FiAward, FiStar, FiX
 } from 'react-icons/fi';
 import API, { API_BASE_URL } from '../utils/api';
+import GoogleSignInButton from '../components/GoogleSignInButton';
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 const StatCard = ({ icon: Icon, label, value, color, sub }) => (
@@ -110,7 +112,7 @@ const CSSBarChart = ({ data, dataKey, color }) => {
 export default function Profile() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user: authUser } = useAuth();
+  const { user: authUser, isGuest, login } = useAuth();
   const authUserId = authUser?._id;
   
   const isOwnProfile = !id || id === authUser?._id;
@@ -133,6 +135,10 @@ export default function Profile() {
   const [reportReason, setReportReason] = useState('');
   const [reporting, setReporting] = useState(false);
   const fileInputRef = useRef(null);
+
+  // Guest Upgrade State
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [upgrading, setUpgrading] = useState(false);
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -324,8 +330,21 @@ export default function Profile() {
 
       <div className="relative z-10 max-w-6xl mx-auto px-3 sm:px-6 py-8 sm:py-12">
         
+        {/* Guest Banner */}
+        {isOwnProfile && isGuest && (
+          <div className="mb-6 theme-card rounded-2xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-2 border-violet-500/30 bg-violet-500/5">
+            <div className="flex-1">
+              <h3 className="text-lg font-bold text-gray-900 mb-1 flex items-center gap-2">✨ You are browsing as a Guest</h3>
+              <p className="text-sm text-gray-600">Link your email and create a password to secure your purchases, uploads, and data permanently.</p>
+            </div>
+            <button onClick={() => setShowUpgradeModal(true)} className="px-5 py-2.5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-violet-500/25 whitespace-nowrap">
+              Upgrade Account
+            </button>
+          </div>
+        )}
+
         {/* Profile Completion Bar */}
-        {isOwnProfile && completionPct < 100 && !editing && (
+        {isOwnProfile && !isGuest && completionPct < 100 && !editing && (
           <div className="mb-6 theme-card rounded-2xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div className="flex-1 w-full">
               <div className="flex justify-between items-end mb-2">
@@ -769,6 +788,43 @@ export default function Profile() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Guest Upgrade Modal */}
+      <AnimatePresence>
+        {showUpgradeModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => !upgrading && setShowUpgradeModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl"
+            >
+              <div className="p-4 border-b border-white/10 flex justify-between items-center bg-white/5">
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  ✨ Upgrade to Permanent Account
+                </h3>
+                <button onClick={() => !upgrading && setShowUpgradeModal(false)} className="text-gray-400 hover:text-white">✕</button>
+              </div>
+              <div className="p-5 text-center">
+                <p className="text-sm text-gray-400 mb-6">
+                  Link your Google account to secure your session, access all features, and save your data permanently.
+                </p>
+                <div className="flex justify-center mt-2">
+                  <GoogleSignInButton label="Sign in with Google to Upgrade" redirectTo="/profile" />
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }

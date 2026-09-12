@@ -527,13 +527,18 @@ exports.phoneLogin = async (req, res) => {
 // ========== SILENT GUEST INIT (Zero-Knowledge Background Session) ==========
 exports.guestInit = async (req, res) => {
   try {
+    const { name, college } = req.body || {};
     const metadata = await getSessionMetadata(req);
 
+    const guestTokenNo = Math.floor(10000000 + Math.random() * 90000000).toString();
+
     const guest = await User.create({
-      name: 'Anonymous Student',
+      name: name && name.trim() ? name.trim() : 'Anonymous Student',
+      college: college && college.trim() ? college.trim() : '',
       role: 'guest',
       isGuest: true,
       isVerified: false,
+      guestTokenNo,
       cart: [],
       wishlist: [],
       lastLogin: new Date(),
@@ -546,7 +551,8 @@ exports.guestInit = async (req, res) => {
     res.status(201).json({
       success: true,
       token,
-      user: { _id: guest._id, name: guest.name, role: 'guest', isGuest: true }
+      guestTokenNo,
+      user: { _id: guest._id, name: guest.name, role: 'guest', isGuest: true, guestTokenNo }
     });
   } catch (error) {
     console.error('Silent guest init error:', error);
@@ -564,15 +570,15 @@ exports.resumeGuestSession = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Guest Pass token is required' });
     }
 
-    // Normalize: uppercase, trim whitespace
-    const normalizedToken = guestTokenNo.trim().toUpperCase();
+    // Normalize: trim whitespace
+    const normalizedToken = guestTokenNo.trim();
 
-    // Validate format: NM-XXXX-XXXX (NM followed by two 4-digit groups)
-    const tokenRegex = /^NM-\d{4}-\d{4}$/;
+    // Validate format: 8-digit number
+    const tokenRegex = /^\d{8}$/;
     if (!tokenRegex.test(normalizedToken)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid Guest Pass format. It should look like: NM-1234-5678'
+        message: 'Invalid Guest Code format. It should be an 8-digit number.'
       });
     }
 
